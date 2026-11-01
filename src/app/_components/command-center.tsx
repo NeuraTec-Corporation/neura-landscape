@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { OperatorSettings } from "./operator-settings";
+import { ContractWorkspace } from "./contract-workspace";
 import { ExperimentalNotice } from "@/shared/ui";
 import { OperationsPanel } from "./operations-panel";
 import { CustomerWorkspace } from "./customer-workspace";
@@ -9,6 +11,7 @@ export const sections = [
 	{ id: "propiedades", label: "Propiedades y localidades" },
 	{ id: "contratos", label: "Contratos" },
 	{ id: "agenda", label: "Trabajos y agenda" },
+	{ id: "control", label: "Control de servicio" },
 	{ id: "cuadrillas", label: "Cuadrillas" },
 	{ id: "integraciones", label: "Integraciones" },
 ] as const;
@@ -73,8 +76,14 @@ export function CommandCenter({ section }: { section: string }) {
 						<CustomerWorkspace />
 					) : section === "propiedades" ? (
 						<PropertyWorkspace />
+					) : section === "contratos" || section === "control" ? (
+						<ContractWorkspace control={section === "control"} />
 					) : (
-						<OperationsPanel section={section} />
+						<>
+							{" "}
+							{section === "integraciones" ? <OperatorSettings /> : null}
+							<OperationsPanel section={section} />
+						</>
 					)}
 					<footer>NeuraTec · Landscape Operations</footer>
 				</main>

@@ -1125,3 +1125,16 @@ button:disabled {
 	}
 }
 .crm-savebar[hidden],.site-panel[hidden]{display:none}
+.service-workspace{display:grid;gap:24px}
+.service-workspace .crm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin:18px 0}
+.service-workspace label{display:grid;gap:8px;font-size:13px;font-weight:600;color:#42584b}
+.service-workspace input,.service-workspace select{width:100%;min-width:0;padding:12px;border:1px solid #9aaf9b;border-radius:5px;font:inherit;background:#fff;color:#203b30}
+.service-workspace input:focus-visible,.service-workspace select:focus-visible{outline:3px solid #997629;outline-offset:3px}
+.service-workspace fieldset{border:0;padding:0;margin:0;min-width:0}
+.service-workspace .location-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.service-workspace dl{display:grid;grid-template-columns:1fr auto;gap:12px;margin:24px 0 0}
+.service-workspace dd{margin:0;font-weight:600;text-align:right}
+.service-workspace dt{color:#657468}
+.service-workspace button{margin:8px 10px 0 0}
+.service-workspace .panel>p{line-height:1.7}
+@media(max-width:900px){.service-workspace .crm-grid,.service-workspace .location-grid{grid-template-columns:1fr}}

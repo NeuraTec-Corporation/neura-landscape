@@ -4,6 +4,7 @@ const files = [
 	"001_foundation.sql",
 	"002_customer_profiles.sql",
 	"003_property_locations.sql",
+ "004_service_control.sql",
 ];
 export async function migrate(db, advisory = false) {
 	await db.transaction(async (tx) => {

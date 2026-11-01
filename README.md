@@ -103,3 +103,30 @@ offline synchronization and AI are not implemented by the customer release.
 
 Same repository and checkout; no new clone, worktree or source base.
 Canonical project decisions remain in the existing Notion record.
+
+
+## Contracts and monthly service control
+
+- Set the landscaping operator identifier once under Integraciones → Empresa operadora.
+  New locations receive `LOC-OPERATOR-YEAR-0001` using a transactional counter shared
+  across customers, per operator/year (UTC). Existing codes never change on edits.
+  `LANDSCAPE_OPERATOR_CODE` is an optional environment fallback. No client name is used.
+- Contratos manages customer/site associations, selectable frequency, monthly quota,
+  monthly USD price, planned minutes, lifecycle status, editing and deletion.
+  Site ownership cannot be moved by editing a contract. Revisions reject stale edits.
+- Trabajos y agenda schedules and executes visits; only active contracts can receive
+  new visits. Frequency does not automatically create a recurring calendar.
+- Control de servicio follows Agenda. Choose the scheduled service month (America/New_York)
+  and customer to inspect completed, scheduled, started and cancelled visits, remaining
+  visits against the CURRENT agreed quota, and completed-visit cost components.
+  Historical quotas and partial-month proration are not reconstructed in this release.
+  Allocated revenue and contribution are operational allocations, not cash collections.
+- Newly scheduled visits snapshot allocated revenue; editing contract prices does not
+  reprice existing visits. Completed costs/revenue remain unchanged. The migration
+  backfills pending allocations using current contract terms, without rewriting completed totals.
+- Delete confirms before a logical deletion. Contract deletion cancels scheduled visits,
+  blocks while a visit is started, and retains completed visits and costs. Locations
+  with undeleted contracts must have those contracts deleted first. Records, foreign keys
+  and an audit trail remain in PostgreSQL; there is no permanent deletion or restore UI.
+- Migration 004 is additive and runs through the existing migration mechanism; no second
+  source base, checkout, database service or paid integration is introduced.

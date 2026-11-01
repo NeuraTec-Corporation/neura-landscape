@@ -40,7 +40,7 @@ const money = (cents: unknown) =>
 		Number(cents) / 100,
 	);
 const statusName = (s: unknown) =>
-	s === "completed"
+	s === "cancelled" ? "Cancelada" : s === "completed"
 		? "Completada"
 		: s === "started"
 			? "En ejecución"
@@ -155,7 +155,7 @@ export function OperationsPanel({ section }: { section: string }) {
 			const value = await response.json();
 			if (!response.ok) throw new Error(value.error);
 			await refresh();
-			setMessage("Guardado en la base local.");
+			setMessage("Cambios guardados.");
 			return true;
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "No se pudo guardar.");
@@ -258,74 +258,6 @@ export function OperationsPanel({ section }: { section: string }) {
 					</section>
 				</>
 			) : null}
-			{section === "clientes" ? (
-				<div className="form-grid">
-					<EntryForm
-						title="Nuevo cliente"
-						action="customer"
-						fields={[{ name: "name", label: "Nombre ficticio" }]}
-						submit={submit}
-					/>
-					<section className="panel">
-						<h2>Clientes</h2>
-						{data.customers.length ? (
-							data.customers.map((r) => (
-								<article className="job" key={r.id}>
-									<h3>{String(r.name)}</h3>
-								</article>
-							))
-						) : (
-							<p>Aún no hay clientes. Crea el primero.</p>
-						)}
-					</section>
-				</div>
-			) : null}
-			{section === "contratos" ? (
-				<div className="form-grid">
-					<EntryForm
-						title="Nuevo contrato"
-						action="contract"
-						fields={[
-							{
-								name: "property_id",
-								label: "Propiedad",
-								options: data.properties.map((r) => ({
-									value: r.id,
-									label: `${String(r.customer_name)} · ${String(r.name)}${r.code ? ` [${String(r.code)}]` : ""}`,
-								})),
-							},
-							{ name: "service", label: "Servicio incluido" },
-							{ name: "frequency", label: "Frecuencia (p. ej. semanal)" },
-							number("monthly", "Precio mensual (USD)", 0, "0.01"),
-							number("visits_per_month", "Visitas previstas al mes", 1),
-							number("estimated_minutes", "Minutos previstos por visita", 1),
-						]}
-						submit={submit}
-					/>
-					<section className="panel">
-						<h2>Contratos</h2>
-						{data.contracts.length ? (
-							data.contracts.map((r) => (
-								<article className="job" key={r.id}>
-									<div>
-										<h3>{String(r.property_name)}</h3>
-										<p>
-											{String(r.service)} · {String(r.frequency)}
-										</p>
-										<p>
-											{money(r.monthly_cents)}/mes ·{" "}
-											{String(r.visits_per_month)} visitas ·{" "}
-											{String(r.estimated_minutes)} min previstos
-										</p>
-									</div>
-								</article>
-							))
-						) : (
-							<p>Crea una propiedad para registrar su contrato.</p>
-						)}
-					</section>
-				</div>
-			) : null}
 			{section === "cuadrillas" ? (
 				<div className="form-grid">
 					<EntryForm
@@ -367,9 +299,9 @@ export function OperationsPanel({ section }: { section: string }) {
 							{
 								name: "contract_id",
 								label: "Contrato",
-								options: data.contracts.map((r) => ({
+								options: data.contracts.filter(r=>!r.deleted_at && (!r.status || r.status === "active")).map((r) => ({
 									value: r.id,
-									label: `${String(r.property_name)} · ${String(r.service)}`,
+									label: `${String(r.customer_name)} · ${String(r.property_name)} [${String(r.property_code)}] · ${String(r.service)}`,
 								})),
 							},
 							{

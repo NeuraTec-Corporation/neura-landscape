@@ -1,3 +1,4 @@
+import { saveContract } from '@/modules/operations/contracts.mjs';
 import {
 	database,
 	snapshot,
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
 				{ status: 422 },
 			);
 		if (input.action === 'property') return Response.json({error:'Registra la dirección completa en Propiedades y localidades.'},{status:422});
-		return Response.json(await mutate(await database(), input), {
+		return Response.json(input.action === "contract" ? await saveContract(await database(),{...input,status:input.status??"active"}) : await mutate(await database(), input), {
 			status: 201,
 		});
 	} catch (error) {

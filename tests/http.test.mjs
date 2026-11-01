@@ -62,7 +62,7 @@ test('robots.txt disallows all crawlers', async () => {
 });
 
 test('prototype routes expose distinct screens and retain noindex', async () => {
-  for (const [path, content] of [['clientes', 'Clientes'], ['contratos', 'Contratos'], ['propiedades', 'Propiedades'], ['agenda', 'Trabajos y agenda'], ['cuadrillas', 'Cuadrillas'], ['integraciones', 'Integraciones']]) {
+  for (const [path, content] of [['clientes', 'Clientes'], ['contratos', 'Contratos'], ['propiedades', 'Propiedades'], ['agenda', 'Trabajos y agenda'], ['control', 'Control de servicio'], ['cuadrillas', 'Cuadrillas'], ['integraciones', 'Integraciones']]) {
     const response = await fetch(`${base}/${path}`);
     assert.equal(response.status, 200, path);
     assert.match(response.headers.get('x-robots-tag') ?? '', /noindex/);
@@ -98,7 +98,9 @@ test('HTTP workflow saves related records and computes completed visit costs', a
   const customerLocations=await (await fetch(`${base}/api/properties?customer_id=${customer.id}`)).json();
   assert.equal(customerLocations.length,1);
   assert.equal(customerLocations[0].city,'NEWARK');
-  const contract=await post({action:'contract',property_id:property.id,service:'Corte',frequency:'Semanal',monthly:400,visits_per_month:4,estimated_minutes:30});
+  const contractResponse=await fetch(`${base}/api/contracts`,{method:'POST',headers:{'Content-Type':'application/json',Origin:base},body:JSON.stringify({property_id:property.id,service:'Corte',frequency:'Semanal',monthly:400,visits_per_month:4,estimated_minutes:30,status:'active'})});
+ assert.equal(contractResponse.status,200);const contract=await contractResponse.json();
+ const linked=await (await fetch(`${base}/api/contracts`)).json();assert.equal(linked[0].customer_name,'CLIENTE HTTP');assert.equal(linked[0].property_id,property.id);
   const crew=await post({action:'crew',name:'Equipo HTTP',workers:2,hourly:20});
   const visit=await post({action:'visit',contract_id:contract.id,crew_id:crew.id,scheduled_at:'2026-11-02T08:00:00Z',route_order:1});
   await post({action:'start',id:visit.id});
@@ -112,4 +114,6 @@ test('HTTP workflow saves related records and computes completed visit costs', a
   await post({action:'start',id:visit.id},400);
   const after=await (await fetch(`${base}/api/operations`)).json();
   assert.equal(after.visits[0].profitability.cost_cents,7000);
+ const report=await (await fetch(`${base}/api/contracts?month=2026-11`)).json();assert.equal(report[0].completed,1);assert.equal(report[0].total_cost_cents,7000);
+ const denied=await fetch(`${base}/api/contracts`,{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://external.invalid'},body:JSON.stringify({action:'delete',id:contract.id,revision:1})});assert.equal(denied.status,403);
 });

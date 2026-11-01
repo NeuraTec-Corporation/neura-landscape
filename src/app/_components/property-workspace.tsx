@@ -429,13 +429,18 @@ export function PropertyWorkspace({
 								<div className="section-caption">
 									<h3>Identificación del lugar</h3>
 									<p>
-										El código distingue esta localidad de las demás del mismo
-										cliente. Déjalo vacío para asignarlo automáticamente.
+										El código se asigna automáticamente con la empresa
+										operadora, el año y un secuencial. Se conserva al editar.
 									</p>
 								</div>
 								<div className="crm-form-grid">
 									{textField("name", true)}
-									{textField("code")}
+									<SiteField
+										name="code"
+										value={draft.code || "Se asignará al guardar"}
+										change={() => {}}
+										disabled
+									/>
 									<SiteField
 										name="kind"
 										value={draft.kind}
@@ -712,6 +717,49 @@ export function PropertyWorkspace({
 										}}
 									>
 										Editar localidad
+									</button>
+									<button
+										type="button"
+										disabled={busy}
+										onClick={async () => {
+											if (
+												!window.confirm(
+													`¿Eliminar ${row.name}? Se conservará el historial. Primero deben eliminarse sus contratos vinculados.`,
+												)
+											)
+												return;
+											setBusy(true);
+											setError("");
+											try {
+												const response = await fetch("/api/properties", {
+													method: "POST",
+													headers: { "Content-Type": "application/json" },
+													body: JSON.stringify({
+														action: "delete",
+														id: row.id,
+														revision: row.revision,
+													}),
+												});
+												const result = await response.json();
+												if (!response.ok) throw new Error(result.error);
+												setItems((items) =>
+													items.filter((item) => item.id !== row.id),
+												);
+												setDraft(null);
+												setNotice("Localidad eliminada; historial conservado.");
+												await onSaved?.();
+											} catch (e) {
+												setError(
+													e instanceof Error
+														? e.message
+														: "No se pudo eliminar.",
+												);
+											} finally {
+												setBusy(false);
+											}
+										}}
+									>
+										Eliminar localidad
 									</button>
 								</div>
 							</article>
