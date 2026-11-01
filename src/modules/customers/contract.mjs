@@ -34,7 +34,7 @@ const phone = z
 		if (!parsed?.isValid()) {
 			ctx.addIssue({
 				code: "custom",
-				message: "Usa un teléfono válido con código de país, por ejemplo +1.",
+				message: "Revisa el número y el país telefónico seleccionado.",
 			});
 			return z.NEVER;
 		}

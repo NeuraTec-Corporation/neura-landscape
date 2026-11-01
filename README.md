@@ -16,6 +16,12 @@ email to lowercase and phones to E.164. Invalid phones, required fields, contrad
 hours, missing primary/signer roles and duplicate contact email are rejected.
 Revision checking prevents silent concurrent overwrites.
 
+Phone inputs show a country/calling-code selector and accept the national number.
+Empty phone fields initially use the home/first address country (US defaults to +1).
+Each phone can override that country. Existing international numbers retain their
+own calling code when addresses change; storage remains E.164. Validation summaries
+identify the contact/address and field, and open the corresponding dossier section.
+
 Addresses support manual structured entry and Google Maps links. Real autocomplete
 and georeferencing require a configured server-side GOOGLE_PLACES_API_KEY (Places API
 New) and provider quotas. Without it, manual entry remains available and the UI says

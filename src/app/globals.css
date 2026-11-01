@@ -999,3 +999,4 @@ button:disabled {
 .page-heading.compact .eyebrow {
 	margin-bottom: 0;
 }
+.phone-controls{display:grid;grid-template-columns:minmax(100px,.9fr) minmax(110px,1.1fr);gap:8px}.phone-controls select{font-size:12px}.validation-link{background:none;color:inherit;text-align:left;padding:3px 0;text-decoration:underline;text-underline-offset:3px;font-size:13px;line-height:1.6}.validation-link:hover{color:#58160d}@media(max-width:450px){.phone-controls{grid-template-columns:1fr}}
