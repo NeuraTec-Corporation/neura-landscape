@@ -51,3 +51,13 @@ project folders. Dependencies and build caches are generated, ignored artifacts;
 remove temporary recovery copies after verifying recovery. Keep current decisions
 and open work in the existing canonical Notion project record; repository documents
 contain runnable instructions, technical boundaries and verification evidence.
+
+## Continuous integration
+
+GitHub Actions runs `.github/workflows/ci.yml` for pull requests targeting main
+and pushes to main. The single `Verify` job checks the pinned Node/npm versions,
+runs npm ci, lint, typecheck, build, the existing tests and a dependency audit.
+It uses a standard Ubuntu runner, read-only repository permissions, and official
+actions pinned to full commit SHAs. It needs no project secrets and does not deploy.
+The workflow reports results; requiring that check for merges is a separate
+repository policy decision. Merge and release approval remain human gates.
