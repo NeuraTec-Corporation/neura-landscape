@@ -280,43 +280,6 @@ export function OperationsPanel({ section }: { section: string }) {
 					</section>
 				</div>
 			) : null}
-			{section === "propiedades" ? (
-				<div className="form-grid">
-					<EntryForm
-						title="Nueva propiedad"
-						action="property"
-						fields={[
-							{
-								name: "customer_id",
-								label: "Cliente",
-								options: options(data.customers, "name"),
-							},
-							{ name: "name", label: "Nombre de propiedad" },
-							{ name: "address", label: "Dirección ficticia" },
-							number("lawn_sqft", "Césped (sq ft)"),
-						]}
-						submit={submit}
-					/>
-					<section className="panel">
-						<h2>Propiedades</h2>
-						{data.properties.length ? (
-							data.properties.map((r) => (
-								<article className="job" key={r.id}>
-									<div>
-										<h3>{String(r.name)}</h3>
-										<p>
-											{String(r.customer_name)} · {String(r.address)} ·{" "}
-											{String(r.lawn_sqft)} sq ft
-										</p>
-									</div>
-								</article>
-							))
-						) : (
-							<p>Crea primero un cliente y después su propiedad.</p>
-						)}
-					</section>
-				</div>
-			) : null}
 			{section === "contratos" ? (
 				<div className="form-grid">
 					<EntryForm
@@ -326,7 +289,10 @@ export function OperationsPanel({ section }: { section: string }) {
 							{
 								name: "property_id",
 								label: "Propiedad",
-								options: options(data.properties, "name"),
+								options: data.properties.map((r) => ({
+									value: r.id,
+									label: `${String(r.customer_name)} · ${String(r.name)}${r.code ? ` [${String(r.code)}]` : ""}`,
+								})),
 							},
 							{ name: "service", label: "Servicio incluido" },
 							{ name: "frequency", label: "Frecuencia (p. ej. semanal)" },

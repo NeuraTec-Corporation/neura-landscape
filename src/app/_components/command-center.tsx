@@ -2,10 +2,11 @@ import Link from "next/link";
 import { ExperimentalNotice } from "@/shared/ui";
 import { OperationsPanel } from "./operations-panel";
 import { CustomerWorkspace } from "./customer-workspace";
+import { PropertyWorkspace } from "./property-workspace";
 export const sections = [
 	{ id: "resumen", label: "Resumen" },
 	{ id: "clientes", label: "Clientes" },
-	{ id: "propiedades", label: "Propiedades" },
+	{ id: "propiedades", label: "Propiedades y localidades" },
 	{ id: "contratos", label: "Contratos" },
 	{ id: "agenda", label: "Trabajos y agenda" },
 	{ id: "cuadrillas", label: "Cuadrillas" },
@@ -70,6 +71,8 @@ export function CommandCenter({ section }: { section: string }) {
 					</div>
 					{section === "clientes" ? (
 						<CustomerWorkspace />
+					) : section === "propiedades" ? (
+						<PropertyWorkspace />
 					) : (
 						<OperationsPanel section={section} />
 					)}

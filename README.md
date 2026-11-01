@@ -31,6 +31,18 @@ Follow-up reminders are persisted internal tasks. This release does not send SMS
 WhatsApp or email: a delivery provider and verified consent/delivery controls are
 required for outbound automation.
 
+## Properties and service locations
+
+Each person/company customer can own multiple service locations in the existing
+properties table. Select a customer in Propiedades y localidades to see only their
+locations, or open the same workspace from the customer dossier's sixth tab.
+Create/edit location names, per-customer codes, type/status, complete addresses,
+optional coordinates, local contact, service hours, measured areas and access notes.
+Customer addresses/contacts can be explicitly copied; they do not synchronize later.
+Contracts retain the same property IDs, and new contract selectors identify customer,
+location and code. Historical unstructured addresses are preserved and flagged for
+completion; unknown areas can remain empty rather than recording false zero values.
+
 ## Persistence and hosting
 
 Vercel project: NeuraTec Corporation / neura-landscape (existing project).
@@ -42,9 +54,11 @@ Migrations:
 - db/migrations/001_foundation.sql — operational relationships and visits.
 - db/migrations/002_customer_profiles.sql — profiles, related contacts, structured
   addresses, reminders and revision history.
+- db/migrations/003_property_locations.sql — additive service-location fields on
+  properties; existing IDs, customer ownership, contract and visit links are preserved.
 
-MIGRATE_ON_START=true applies these idempotent migrations under a PostgreSQL
-transaction/advisory lock on first runtime access. A separate npm run db:migrate
+MIGRATE_ON_START=true applies pending numbered migrations only, using schema_migrations
+under a PostgreSQL transaction/advisory lock on first runtime access. A separate npm run db:migrate
 command is available with a configured DATABASE_URL.
 Local/CI tests use isolated PGlite PostgreSQL instances and never hosted credentials.
 The old .data/landscape data is not uploaded or synchronized to Neon.

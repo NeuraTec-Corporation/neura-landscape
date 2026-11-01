@@ -46,6 +46,7 @@ export async function POST(request: Request) {
 				{ error: "Crea el expediente completo en Clientes." },
 				{ status: 422 },
 			);
+		if (input.action === 'property') return Response.json({error:'Registra la dirección completa en Propiedades y localidades.'},{status:422});
 		return Response.json(await mutate(await database(), input), {
 			status: 201,
 		});

@@ -1,12 +1,56 @@
 "use client";
 import { useEffect, useId, useState } from "react";
 import { PhoneField } from "@/shared/ui";
+import { PropertyWorkspace } from "./property-workspace";
 function validationLocation(path: string) {
-  const parts = path.split('.');
-  const section = parts[0] === 'contacts' ? 'contactos' : parts[0] === 'addresses' ? 'direcciones' : 'identidad';
-  const labels: Record<string,string> = {first_name:'Nombre',last_name:'Apellido',company_name:'Razón social',kind:'Tipo de cuenta',status:'Estado',language:'Idioma',timezone:'Zona horaria',notes:'Notas',phone_mobile:'Móvil',phone_home:'Teléfono de casa',phone_office:'Teléfono de oficina',email:'Correo',roles:'Responsabilidades',relationship:'Relación',preferred_phone:'Teléfono preferido',preferred_channel:'Canal preferido',contact_from:'Hora inicial',contact_to:'Hora final',consent_sms:'Autorización de SMS',consent_whatsapp:'Autorización de WhatsApp',consent_email:'Autorización de correo',line1:'Calle y número',line2:'Unidad',city:'Ciudad',region:'Estado / provincia',postal_code:'Código postal',country:'País',latitude:'Latitud',longitude:'Longitud',contacts:'Contactos y responsables',addresses:'Direcciones'};
-  const prefix = parts.length > 1 && /^\d+$/.test(parts[1]) ? `${parts[0] === 'contacts' ? 'Contacto' : 'Dirección'} ${Number(parts[1])+1} · ` : '';
-  return {section,label:prefix+(labels[parts.at(-1) ?? ''] ?? 'Datos del expediente')};
+	const parts = path.split(".");
+	const section =
+		parts[0] === "contacts"
+			? "contactos"
+			: parts[0] === "addresses"
+				? "direcciones"
+				: "identidad";
+	const labels: Record<string, string> = {
+		first_name: "Nombre",
+		last_name: "Apellido",
+		company_name: "Razón social",
+		kind: "Tipo de cuenta",
+		status: "Estado",
+		language: "Idioma",
+		timezone: "Zona horaria",
+		notes: "Notas",
+		phone_mobile: "Móvil",
+		phone_home: "Teléfono de casa",
+		phone_office: "Teléfono de oficina",
+		email: "Correo",
+		roles: "Responsabilidades",
+		relationship: "Relación",
+		preferred_phone: "Teléfono preferido",
+		preferred_channel: "Canal preferido",
+		contact_from: "Hora inicial",
+		contact_to: "Hora final",
+		consent_sms: "Autorización de SMS",
+		consent_whatsapp: "Autorización de WhatsApp",
+		consent_email: "Autorización de correo",
+		line1: "Calle y número",
+		line2: "Unidad",
+		city: "Ciudad",
+		region: "Estado / provincia",
+		postal_code: "Código postal",
+		country: "País",
+		latitude: "Latitud",
+		longitude: "Longitud",
+		contacts: "Contactos y responsables",
+		addresses: "Direcciones",
+	};
+	const prefix =
+		parts.length > 1 && /^\d+$/.test(parts[1])
+			? `${parts[0] === "contacts" ? "Contacto" : "Dirección"} ${Number(parts[1]) + 1} · `
+			: "";
+	return {
+		section,
+		label: prefix + (labels[parts.at(-1) ?? ""] ?? "Datos del expediente"),
+	};
 }
 import type {
 	CustomerDraft,
@@ -384,11 +428,19 @@ export function CustomerWorkspace() {
 					{Object.values(fields).length ? (
 						<ul>
 							{Object.entries(fields).map(([key, v]) => (
-								<li key={key}><button type="button" className="validation-link" onClick={()=>{
-                              const target=validationLocation(key).section;
-                              setTab(target);
-                              document.getElementById(`tab-${target}`)?.focus();
-                            }}>{validationLocation(key).label}: {v}</button></li>
+								<li key={key}>
+									<button
+										type="button"
+										className="validation-link"
+										onClick={() => {
+											const target = validationLocation(key).section;
+											setTab(target);
+											document.getElementById(`tab-${target}`)?.focus();
+										}}
+									>
+										{validationLocation(key).label}: {v}
+									</button>
+								</li>
 							))}
 						</ul>
 					) : null}
@@ -618,6 +670,7 @@ export function CustomerWorkspace() {
 							["direcciones", "03 · Direcciones"],
 							["comunicacion", "04 · Seguimiento"],
 							["actividad", "05 · Actividad"],
+							["localidades", "06 · Propiedades y localidades"],
 						].map(([key, label]) => (
 							<button
 								key={key}
@@ -814,9 +867,42 @@ export function CustomerWorkspace() {
 												onChange={(v) => contact(i, { email: v })}
 												error={fields[`contacts.${i}.email`]}
 											/>
-											<PhoneField label="Teléfono móvil" value={c.phone_mobile} onChange={(v) => contact(i, { phone_mobile: v })} defaultCountry={draft.addresses.find(a=>a.label === "home")?.country || draft.addresses[0]?.country || "US"} error={fields[`contacts.${i}.phone_mobile`]} />
-											<PhoneField label="Teléfono de casa" value={c.phone_home} onChange={(v) => contact(i, { phone_home: v })} defaultCountry={draft.addresses.find(a=>a.label === "home")?.country || draft.addresses[0]?.country || "US"} error={fields[`contacts.${i}.phone_home`]} />
-											<PhoneField label="Teléfono de oficina" value={c.phone_office} onChange={(v) => contact(i, { phone_office: v })} defaultCountry={draft.addresses.find(a=>a.label === "home")?.country || draft.addresses[0]?.country || "US"} error={fields[`contacts.${i}.phone_office`]} />
+											<PhoneField
+												label="Teléfono móvil"
+												value={c.phone_mobile}
+												onChange={(v) => contact(i, { phone_mobile: v })}
+												defaultCountry={
+													draft.addresses.find((a) => a.label === "home")
+														?.country ||
+													draft.addresses[0]?.country ||
+													"US"
+												}
+												error={fields[`contacts.${i}.phone_mobile`]}
+											/>
+											<PhoneField
+												label="Teléfono de casa"
+												value={c.phone_home}
+												onChange={(v) => contact(i, { phone_home: v })}
+												defaultCountry={
+													draft.addresses.find((a) => a.label === "home")
+														?.country ||
+													draft.addresses[0]?.country ||
+													"US"
+												}
+												error={fields[`contacts.${i}.phone_home`]}
+											/>
+											<PhoneField
+												label="Teléfono de oficina"
+												value={c.phone_office}
+												onChange={(v) => contact(i, { phone_office: v })}
+												defaultCountry={
+													draft.addresses.find((a) => a.label === "home")
+														?.country ||
+													draft.addresses[0]?.country ||
+													"US"
+												}
+												error={fields[`contacts.${i}.phone_office`]}
+											/>
 											<Field
 												label="Teléfono preferido para llamadas"
 												value={c.preferred_phone}
@@ -1149,6 +1235,22 @@ export function CustomerWorkspace() {
 								)}
 							</>
 						) : null}
+						<div className="site-panel" hidden={tab !== 'localidades'}>
+							{record?.id ? (
+								<PropertyWorkspace
+									key={record.id}
+									customerId={record.id}
+									knownCustomer={record}
+									embedded
+									onSaved={refresh}
+								/>
+							) : (
+								<p>
+									Guarda primero el cliente para añadir sus propiedades y
+									localidades.
+								</p>
+							)}
+						</div>
 						{tab === "actividad" ? (
 							<>
 								<div className="section-caption">
@@ -1180,7 +1282,7 @@ export function CustomerWorkspace() {
 							</>
 						) : null}
 					</div>
-					<div className="crm-savebar">
+					<div className="crm-savebar" hidden={tab === 'localidades'}>
 						<span>
 							{record
 								? "Los cambios se guardarán como una nueva revisión."

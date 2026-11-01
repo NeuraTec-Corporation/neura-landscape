@@ -1,4 +1,5 @@
 export { database, snapshot, mutate } from "./store.mjs";
+export { listProperties, saveProperty, PropertyError } from "./properties.mjs";
 export async function customerPropertyCounts(db) {
 	return (
 		await db.query(

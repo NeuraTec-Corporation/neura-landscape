@@ -91,7 +91,13 @@ test('HTTP workflow saves related records and computes completed visit costs', a
   })});
   assert.equal(customerResponse.status,201);
   const customer=await customerResponse.json();
-  const property=await post({action:'property',customer_id:customer.id,name:'Jardín HTTP',address:'Dirección ficticia',lawn_sqft:1000});
+  await post({action:'property',customer_id:customer.id,name:'Incomplete'},422);
+  const propertyResponse=await fetch(`${base}/api/properties`,{method:'POST',headers:{'Content-Type':'application/json',Origin:base},body:JSON.stringify({customer_id:customer.id,name:'Jardín HTTP',code:'HTTP-1',kind:'residential',status:'active',line1:'12 Test Street',line2:'',city:'Newark',region:'NJ',postal_code:'07102',country:'US',latitude:null,longitude:null,contact_name:'',contact_phone:'',lawn_sqft:1000,garden_sqft:null,paved_sqft:null,access_instructions:'',service_hours:'',notes:''})});
+  assert.equal(propertyResponse.status,201);
+  const property=await propertyResponse.json();
+  const customerLocations=await (await fetch(`${base}/api/properties?customer_id=${customer.id}`)).json();
+  assert.equal(customerLocations.length,1);
+  assert.equal(customerLocations[0].city,'NEWARK');
   const contract=await post({action:'contract',property_id:property.id,service:'Corte',frequency:'Semanal',monthly:400,visits_per_month:4,estimated_minutes:30});
   const crew=await post({action:'crew',name:'Equipo HTTP',workers:2,hourly:20});
   const visit=await post({action:'visit',contract_id:contract.id,crew_id:crew.id,scheduled_at:'2026-11-02T08:00:00Z',route_order:1});

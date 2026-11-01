@@ -1,30 +1,26 @@
 import { PGlite } from "@electric-sql/pglite";
-import { readFile, mkdir } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
+import { migrate } from "./migrations.mjs";
 
 const key = Symbol.for("neura-landscape.database");
 export async function database() {
 	if (!globalThis[key])
 		globalThis[key] = (async () => {
 			if (process.env.DATABASE_URL) {
-				const { postgresDatabase } = await import('./postgres.mjs');
+				const { postgresDatabase } = await import("./postgres.mjs");
 				const db = postgresDatabase(process.env.DATABASE_URL);
-				if(process.env.MIGRATE_ON_START === 'true') await db.transaction(async tx => {
-					await tx.query('SELECT pg_advisory_xact_lock(703919)');
-					for(const file of ['001_foundation.sql','002_customer_profiles.sql']) await tx.exec(await readFile(resolve('db/migrations',file),'utf8'));
-				});
+				if (process.env.MIGRATE_ON_START === "true") await migrate(db, true);
 				return db;
 			}
-			if (process.env.VERCEL) throw new Error('DATABASE_URL is required for hosted persistence.');
+			if (process.env.VERCEL)
+				throw new Error("DATABASE_URL is required for hosted persistence.");
 			const dataDir =
 				process.env.LANDSCAPE_DATA_DIR || resolve(".data/landscape");
 			if (dataDir !== "memory://") await mkdir(dataDir, { recursive: true });
 			const db = new PGlite(dataDir);
-			await db.exec(
-				await readFile(resolve("db/migrations/001_foundation.sql"), "utf8"),
-			);
-			await db.exec(await readFile(resolve('db/migrations/002_customer_profiles.sql'), 'utf8'));
+			await migrate(db);
 			return db;
 		})();
 	return globalThis[key];
@@ -115,13 +111,10 @@ export async function mutate(db, input) {
 					id,
 					"Cliente de demostración",
 				]);
-				await tx.query("INSERT INTO properties VALUES($1,$2,$3,$4,$5)", [
-					propertyId,
-					id,
-					"Jardín Alameda · Demo",
-					"Dirección ficticia",
-					8400,
-				]);
+				await tx.query(
+					"INSERT INTO properties(id,customer_id,name,address,lawn_sqft) VALUES($1,$2,$3,$4,$5)",
+					[propertyId, id, "Jardín Alameda · Demo", "Dirección ficticia", 8400],
+				);
 				await tx.query("INSERT INTO contracts VALUES($1,$2,$3,$4,$5,$6,$7)", [
 					contractId,
 					propertyId,
@@ -154,13 +147,16 @@ export async function mutate(db, input) {
 				]);
 				break;
 			case "property":
-				await tx.query("INSERT INTO properties VALUES($1,$2,$3,$4,$5)", [
-					id,
-					text(input.customer_id, "Cliente"),
-					text(input.name, "Propiedad"),
-					text(input.address, "Dirección"),
-					integer(input.lawn_sqft, "Superficie", 0, 100000000),
-				]);
+				await tx.query(
+					"INSERT INTO properties(id,customer_id,name,address,lawn_sqft) VALUES($1,$2,$3,$4,$5)",
+					[
+						id,
+						text(input.customer_id, "Cliente"),
+						text(input.name, "Propiedad"),
+						text(input.address, "Dirección"),
+						integer(input.lawn_sqft, "Superficie", 0, 100000000),
+					],
+				);
 				break;
 			case "contract":
 				await tx.query("INSERT INTO contracts VALUES($1,$2,$3,$4,$5,$6,$7)", [
