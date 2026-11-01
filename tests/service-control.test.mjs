@@ -42,6 +42,7 @@ test("operator codes, contract edits, monthly costs, cancellation and deletion p
 	try {
 		await migrate(db);
 		await migrate(db);
+ await assert.rejects(serviceControl(db,""),/Mes inválido/);
 		const customer = randomUUID();
 		await db.query("INSERT INTO customers VALUES($1,$2)", [
 			customer,
@@ -165,4 +166,18 @@ test("operator codes, contract edits, monthly costs, cancellation and deletion p
 	} finally {
 		await db.close();
 	}
+});
+test('inactive locations allow closing existing contracts but reject new contracts', async () => {
+ const db=new PGlite();
+ try {
+  await migrate(db);
+  const customer=randomUUID();await db.query('INSERT INTO customers VALUES($1,$2)',[customer,'Cliente de prueba']);
+  const property=await saveProperty(db,{...site(customer),code:'HISTORICO'});
+  const input={property_id:property.id,service:'Mantenimiento',frequency:'Mensual',monthly:100,visits_per_month:1,estimated_minutes:30,status:'active'};
+  const contract=await saveContract(db,input);
+  await db.query("UPDATE properties SET status='inactive' WHERE id=$1",[property.id]);
+  await saveContract(db,{...input,id:contract.id,revision:1,status:'ended'});
+  assert.equal((await contracts(db))[0].status,'ended');
+  await assert.rejects(saveContract(db,input),/localidad activa/);
+ }finally{await db.close();}
 });

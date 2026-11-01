@@ -40,7 +40,7 @@ export async function saveContract(db, input) {
 				v.property_id,
 			])
 		).rows[0];
-		if (!p || p.deleted_at || p.status !== "active")
+		if (!p || p.deleted_at || (!v.id && p.status !== "active"))
 			throw new Error("Selecciona una localidad activa.");
 		if (v.id) {
 			const old = (

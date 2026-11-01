@@ -14,7 +14,7 @@ export async function GET(request: Request) {
 	try {
 		const month = new URL(request.url).searchParams.get("month");
 		return Response.json(
-			month
+			month !== null
 				? await serviceControl(await database(), month)
 				: await contracts(await database()),
 			{ headers: { "Cache-Control": "no-store" } },

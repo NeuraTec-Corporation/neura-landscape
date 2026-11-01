@@ -114,6 +114,7 @@ test('HTTP workflow saves related records and computes completed visit costs', a
   await post({action:'start',id:visit.id},400);
   const after=await (await fetch(`${base}/api/operations`)).json();
   assert.equal(after.visits[0].profitability.cost_cents,7000);
+ assert.equal((await fetch(`${base}/api/contracts?month=`)).status,400);
  const report=await (await fetch(`${base}/api/contracts?month=2026-11`)).json();assert.equal(report[0].completed,1);assert.equal(report[0].total_cost_cents,7000);
  const denied=await fetch(`${base}/api/contracts`,{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://external.invalid'},body:JSON.stringify({action:'delete',id:contract.id,revision:1})});assert.equal(denied.status,403);
 });
