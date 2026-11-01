@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { authClient } from "@/modules/identity/client";
 import { SurveyWorkspace } from "./survey-workspace";
+import {ContractWorkspace} from "./contract-workspace";
 type Access = {
 	enabled: boolean;
 	configured: boolean;
@@ -176,6 +177,7 @@ export function IdentityGate({
 		["worker", "crew_lead"].includes(access.member.role)
 	)
 		return <CrewPortal name={access.member.name} />;
+    if(access.enabled && access.member?.role === 'finance') return <main className="crew-portal"><header className="survey-hero"><p className="eyebrow">ADMINISTRACIÓN FINANCIERA</p><h1>Control de servicio</h1><p>{access.member.name} · consulta de resultados operativos</p><button type="button" onClick={async()=>{await authClient.signOut();window.location.reload();}}>Cerrar sesión</button></header><ContractWorkspace control /></main>;
 	return (
 		<div data-app-role={access.member?.role ?? "none"}>
 			{children}

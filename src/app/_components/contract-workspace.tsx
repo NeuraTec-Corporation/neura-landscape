@@ -78,10 +78,9 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 				signal: controller.signal,
 				cache: "no-store",
 			}),
-			fetch("/api/properties", {
-				signal: controller.signal,
-				cache: "no-store",
-			}),
+            ...(control ? [] : [fetch("/api/properties", {
+                signal: controller.signal, cache: "no-store",
+            })]),
 		])
 			.then(async (responses) => {
 				const data = await Promise.all(
@@ -92,7 +91,7 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 					}),
 				);
 				setRows(data[0]);
-				setSites(data[1]);
+				setSites(data[1] ?? []);
 				setLoaded(true);
 			})
 			.catch((e) => {
