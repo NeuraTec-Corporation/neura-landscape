@@ -1,0 +1,36 @@
+# PostgreSQL schema and ownership
+
+Hosted system of record: Landscape's dedicated Neon PostgreSQL database.
+Local/CI PGlite is a development/test adapter, not deployed persistence. No local
+customer records are automatically imported into the hosted system.
+
+## Operational migration 001
+
+customers → properties → contracts → visits; crews → visits.
+activity records visit lifecycle. Completion captures labor, actual consumptions,
+allocated income and contribution values. Money uses integer cents.
+
+## Customer migration 002
+
+| Table | Responsibility |
+| --- | --- |
+| customer_profiles | One profile per customer; person/company identity, status, marital status, language/timezone, notes, revision and timestamps |
+| customer_contacts | Multiple related people; their responsibilities, phones, email, channel, contact hours and communication permissions |
+| customer_addresses | Multiple labelled structured addresses, optional coordinates and provider place reference |
+| customer_reminders | Internal next actions, due timestamps, channel and state; no delivery claim |
+| customer_audit | Creation/update revision and server timestamp |
+| schema_migrations | Applied schema versions |
+
+The existing customers ID remains stable for property/contract links.
+All references are foreign keys. SQL is parameterized; profile edits are transactional
+and require the current revision. Public customer services do not import vertical
+operation internals. The directory's property count is composed through operations'
+public API instead of being embedded in customer-domain logic.
+
+These are project-owned records and contracts. They do not certify a corporate Core,
+tenant model or portable component adoption. Single-workspace deployment protection
+does not implement tenant authorization or per-user audit attribution.
+
+Initial migrations use IF NOT EXISTS and execute under an advisory transaction lock
+for hosted startup. Future schema revisions must use additional versioned migrations.
+Managed backup/restore and production readiness require separate executed evidence.

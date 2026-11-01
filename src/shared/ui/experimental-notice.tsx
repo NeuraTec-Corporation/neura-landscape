@@ -1,3 +1,3 @@
 export function ExperimentalNotice() {
-  return <span className="notice">Experimental · Precomercial</span>;
+  return <span className="notice">Acceso anticipado</span>;
 }

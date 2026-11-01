@@ -1,42 +1,28 @@
-# Architecture — local foundation proposal
+# Landscape application boundaries
 
-Status: proposed technical baseline; corporate acceptance remains in Notion.
+| Boundary | Ownership |
+| --- | --- |
+| src/app | Routing, form composition and HTTP transport |
+| src/modules/customers | Customer contract, validation, relational persistence and revision conflicts |
+| src/modules/operations | Properties/contracts/crews/visits, costs, persistence adapters |
+| src/shared/ui | Neutral presentation |
+| src/integrations | Future approved external adapters |
+| db/migrations | Versioned PostgreSQL schema |
 
-A single Next.js App Router application with strict TypeScript. No monorepo tooling,
-UI framework, database, authentication or external runtime service is needed.
+Customer services have no Next.js, Vercel or Landscape property-table dependency.
+The HTTP endpoint composes the public operations count with customer records.
+UI imports customer types, not server services. Server-only Google Places key is
+used by the address endpoint; no key is sent to the browser.
 
-| Boundary | Responsibility | Allowed dependencies |
-| --- | --- | --- |
-| src/app | Routing, metadata, page composition | shared public UI; future module public APIs |
-| src/shared/ui | Project-neutral presentation, public index.ts | React and same-boundary components |
-| src/integrations | Future adapters to approved corporate packages | Approved versioned contracts; no routes or vertical internals |
-| src/modules/<capability> (future) | Vertical capability with public index.ts | shared; approved integration ports; other modules only through public contracts |
+Hosted storage uses pg/PostgreSQL; development/isolated tests can use PGlite.
+DATABASE_URL is mandatory on Vercel. SQL migrations are included in function tracing.
+Host/same-Origin checks remain, and Vercel Authentication protects every deployment.
+No local-filesystem hosted fallback or automatic local-data upload is permitted.
 
-Shared code cannot import app, business modules or integrations. Integrations cannot
-import routes, vertical modules or UI. Biome enforces these current alias limits
-and upward relative imports. Future modules need dependency/cycle checks
-before implementation; this scaffold does not claim complete architectural enforcement.
+This release is a protected single-workspace customer/operations evaluation.
+Application OIDC/RBAC, tenant isolation, delivery adapters, observability and backup
+acceptance remain separate capabilities; no complete production-enterprise claim.
 
-NeuraTec Core is not reimplemented here. Reuse requires an approved package and
-immutable version, canonical contract, provenance/license review, isolated settings,
-compatibility evidence and acceptance. Customer Core and tenant authorization must
-be designed and tested before any customer data or multi-tenant capability.
-
-Server Components by default; no client state or external fonts. CSS is local.
-Noindex metadata, global X-Robots-Tag and robots.txt discourage indexing; they do
-not authenticate users. Local servers bind to loopback. Exposure requires a later
-access-control review and explicit publication approval.
-
-Technical choice follows the Next.js installation and headers documentation:
-https://nextjs.org/docs/app/getting-started/installation
-https://nextjs.org/docs/app/api-reference/config/next-config-js/headers
-
-Rollback: foundation changes are kept on feat/bootstrap-foundation; main remains at the
-initial commit. Review and selectively revert branch files if needed. Generated
-node_modules and .next can be rebuilt using npm ci and npm run build.
-
-Lint uses pinned Biome 2.6.4 recommended rules and explicit noRestrictedImports
-overrides. Next.js supports Biome as a linter. TypeScript remains a separate strict
-check. This is not an assertion that every ESLint plugin rule is reproduced.
-Boundary tests exercise denied aliases/relative paths, re-exports, dynamic imports
-and allowed UI composition against the actual CLI configuration.
+ARGOS/SAAC were read-only design references. No corporate repository or frozen source
+was modified, cloned or copied. Current decisions/evidence remain in Landscape's
+existing canonical Notion page. There is one active checkout and existing task branch.

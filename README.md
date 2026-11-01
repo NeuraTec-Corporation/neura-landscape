@@ -1,63 +1,85 @@
 # Neura Landscape
 
-Experimental modular foundation. No commercial launch approved.
+Next.js + TypeScript application for customer relationships and landscaping operations.
 
-## Local setup (PowerShell)
+## Customer workspace
 
-Use Node.js 24.19.0 and npm 11.17.0 (recorded in .node-version/package.json).
-From this repository directory:
+The customer directory includes search, commercial-status filtering and pagination.
+Each dossier has identity, contacts/responsibilities, addresses, follow-up and change
+history. It supports person/company accounts, first/last names, optional marital status,
+language/timezone, multiple related contacts, contract signer, approver, billing and
+notification roles, mobile/home/office phones, email, preferred channel/phone, contact
+hours and communication permissions.
+
+Create and edit use the same server contract. Names/address text normalize to uppercase;
+email to lowercase and phones to E.164. Invalid phones, required fields, contradictory
+hours, missing primary/signer roles and duplicate contact email are rejected.
+Revision checking prevents silent concurrent overwrites.
+
+Addresses support manual structured entry and Google Maps links. Real autocomplete
+and georeferencing require a configured server-side GOOGLE_PLACES_API_KEY (Places API
+New) and provider quotas. Without it, manual entry remains available and the UI says
+search is unavailable. No fake address predictions or geocoding are supplied.
+
+Follow-up reminders are persisted internal tasks. This release does not send SMS,
+WhatsApp or email: a delivery provider and verified consent/delivery controls are
+required for outbound automation.
+
+## Persistence and hosting
+
+Vercel project: NeuraTec Corporation / neura-landscape (existing project).
+Durable hosted PostgreSQL: Neon project neura-landscape (Free plan).
+DATABASE_URL is stored as a Vercel Secret for Preview and Production; never commit it.
+The hosted runtime refuses to fall back to an ephemeral local database.
+
+Migrations:
+- db/migrations/001_foundation.sql — operational relationships and visits.
+- db/migrations/002_customer_profiles.sql — profiles, related contacts, structured
+  addresses, reminders and revision history.
+
+MIGRATE_ON_START=true applies these idempotent migrations under a PostgreSQL
+transaction/advisory lock on first runtime access. A separate npm run db:migrate
+command is available with a configured DATABASE_URL.
+Local/CI tests use isolated PGlite PostgreSQL instances and never hosted credentials.
+The old .data/landscape data is not uploaded or synchronized to Neon.
+
+Vercel Authentication remains enabled for all deployments. This is a protected
+single-workspace evaluation release, not an implemented multi-tenant/RBAC platform.
+Keep deployment protection enabled. Real multi-company operation still needs governed
+application identity, tenant isolation and operational acceptance.
+
+## Local commands
+
+Node 24.19.0 / npm 11.17.0:
 
 ```powershell
 npm ci
-Copy-Item .env.example .env.local
-npm run dev
+npm run verify
+npm start
 ```
 
-Open http://localhost:3000. Stop with Ctrl+C. No credentials are required.
-The environment copy is optional; scripts disable anonymous Next.js telemetry.
-Never commit real environment files or put secrets in NEXT_PUBLIC_* variables.
+Default local URL http://127.0.0.1:3000; npm run dev for editing.
+Without DATABASE_URL, local development uses PGlite at .data/landscape, ignored by Git.
+Run only one local app process against that directory. Do not delete it to repair a
+build. The deployed application uses Neon instead.
 
-## Verification
+## Verification and boundaries
 
-```powershell
-npm run lint
-npm run typecheck
-npm run build
-npm test
-```
+Verify runs lint, strict TypeScript, production build and tests. HTTP test processes
+explicitly clear hosted DATABASE_URL/VERCEL so CI cannot mutate the hosted database.
+Tests cover customer validation, relational persistence, revision conflicts, duplicate
+email, reminders, noindex, operational lifecycle and cost calculations.
 
-Tests require a completed build, start their own production server on an available
-loopback port, check HTTP output and stop the server. `npm run verify` executes the
-same sequence. `npm start` runs the build locally at http://localhost:3000.
-Lockfile pins the dependency graph; use npm ci for repeatable installation.
+src/modules/customers exposes a domain contract/service through its public entry.
+It has no Next.js/Vercel dependency or Landscape property queries. HTTP composition
+enriches the directory with counts from the operations module. This project-owned
+candidate is not declared a certified NeuraTec Core release.
+ARGOS and SAAC were consulted read-only for field-governance/interaction principles;
+their private source and project data were not copied into this public repository.
 
-## Structure and scope
+Operations retain related properties/contracts/crews/visits and manual cost/margin
+reporting. GPS, optimized routing, media, external billing, individual timesheets,
+offline synchronization and AI are not implemented by the customer release.
 
-See docs/architecture.md for boundaries and the future Core adoption gate.
-Includes one experimental page, shared notice component, noindex metadata,
-X-Robots-Tag on all paths and robots.txt. No database, AI/API integration, real
-customer data, business module or paid service. Noindex is not access control.
-
-The canonical project record in Notion governs decisions; this repository versions
-source code and technical verification. Corporate policy text is not copied here.
-Push, merge, deployment and external service setup require separate approval.
-
-## Working copy discipline
-
-Continue in this checkout and the existing task branch. A Git branch records
-history inside the same repository; it does not create another source directory.
-Use commits for recovery. Avoid extra clones, worktrees, source ZIPs or copied
-project folders. Dependencies and build caches are generated, ignored artifacts;
-remove temporary recovery copies after verifying recovery. Keep current decisions
-and open work in the existing canonical Notion project record; repository documents
-contain runnable instructions, technical boundaries and verification evidence.
-
-## Continuous integration
-
-GitHub Actions runs `.github/workflows/ci.yml` for pull requests targeting main
-and pushes to main. The single `Verify` job checks the pinned Node/npm versions,
-runs npm ci, lint, typecheck, build, the existing tests and a dependency audit.
-It uses a standard Ubuntu runner, read-only repository permissions, and official
-actions pinned to full commit SHAs. It needs no project secrets and does not deploy.
-The workflow reports results; requiring that check for merges is a separate
-repository policy decision. Merge and release approval remain human gates.
+Same repository and checkout; no new clone, worktree or source base.
+Canonical project decisions remain in the existing Notion record.

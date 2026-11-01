@@ -15,7 +15,7 @@ before(async () => {
   await new Promise((resolve) => socket.close(resolve));
   base = `http://127.0.0.1:${port}`;
   server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', String(port)], {
-    env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1' }, stdio: ['ignore', 'pipe', 'pipe']
+    env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1', LANDSCAPE_DATA_DIR: 'memory://', DATABASE_URL: '', VERCEL: '', MIGRATE_ON_START: '' }, stdio: ['ignore', 'pipe', 'pipe']
   });
   server.stdout.on('data', (data) => { output += data; });
   server.stderr.on('data', (data) => { output += data; });
@@ -41,10 +41,11 @@ test('home serves experimental Spanish content with noindex metadata', async () 
   const html = await response.text();
   assert.match(html, /<html lang="es"/);
   assert.match(html, /Neura Landscape/);
-  assert.match(html, /Experimental · Precomercial/);
+  assert.match(html, /Acceso anticipado/);
   assert.match(html, /<meta name="robots" content="[^"]*noindex[^"]*"/);
-  assert.match(html, /href="#foundation"/);
-  assert.match(html, /id="foundation"/);
+  assert.match(html, /Command Center/);
+  assert.match(html, /OPERATIONS WORKSPACE/);
+  assert.match(html, /aria-current="page"/);
 });
 test('home, robots and missing routes carry the noindex header', async () => {
   for (const path of ['/', '/robots.txt', '/missing-mission-001']) {
@@ -58,4 +59,51 @@ test('robots.txt disallows all crawlers', async () => {
   const body = await response.text();
   assert.match(body, /User-Agent: \*/i);
   assert.match(body, /Disallow: \//);
+});
+
+test('prototype routes expose distinct screens and retain noindex', async () => {
+  for (const [path, content] of [['clientes', 'Clientes'], ['contratos', 'Contratos'], ['propiedades', 'Propiedades'], ['agenda', 'Trabajos y agenda'], ['cuadrillas', 'Cuadrillas'], ['integraciones', 'Integraciones']]) {
+    const response = await fetch(`${base}/${path}`);
+    assert.equal(response.status, 200, path);
+    assert.match(response.headers.get('x-robots-tag') ?? '', /noindex/);
+    const html = await response.text();
+    assert.ok(html.includes(content), path);
+    const activeLink = html.match(/<a\b[^>]*aria-current="page"[^>]*>/g) ?? [];
+    assert.equal(activeLink.length, 1, path);
+    assert.ok(activeLink[0].includes(`href="/${path}"`), path);
+    assert.match(html, /OPERATIONS WORKSPACE/);
+  }
+});
+
+test('HTTP workflow saves related records and computes completed visit costs', async () => {
+  async function post(input, expected=201, extra={}) {
+    const response=await fetch(`${base}/api/operations`,{method:'POST',headers:{'Content-Type':'application/json',Origin:base,...extra},body:JSON.stringify(input)});
+    const value=await response.json();
+    assert.equal(response.status,expected,JSON.stringify(value));
+    return value;
+  }
+  await post({action:'customer',name:'Rejected'},403,{Origin:'https://external.invalid'});
+  await post({action:'customer',name:''},422);
+  const customerResponse=await fetch(`${base}/api/customers`,{method:'POST',headers:{'Content-Type':'application/json',Origin:base},body:JSON.stringify({
+    kind:'person',first_name:'Cliente',last_name:'HTTP',company_name:'',status:'active',marital_status:'',language:'es',timezone:'America/New_York',notes:'',
+    contacts:[{first_name:'Cliente',last_name:'HTTP',relationship:'self',roles:['primary','signer'],phone_mobile:'+12015550123',phone_home:'',phone_office:'',email:'http@example.invalid',preferred_channel:'call',preferred_phone:'mobile',contact_from:'09:00',contact_to:'17:00',consent_sms:false,consent_whatsapp:false,consent_email:false}],
+    addresses:[{label:'home',line1:'12 Test Street',line2:'',city:'Newark',region:'NJ',postal_code:'07102',country:'US',latitude:null,longitude:null,place_id:''}]
+  })});
+  assert.equal(customerResponse.status,201);
+  const customer=await customerResponse.json();
+  const property=await post({action:'property',customer_id:customer.id,name:'Jardín HTTP',address:'Dirección ficticia',lawn_sqft:1000});
+  const contract=await post({action:'contract',property_id:property.id,service:'Corte',frequency:'Semanal',monthly:400,visits_per_month:4,estimated_minutes:30});
+  const crew=await post({action:'crew',name:'Equipo HTTP',workers:2,hourly:20});
+  const visit=await post({action:'visit',contract_id:contract.id,crew_id:crew.id,scheduled_at:'2026-11-02T08:00:00Z',route_order:1});
+  await post({action:'start',id:visit.id});
+  await post({action:'complete',id:visit.id,actual_minutes:60,materials:10,equipment:5,travel:5,overhead:10,notes:'Prueba de extremo a extremo'});
+  const response=await fetch(`${base}/api/operations`);
+  assert.equal(response.status,200);
+  const state=await response.json();
+  assert.equal(state.customers.length,1);
+  assert.equal(state.visits[0].status,'completed');
+  assert.deepEqual(state.visits[0].profitability,{cost_cents:7000,revenue_cents:10000,contribution_cents:3000,margin:30});
+  await post({action:'start',id:visit.id},400);
+  const after=await (await fetch(`${base}/api/operations`)).json();
+  assert.equal(after.visits[0].profitability.cost_cents,7000);
 });

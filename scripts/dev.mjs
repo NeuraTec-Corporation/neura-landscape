@@ -1,1 +1,1 @@
-import { runNext } from './next.mjs'; runNext(['dev', '--hostname', '127.0.0.1']);
+import { runNext } from './next.mjs'; runNext(['dev', '--webpack', '--hostname', '127.0.0.1']);
