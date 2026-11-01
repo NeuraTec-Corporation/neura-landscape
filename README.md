@@ -130,3 +130,60 @@ Canonical project decisions remain in the existing Notion record.
   and an audit trail remain in PostgreSQL; there is no permanent deletion or restore UI.
 - Migration 004 is additive and runs through the existing migration mechanism; no second
   source base, checkout, database service or paid integration is introduced.
+
+
+## Mobile property surveys and Google access
+
+Open Propiedades y localidades → select customer → Zonas, elementos y fotos.
+Zones keep area and original ft²/m² unit, measurement quality and an optional point.
+Elements belong to a zone: type/count/unit, primary planned service, frequency,
+season, protection instructions, notes and optional coordinates. This is inventory,
+not an automatic work order or a measured property boundary. Do not double-count
+nested or overlapping zones. Existing aggregate property areas remain legacy values;
+the survey does not overwrite them or infer rates, labor, materials or prices.
+
+Photos attach to a property, zone or individual element. The browser resizes before
+upload; the server decodes/re-encodes JPEG, strips EXIF and limits input to 2 MiB /
+20 MP and output dimensions to 1600 px. Database metadata and bytes are private,
+served through the authorized API with no-store. Storage adapter uses private Vercel
+Blob if explicitly configured; otherwise uses a separate bytea table in the existing
+PostgreSQL. This bounded evaluation adapter has a shared 100 MiB budget and at most
+40 active photos per locality. Archived bytes still count; no automatic purge or
+large-scale media-library claim. The connector denied creation of private Blob
+with 403; no store or paid service was created. Existing photo records carry a
+backend identifier, so a future backend change does not invalidate old images.
+
+Map view is an OpenStreetMap point/area-of-surroundings embed with attribution,
+plus external Maps/Earth links. It is not satellite imagery hosted by Landscape,
+3D mapping, parcel boundaries, automatic measurements or route optimization.
+GPS captures device position with its reported accuracy; it does not identify the
+element remotely. Coordinates can be entered manually. Google Places remains off.
+
+Usuarios y niveles manages Google-account allowlist, roles, active status and crew
+assignments. User identities belong in private storage/configuration, never public
+source. Google authentication uses pinned Better Auth 1.7 with email/password off,
+account linking off, database rate-limit storage, no session cookie-cache of roles,
+and twelve-hour sessions. Roles and assigned sites are rechecked server-side.
+Workers/crew leads have a dedicated mobile read-only assignment view, no financial
+API access; the assignment query returns only pending/started visits from their
+crews and no financial columns. It is not an execution/time-entry portal yet.
+
+Individual access is NOT active until OAuth is configured and tested. With
+APP_AUTH_ENABLED=false the previous Vercel-protected evaluation mode remains;
+roles are not represented as enforced individual identity in that mode. Setting
+APP_AUTH_ENABLED=true without valid configuration fails closed. Prepare these
+Vercel environment variables without putting credentials in chat or source:
+
+- GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (Google OAuth Web application).
+- BETTER_AUTH_SECRET (strong random server secret) and BETTER_AUTH_URL (stable host).
+- LANDSCAPE_IT_ADMIN_EMAIL (private, explicitly authorized first IT administrator).
+- Then APP_AUTH_ENABLED=true, redeploy and verify the first Google login.
+
+Register exactly BETTER_AUTH_URL + /api/auth/callback/google in Google Cloud OAuth.
+Use a stable approved branch alias, not an expiring individual deployment hostname.
+Better Auth creates/updates its own auth tables on first configured access under a
+separate advisory lock; migrations 005/006 version the survey and role tables.
+OAuth completion requires the Google project client credentials; this release does
+not claim an executed Google sign-in without them. Vercel deployment protection
+remains enabled throughout. Revoke a user's access by disabling their member row;
+removing crew membership immediately removes access to its sites/assignments.

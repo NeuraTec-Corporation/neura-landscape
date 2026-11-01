@@ -1,3 +1,5 @@
+@layer base, survey;
+@layer base {
 :root {
 	color-scheme: light;
 	background: #f4f5ef;
@@ -1138,3 +1140,60 @@ button:disabled {
 .service-workspace button{margin:8px 10px 0 0}
 .service-workspace .panel>p{line-height:1.7}
 @media(max-width:900px){.service-workspace .crm-grid,.service-workspace .location-grid{grid-template-columns:1fr}}
+
+}
+@layer survey {
+.workspace > .main-area{min-width:0;max-width:100%;overflow-wrap:anywhere}
+.workspace main{min-width:0}
+.workspace .sidebar{min-width:0;max-width:100%}
+
+.survey-workspace{display:grid;gap:22px;min-width:0}
+.survey-hero{background:linear-gradient(135deg,#173e30,#2c5540);color:#f4f6ec;border-radius:18px;padding:30px;overflow:hidden}
+.survey-hero .eyebrow{color:#d4e5b4;font-size:11px;letter-spacing:.16em}
+.survey-hero h2,.survey-hero h1{font-size:clamp(26px,4vw,40px);font-weight:500;line-height:1.15;margin-bottom:14px}
+.survey-hero>p{line-height:1.6;color:#d5dfd0}
+.survey-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;border-top:1px solid #ffffff25;padding-top:22px;margin-top:24px}
+.survey-stats span{display:grid;gap:6px;font-size:12px;color:#d2ddca}
+.survey-stats strong{font-size:30px;font-weight:500;color:#e0edc5}
+.survey-tabs{min-width:0;max-width:100%;display:flex;gap:8px;overflow-x:auto;padding:8px 0;scrollbar-width:thin}
+.survey-tabs button{white-space:nowrap;background:#e9ede2;color:#294f3c;min-height:48px}
+.survey-tabs button[aria-pressed=true]{background:#244f3a;color:#fff}
+.survey-zone-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:20px}
+.survey-zone{display:flex;gap:18px;padding:20px;background:#f4f6ef;border:1px solid #dfe6d5;border-radius:12px;align-items:center}
+.zone-symbol{display:grid;place-items:center;width:56px;height:60px;border-radius:12px;background:#dfe9ca;color:#3b5a30;font-size:34px;flex-shrink:0}
+.zone-symbol.driveway{background:#e4e5df;color:#59615c}
+.survey-zone h4,.survey-item h4{font-size:18px;margin:0 0 10px}
+.survey-zone p{margin:0 0 10px;font-size:14px}
+.survey-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.survey-actions h3{margin-right:auto;margin-bottom:0}
+.survey-actions a{padding:12px 0;min-height:44px}
+.survey-form{padding:24px;background:#f7f8f3;border-radius:14px;margin:20px 0;border:1px solid #dfe6d5}
+.survey-form fieldset{border:0;min-width:0;padding:0;margin:0}
+.survey-form legend{font-size:20px;padding:0 0 20px}
+.survey-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-bottom:22px}
+.survey-form label{display:grid;gap:8px;min-width:0;font-size:13px;font-weight:600;color:#42584b}
+.survey-form input,.survey-form select,.survey-form textarea{width:100%;min-width:0;border:1px solid #a2b29f;background:#fff;color:#203b30;border-radius:8px;min-height:48px;padding:12px;font:inherit;font-size:16px}
+.survey-form textarea{min-height:100px;resize:vertical}
+.survey-form input:focus-visible,.survey-form select:focus-visible,.survey-form textarea:focus-visible{outline:3px solid #a8bd8f;outline-offset:2px}
+.survey-form button{min-height:48px;margin:6px 10px 0 0}
+.survey-item{padding:24px;border:1px solid #dce4d2;border-radius:12px;min-width:0}
+.survey-item p{font-size:14px;line-height:1.65;overflow-wrap:anywhere}
+.survey-protection{background:#fff2d4;border-left:3px solid #ba8a27;padding:14px;border-radius:6px}
+.survey-photo-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:24px}
+.survey-photo-grid figure{margin:0;background:#f1f4e9;border-radius:14px;overflow:hidden;border:1px solid #dce4d2}
+.survey-photo-grid img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}
+.survey-photo-grid figcaption{padding:16px;display:grid;gap:8px;line-height:1.4}
+.survey-photo-grid figcaption span{font-size:13px;color:#657468}
+.survey-thumb{width:100%;max-height:180px;object-fit:cover;border-radius:8px;margin:8px 0}
+.survey-map{display:block;width:100%;height:350px;border:0;border-radius:12px;margin:20px 0}
+.survey-form .survey-assignments{display:flex;flex-wrap:wrap;gap:18px;margin:16px 0}
+.survey-assignments label{display:flex;align-items:center;gap:12px}
+.survey-assignments input{width:22px;min-height:22px}
+.crew-portal{max-width:1100px;margin:0 auto;padding:24px}
+.sign-in{max-width:560px;margin:12vh auto;padding:20px}
+.identity-loading{padding:30px}
+.session-signout{position:fixed;right:16px;bottom:16px;box-shadow:0 5px 20px #0002}
+[data-app-role=manager] a[href='/usuarios'],[data-app-role=finance] .sidebar nav a:not([href='/']):not([href='/control']):not([href='/contratos']){display:none}
+@media(max-width:720px){.survey-hero{padding:24px 20px;border-radius:14px}.survey-stats{grid-template-columns:repeat(2,1fr);gap:20px}.survey-fields,.survey-zone-grid{grid-template-columns:1fr}.survey-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.survey-form{padding:18px}.survey-workspace .panel{padding:20px 16px}.survey-tabs{position:sticky;top:0;z-index:3;background:#f4f5ef;margin:0 -4px}.survey-actions button{flex:1}.survey-form button{width:100%;margin:8px 0 0}.crew-portal{padding:14px}.survey-item{padding:18px}.survey-photo-grid figcaption{padding:12px;font-size:13px}.survey-map{height:300px}.contact-heading{flex-wrap:wrap}.contact-heading button{min-height:48px}.service-workspace input,.service-workspace select,.site-editor input,.site-editor select{font-size:16px}}
+
+}

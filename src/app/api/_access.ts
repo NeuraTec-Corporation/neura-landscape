@@ -6,7 +6,8 @@ export function allowedRequest(request: Request) {
 		process.env.VERCEL === "1" &&
 		(host === process.env.VERCEL_URL ||
 			host === process.env.VERCEL_PROJECT_PRODUCTION_URL ||
-			host === process.env.APP_HOST);
+			host === process.env.APP_HOST ||
+			host === process.env.VERCEL_BRANCH_URL);
 	if (!local && !deployment) return false;
 	if (!origin) return true;
 	try {

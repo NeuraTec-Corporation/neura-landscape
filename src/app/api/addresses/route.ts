@@ -1,8 +1,8 @@
-import { allowedRequest } from "../_access";
+import { authorizedRequest as allowedRequest } from "../_identity";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
-	if (!allowedRequest(request))
+	if (!(await allowedRequest(request)))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 	const key = process.env.GOOGLE_PLACES_API_KEY;
 	if (!key) return Response.json({ enabled: false, suggestions: [] });

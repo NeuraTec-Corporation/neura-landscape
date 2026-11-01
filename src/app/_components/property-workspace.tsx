@@ -1,4 +1,5 @@
 "use client";
+import { SurveyWorkspace } from "./survey-workspace";
 import { useEffect, useId, useState } from "react";
 import { getCountries } from "libphonenumber-js";
 import { PhoneField } from "@/shared/ui";
@@ -151,6 +152,7 @@ export function PropertyWorkspace({
 	onSaved?: () => Promise<void>;
 	knownCustomer?: CustomerRecord;
 }) {
+	const [surveyId, setSurveyId] = useState<string | null>(null);
 	const [customers, setCustomers] = useState<CustomerSummary[]>([]),
 		[selected, setSelected] = useState(customerId ?? "");
 	const [items, setItems] = useState<PropertyRecord[]>([]),
@@ -319,6 +321,13 @@ export function PropertyWorkspace({
 			setBusy(false);
 		}
 	}
+	if (surveyId)
+		return (
+			<SurveyWorkspace
+				propertyId={surveyId}
+				onClose={() => setSurveyId(null)}
+			/>
+		);
 	return (
 		<section
 			className="property-workspace"
@@ -694,6 +703,9 @@ export function PropertyWorkspace({
 									<p>Acceso: {row.access_instructions}</p>
 								) : null}
 								<div className="contact-heading">
+									<button type="button" onClick={() => setSurveyId(row.id)}>
+										Zonas, elementos y fotos
+									</button>
 									<a
 										target="_blank"
 										rel="noreferrer"

@@ -1,3 +1,4 @@
+import sharp from 'sharp';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -15,7 +16,7 @@ before(async () => {
   await new Promise((resolve) => socket.close(resolve));
   base = `http://127.0.0.1:${port}`;
   server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', String(port)], {
-    env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1', LANDSCAPE_DATA_DIR: 'memory://', DATABASE_URL: '', VERCEL: '', MIGRATE_ON_START: '' }, stdio: ['ignore', 'pipe', 'pipe']
+    env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1', LANDSCAPE_DATA_DIR: 'memory://', DATABASE_URL: '', VERCEL: '', MIGRATE_ON_START: '', APP_AUTH_ENABLED:'false', BLOB_STORE_ID:'', BLOB_READ_WRITE_TOKEN:'', LANDSCAPE_IT_ADMIN_EMAIL:'' }, stdio: ['ignore', 'pipe', 'pipe']
   });
   server.stdout.on('data', (data) => { output += data; });
   server.stderr.on('data', (data) => { output += data; });
@@ -62,7 +63,7 @@ test('robots.txt disallows all crawlers', async () => {
 });
 
 test('prototype routes expose distinct screens and retain noindex', async () => {
-  for (const [path, content] of [['clientes', 'Clientes'], ['contratos', 'Contratos'], ['propiedades', 'Propiedades'], ['agenda', 'Trabajos y agenda'], ['control', 'Control de servicio'], ['cuadrillas', 'Cuadrillas'], ['integraciones', 'Integraciones']]) {
+  for (const [path, content] of [['clientes', 'Clientes'], ['contratos', 'Contratos'], ['propiedades', 'Propiedades'], ['agenda', 'Trabajos y agenda'], ['control', 'Control de servicio'], ['cuadrillas', 'Cuadrillas'], ['integraciones', 'Integraciones'], ['usuarios', 'Usuarios y niveles']]) {
     const response = await fetch(`${base}/${path}`);
     assert.equal(response.status, 200, path);
     assert.match(response.headers.get('x-robots-tag') ?? '', /noindex/);
@@ -116,5 +117,14 @@ test('HTTP workflow saves related records and computes completed visit costs', a
   assert.equal(after.visits[0].profitability.cost_cents,7000);
  assert.equal((await fetch(`${base}/api/contracts?month=`)).status,400);
  const report=await (await fetch(`${base}/api/contracts?month=2026-11`)).json();assert.equal(report[0].completed,1);assert.equal(report[0].total_cost_cents,7000);
+ const zoneResponse=await fetch(`${base}/api/survey`,{method:'POST',headers:{'Content-Type':'application/json',Origin:base},body:JSON.stringify({entity:'zone',property_id:property.id,name:'Jardín frontal',kind:'lawn',area:150,unit:'sqft',measurement_status:'measured',latitude:null,longitude:null,notes:'Medición de campo'})});
+ assert.equal(zoneResponse.status,200);const zone=await zoneResponse.json();
+ const picture=await sharp({create:{width:40,height:30,channels:3,background:'#405c38'}}).jpeg().toBuffer();
+ const photoResponse=await fetch(`${base}/api/photos?property_id=${property.id}&zone_id=${zone.id}&viewpoint=front&caption=Vista%20frontal`,{method:'POST',headers:{'Content-Type':'application/octet-stream',Origin:base},body:picture});
+ assert.equal(photoResponse.status,200);const photo=await photoResponse.json();
+ const image=await fetch(`${base}/api/photos?id=${photo.id}`);assert.equal(image.status,200);assert.match(image.headers.get('content-type'),/image\/jpeg/);assert.match(image.headers.get('cache-control'),/private/);assert.ok((await image.arrayBuffer()).byteLength>0);
+ const forbiddenImage=await fetch(`${base}/api/photos?id=${photo.id}`,{headers:{Origin:'https://external.invalid'}});assert.equal(forbiddenImage.status,404);
+ const dossier=await (await fetch(`${base}/api/survey?property_id=${property.id}`)).json();assert.equal(dossier.zones[0].name,'Jardín frontal');assert.equal(dossier.photos.length,1);assert.equal(dossier.uploadReady,true);
+ assert.equal((await fetch(`${base}/api/auth/ok`)).status,503);
  const denied=await fetch(`${base}/api/contracts`,{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://external.invalid'},body:JSON.stringify({action:'delete',id:contract.id,revision:1})});assert.equal(denied.status,403);
 });

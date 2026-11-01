@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UsersWorkspace } from "./users-workspace";
 import { OperatorSettings } from "./operator-settings";
 import { ContractWorkspace } from "./contract-workspace";
 import { ExperimentalNotice } from "@/shared/ui";
@@ -13,6 +14,7 @@ export const sections = [
 	{ id: "agenda", label: "Trabajos y agenda" },
 	{ id: "control", label: "Control de servicio" },
 	{ id: "cuadrillas", label: "Cuadrillas" },
+	{ id: "usuarios", label: "Usuarios y niveles" },
 	{ id: "integraciones", label: "Integraciones" },
 ] as const;
 export function CommandCenter({ section }: { section: string }) {
@@ -76,6 +78,8 @@ export function CommandCenter({ section }: { section: string }) {
 						<CustomerWorkspace />
 					) : section === "propiedades" ? (
 						<PropertyWorkspace />
+					) : section === "usuarios" ? (
+						<UsersWorkspace />
 					) : section === "contratos" || section === "control" ? (
 						<ContractWorkspace control={section === "control"} />
 					) : (

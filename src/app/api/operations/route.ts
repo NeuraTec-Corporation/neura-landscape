@@ -1,17 +1,17 @@
-import { saveContract } from '@/modules/operations/contracts.mjs';
+import { saveContract } from "@/modules/operations/contracts.mjs";
 import {
 	database,
 	snapshot,
 	mutate,
 } from "../../../modules/operations/index.mjs";
-import { allowedRequest } from "../_access";
+import { authorizedRequest as allowedRequest } from "../_identity";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-function allowed(request: Request) {
+async function allowed(request: Request) {
 	return allowedRequest(request);
 }
 export async function GET(request: Request) {
-	if (!allowed(request))
+	if (!(await allowed(request)))
 		return Response.json(
 			{ error: "Prototipo local: acceso solo desde este equipo." },
 			{ status: 403 },
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 	}
 }
 export async function POST(request: Request) {
-	if (!allowed(request))
+	if (!(await allowed(request)))
 		return Response.json({ error: "Origen no permitido." }, { status: 403 });
 	if (!request.headers.get("content-type")?.startsWith("application/json"))
 		return Response.json({ error: "Se requiere JSON." }, { status: 415 });
@@ -47,10 +47,24 @@ export async function POST(request: Request) {
 				{ error: "Crea el expediente completo en Clientes." },
 				{ status: 422 },
 			);
-		if (input.action === 'property') return Response.json({error:'Registra la dirección completa en Propiedades y localidades.'},{status:422});
-		return Response.json(input.action === "contract" ? await saveContract(await database(),{...input,status:input.status??"active"}) : await mutate(await database(), input), {
-			status: 201,
-		});
+		if (input.action === "property")
+			return Response.json(
+				{
+					error: "Registra la dirección completa en Propiedades y localidades.",
+				},
+				{ status: 422 },
+			);
+		return Response.json(
+			input.action === "contract"
+				? await saveContract(await database(), {
+						...input,
+						status: input.status ?? "active",
+					})
+				: await mutate(await database(), input),
+			{
+				status: 201,
+			},
+		);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "";
 		const safe =

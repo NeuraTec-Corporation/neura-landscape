@@ -1,9 +1,9 @@
 import { database } from "@/modules/operations/index.mjs";
-import { allowedRequest } from "../_access";
+import { authorizedRequest as allowedRequest } from "../_identity";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
-	if (!allowedRequest(request))
+	if (!(await allowedRequest(request)))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 	try {
 		const rows = (
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
 	}
 }
 export async function POST(request: Request) {
-	if (!allowedRequest(request))
+	if (!(await allowedRequest(request)))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 	if (!request.headers.get("content-type")?.startsWith("application/json"))
 		return Response.json({ error: "Se requiere JSON." }, { status: 415 });
