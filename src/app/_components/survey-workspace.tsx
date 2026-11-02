@@ -345,17 +345,9 @@ export function SurveyWorkspace({
 													{catalogs.label("zone_kind", z.kind)} ·{" "}
 													{z.area === null
 														? "Sin medir"
-														: `${z.area} ${z.unit === "sqft" ? "ft²" : "m²"}`}
+														: `${z.area} ${catalogs.label("area_unit", z.unit ?? "sqft")}`}
 												</p>
-												<span className="pill">
-													{
-														{
-															estimated: "Estimada",
-															measured: "Medida",
-															verified: "Verificada",
-														}[z.measurement_status ?? "estimated"]
-													}
-												</span>
+												<span className="pill">{catalogs.label("measurement_quality", z.measurement_status ?? "estimated")}</span>
 											</div>
 										</article>
 									))}
@@ -407,7 +399,7 @@ export function SurveyWorkspace({
 									<p>
 										Completa latitud y longitud en Editar localidad para ubicar
 										el lugar. Puedes registrar coordenadas propias en cada zona
-										y elemento.
+										; los elementos usan la ubicación de la propiedad.
 									</p>
 								)}
 							</section>
@@ -420,7 +412,7 @@ export function SurveyWorkspace({
 								</p>
 								{Object.entries(data.totals).map(([unit, amount]) => (
 									<p key={unit}>
-										Superficie declarada en {unit === "sqft" ? "ft²" : "m²"}:{" "}
+										Superficie declarada en {catalogs.label("area_unit", unit)}:{" "}
 										<strong>{amount}</strong>
 									</p>
 								))}
@@ -680,7 +672,7 @@ export function SurveyWorkspace({
 										<h4>{item.name}</h4>
 										<p>
 											{tab === "zones"
-												? `${catalogs.label("zone_kind", item.kind)} · ${item.area === null ? "Sin medir" : `${item.area} ${item.unit === "sqft" ? "ft²" : "m²"}`}`
+												? `${catalogs.label("zone_kind", item.kind)} · ${item.area === null ? "Sin medir" : `${item.area} ${catalogs.label("area_unit", item.unit ?? "sqft")}`}`
 												: `${catalogs.label("element_kind", item.kind)} · ${item.quantity} ${item.unit === "each" ? "unidades" : item.unit}`}
 										</p>
 										{item.zone_id ? (
