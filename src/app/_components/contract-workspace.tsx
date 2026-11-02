@@ -1,4 +1,5 @@
 "use client";
+import { CatalogSelect } from "./catalogs";
 import { useEffect, useState } from "react";
 type Row = {
 	id: string;
@@ -9,6 +10,7 @@ type Row = {
 	customer_name: string;
 	customer_id: string;
 	service: string;
+	service_key?: string | null;
 	frequency: string;
 	monthly_cents: number;
 	visits_per_month: number;
@@ -43,14 +45,6 @@ const statuses: Record<string, string> = {
 	ended: "Finalizado",
 	cancelled: "Cancelado",
 };
-const frequencies = [
-	"Semanal",
-	"Cada 14 días",
-	"Dos veces al mes",
-	"Mensual",
-	"Dos veces por semana",
-	"Personalizada",
-];
 const money = (v: number) =>
 	new Intl.NumberFormat("es-US", { style: "currency", currency: "USD" }).format(
 		(v || 0) / 100,
@@ -78,9 +72,14 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 				signal: controller.signal,
 				cache: "no-store",
 			}),
-            ...(control ? [] : [fetch("/api/properties", {
-                signal: controller.signal, cache: "no-store",
-            })]),
+			...(control
+				? []
+				: [
+						fetch("/api/properties", {
+							signal: controller.signal,
+							cache: "no-store",
+						}),
+					]),
 		])
 			.then(async (responses) => {
 				const data = await Promise.all(
@@ -100,7 +99,7 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 		return () => controller.abort();
 	}, [month, control]);
 	async function submit(input: unknown) {
- let saved=false;
+		let saved = false;
 		setBusy(true);
 		setError("");
 		setNotice("");
@@ -112,8 +111,8 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 			});
 			const result = await response.json();
 			if (!response.ok) throw new Error(result.error);
-			saved=true;
- setEdit(null);
+			saved = true;
+			setEdit(null);
 			setNotice("Cambios guardados.");
 			const r = await fetch("/api/contracts", { cache: "no-store" });
 			const updated = await r.json();
@@ -231,8 +230,18 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 											))}
 									</select>
 								</label>
+								<label htmlFor="contract-service">
+									Servicio principal
+									<CatalogSelect
+										id="contract-service"
+										category="service"
+										name="service_key"
+										defaultValue={edit?.service_key ?? ""}
+										required
+									/>
+								</label>
 								<label>
-									Servicio incluido
+									Alcance del servicio
 									<input
 										name="service"
 										required
@@ -241,20 +250,15 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 										placeholder="Ej. corte de césped, bordes y limpieza"
 									/>
 								</label>
-								<label>
+								<label htmlFor="contract-frequency">
 									Frecuencia
-									<select
+									<CatalogSelect
+										id="contract-frequency"
+										category="contract_frequency"
 										name="frequency"
-										defaultValue={
-											frequencies.includes(edit?.frequency ?? "")
-												? edit?.frequency
-												: "Semanal"
-										}
-									>
-										{frequencies.map((f) => (
-											<option key={f}>{f}</option>
-										))}
-									</select>
+										defaultValue={edit?.frequency ?? "Semanal"}
+										required
+									/>
 								</label>
 								<label>
 									Estado

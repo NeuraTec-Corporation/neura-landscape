@@ -116,11 +116,11 @@ Canonical project decisions remain in the existing Notion record.
   Site ownership cannot be moved by editing a contract. Revisions reject stale edits.
 - Trabajos y agenda schedules and executes visits; only active contracts can receive
   new visits. Frequency does not automatically create a recurring calendar.
-- Control de servicio follows Agenda. Choose the scheduled service month (America/New_York)
-  and customer to inspect completed, scheduled, started and cancelled visits, remaining
-  visits against the CURRENT agreed quota, and completed-visit cost components.
-  Historical quotas and partial-month proration are not reconstructed in this release.
-  Allocated revenue and contribution are operational allocations, not cash collections.
+- Panel gerencial is the landing page: service status charts, quantities executed,
+  named-person time, current-month contract commitments and financial ledger totals.
+  Filters cover dates, customer, city/region, work status, service and crew. Date basis
+  is scheduled or actual completion. `/control` is a compatibility alias, not another menu.
+  Current monthly quotas do not reconstruct historical terms or prorate weeks.
 - Newly scheduled visits snapshot allocated revenue; editing contract prices does not
   reprice existing visits. Completed costs/revenue remain unchanged. The migration
   backfills pending allocations using current contract terms, without rewriting completed totals.
@@ -137,7 +137,8 @@ Canonical project decisions remain in the existing Notion record.
 Open Propiedades y localidades → select customer → Zonas, elementos y fotos.
 Zones keep area and original ft²/m² unit, measurement quality and an optional point.
 Elements belong to a zone: type/count/unit, primary planned service, frequency,
-season, protection instructions, notes and optional coordinates. This is inventory,
+season, protection instructions and notes. Elements use the property location;
+previous optional element coordinates are retained, without asking for them again. This is inventory,
 not an automatic work order or a measured property boundary. Do not double-count
 nested or overlapping zones. Existing aggregate property areas remain legacy values;
 the survey does not overwrite them or infer rates, labor, materials or prices.
@@ -187,3 +188,49 @@ OAuth completion requires the Google project client credentials; this release do
 not claim an executed Google sign-in without them. Vercel deployment protection
 remains enabled throughout. Revoke a user's access by disabling their member row;
 removing crew membership immediately removes access to its sites/assignments.
+
+
+## Operational management (migration 007)
+
+The same PostgreSQL database now contains editable business catalogs, employees,
+crew membership, visit personnel snapshots, task quantities, cost lines, invoices,
+payments and change history. No additional checkout or database is required.
+Existing migration runner applies 007 transactionally; keep a database backup before
+operational upgrades. Legacy crews remain visible and require identified employees
+before new scheduling. Legacy service prose is not guessed into production statistics.
+
+- Configuración manages company codes and catalogs. Inline + buttons create/maintain
+  business options; retirement preserves references. Workflow/security states and ISO
+  country codes retain their defined semantics. New zones can be created inline too.
+- Empleados manages identified people, functions, skills and optional hourly rates.
+  Cuadrillas selects those people, functions, shift and break duration. No invented
+  staff are inferred from legacy headcounts. Google user access is separate.
+- Agenda schedules specific tasks with quantities, units, inventory elements and
+  optional individual responsibility. It checks shared-person/crew overlap, shift
+  bounds and daily service + entered travel minutes. These are capacity controls,
+  not road routing or automatic productivity-rate estimation. Scheduled visits can
+  be edited. Started visits can be cancelled with a reason and actual work, including
+  zero time for mistaken starts. Completed records retain costs/history when archived.
+- Complete visits with actual per-person minutes and task quantities/blockers. Labor
+  = sum(person minutes / 60 × snapshotted hourly rate), rounded in cents per person.
+  Unknown rates keep cost completeness pending. Costos separately records quantity ×
+  unit price for materials, equipment, travel and overhead, with reasons for revisions.
+- Facturación y cobros is an internal manual document/payment ledger. Drafts can be
+  edited/deleted; issued documents require justified voiding. Payments can be reversed
+  as records, not refunded. No email, fiscal certification, tax engine or charge occurs.
+  Dashboard billed = issued invoice totals by issue date; collected = nonreversed
+  payment amounts by received date; owed = all open issued balances in geographic/
+  customer scope. Service/crew/work-status filters apply to operations, not ledger.
+- Contribution uses allocated visit revenue minus complete recorded visit costs; it
+  is neither net company profit nor cash. Pruned-tree totals require recorded pruning
+  quantities linked to a tree/fruit-tree inventory element. Unstructured historical
+  visits are flagged instead of inventing production. Comparisons require equivalent
+  tasks, conditions and quality; visit count alone is not employee performance.
+- API mutations enforce role permissions, optimistic revisions and relational guards;
+  audit actors and before/after planning/cost snapshots are retained. Individual role
+  login still requires completing the Google OAuth configuration described above.
+
+Verify with `npm run lint`, `npm run typecheck`, `npm run build`, `npm test` and
+`npm audit --audit-level=low`. The HTTP suite uses an isolated in-memory database,
+not the hosted evaluation records. Integraciones displays actual configured status;
+Google Places, road routing and external billing remain disconnected.

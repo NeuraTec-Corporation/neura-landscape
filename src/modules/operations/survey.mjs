@@ -1,9 +1,11 @@
+import { requireOption } from "./catalog.mjs";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 export class SurveyError extends Error {
-	constructor(message, status = 422) {
+	constructor(message, status = 422, fields = {}) {
 		super(message);
 		this.status = status;
+		this.fields = fields;
 	}
 }
 const coordinates = {
@@ -20,48 +22,27 @@ const base = {
 };
 const zone = z.object({
 	...base,
-	kind: z.enum(["lawn", "garden", "driveway", "walkway", "patio", "other"]),
+	kind: z.string().trim().min(1),
 	area: z.number().min(0).max(1e9).nullable(),
-	unit: z.enum(["sqft", "sqm"]),
-	measurement_status: z.enum(["estimated", "measured", "verified"]),
+	unit: z.string().trim().min(1),
+	measurement_status: z.string().trim().min(1),
 });
-const element = z.object({
-	...base,
-	zone_id: z.string().uuid(),
-	kind: z.enum([
-		"tree",
-		"fruit_tree",
-		"planter",
-		"hedge",
-		"irrigation",
-		"lawn",
-		"surface",
-		"other",
-	]),
-	quantity: z.number().positive().max(1e8),
-	unit: z.enum(["each", "sqft", "sqm", "ft", "m"]),
-	service: z.enum([
-		"maintenance",
-		"mowing",
-		"pruning",
-		"planting",
-		"snow",
-		"inspection",
-		"preserve",
-		"other",
-	]),
-	frequency: z.enum([
-		"on_request",
-		"weekly",
-		"every14days",
-		"monthly",
-		"quarterly",
-		"annual",
-		"seasonal",
-	]),
-	season: z.enum(["all", "spring", "summer", "autumn", "winter"]),
-	protection_notes: z.string().trim().max(2000),
-}).refine(v=>v.unit!=="each"||Number.isInteger(v.quantity),"Las unidades se registran como enteros.");
+const element = z
+	.object({
+		...base,
+		zone_id: z.string().uuid(),
+		kind: z.string().trim().min(1),
+		quantity: z.number().positive().max(1e8),
+		unit: z.string().trim().min(1),
+		service: z.string().trim().min(1),
+		frequency: z.string().trim().min(1),
+		season: z.string().trim().min(1),
+		protection_notes: z.string().trim().max(2000),
+	})
+	.refine(
+		(v) => v.unit !== "each" || Number.isInteger(v.quantity),
+		"Las unidades se registran como enteros.",
+	);
 export async function survey(db, propertyId) {
 	return db.transaction(async (tx) => {
 		const property = (
@@ -111,7 +92,18 @@ export async function saveSurveyItem(db, kind, input) {
 	const parsed = (kind === "zone" ? zone : element).safeParse(input);
 	if (!parsed.success)
 		throw new SurveyError(
-			"Completa los campos del levantamiento y revisa medidas y coordenadas.",
+			"Revisa los campos marcados del levantamiento.",
+			422,
+			Object.fromEntries(
+				parsed.error.issues.map((i) => [
+					i.path.join("."),
+					i.path[0] === "latitude"
+						? "La latitud debe estar entre −90 y 90."
+						: i.path[0] === "longitude"
+							? "La longitud debe estar entre −180 y 180; conserva el punto decimal."
+							: i.message,
+				]),
+			),
 		);
 	const v = parsed.data;
 	if ((v.latitude === null) !== (v.longitude === null))
@@ -149,6 +141,25 @@ export async function saveSurveyItem(db, kind, input) {
 					409,
 				);
 		}
+		const previous = v.id
+			? (await tx.query(`SELECT * FROM ${table} WHERE id=$1`, [id])).rows[0]
+			: {};
+		const refs =
+			kind === "zone"
+				? {
+						kind: "zone_kind",
+						unit: "area_unit",
+						measurement_status: "measurement_quality",
+					}
+				: {
+						kind: "element_kind",
+						unit: "element_unit",
+						service: "service",
+						frequency: "frequency",
+						season: "season",
+					};
+		for (const [field, category] of Object.entries(refs))
+			await requireOption(tx, category, v[field], previous?.[field]);
 		const { id: unusedId, revision: unusedRevision, ...fields } = v;
 		void unusedId;
 		void unusedRevision;

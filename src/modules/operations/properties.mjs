@@ -1,3 +1,4 @@
+import { requireOption } from "./catalog.mjs";
 import { randomUUID } from "node:crypto";
 
 import { z } from "zod";
@@ -33,19 +34,7 @@ const schema = z
 
 		code: upper.pipe(z.string().max(80)),
 
-		kind: z.enum([
-			"residential",
-
-			"commercial",
-
-			"office",
-
-			"warehouse",
-
-			"land",
-
-			"other",
-		]),
+		kind: z.string().trim().min(1),
 
 		status: z.enum(["active", "inactive"]),
 
@@ -186,6 +175,11 @@ export async function saveProperty(db, input) {
 				});
 
 			let revision = 1;
+			const previous = v.id
+				? (await tx.query("SELECT kind FROM properties WHERE id=$1", [id]))
+						.rows[0]
+				: null;
+			await requireOption(tx, "property_kind", v.kind, previous?.kind);
 
 			if (v.id) {
 				const old = (

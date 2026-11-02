@@ -5,6 +5,7 @@ import {
 	deleteSurveyItem,
 	SurveyError,
 } from "@/modules/operations/survey.mjs";
+import { ManageError } from "@/modules/operations/manage.mjs";
 import { uploadReady } from "@/modules/operations/photos.mjs";
 import { propertyAllowed } from "../_identity";
 export const runtime = "nodejs";
@@ -26,8 +27,14 @@ export async function GET(request: Request) {
 	}
 }
 function failure(error: unknown) {
+	if (error instanceof ManageError)
+		return Response.json(
+			{ error: error.message, fields: error.fields },
+			{ status: error.status },
+		);
 	return Response.json(
 		{
+			fields: error instanceof SurveyError ? error.fields : {},
 			error:
 				error instanceof SurveyError
 					? error.message

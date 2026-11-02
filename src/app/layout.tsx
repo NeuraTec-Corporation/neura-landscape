@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { CatalogProvider } from "./_components/catalogs";
 import { IdentityGate } from "./_components/identity-gate";
 export const metadata: Metadata = {
 	title: "Neura Landscape | Operaciones",
@@ -13,9 +14,13 @@ export default function RootLayout({
 	return (
 		<html lang="es">
 			<body>
-				<IdentityGate initialEnabled={process.env.APP_AUTH_ENABLED === "true"}>
-					{children}
-				</IdentityGate>
+				<CatalogProvider>
+					<IdentityGate
+						initialEnabled={process.env.APP_AUTH_ENABLED === "true"}
+					>
+						{children}
+					</IdentityGate>
+				</CatalogProvider>
 			</body>
 		</html>
 	);

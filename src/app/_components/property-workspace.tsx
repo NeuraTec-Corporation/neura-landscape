@@ -1,4 +1,5 @@
 "use client";
+import { CatalogSelect, useCatalogs } from "./catalogs";
 import { SurveyWorkspace } from "./survey-workspace";
 import { useEffect, useId, useState } from "react";
 import { getCountries } from "libphonenumber-js";
@@ -11,14 +12,6 @@ import type {
 	CustomerRecord,
 	CustomerSummary,
 } from "@/modules/customers/index.mjs";
-const kindNames = {
-	residential: "Residencial",
-	commercial: "Local comercial",
-	office: "Oficina",
-	warehouse: "Almacén",
-	land: "Terreno",
-	other: "Otra instalación",
-};
 const fieldNames: Record<string, string> = {
 	customer_id: "Cliente",
 	name: "Nombre de localidad",
@@ -76,6 +69,7 @@ function SiteField({
 	error,
 	type = "text",
 	options,
+	catalog,
 	required = false,
 	multiline = false,
 	disabled = false,
@@ -86,6 +80,7 @@ function SiteField({
 	error?: string;
 	type?: string;
 	options?: [string, string][];
+	catalog?: string;
 	required?: boolean;
 	multiline?: boolean;
 	disabled?: boolean;
@@ -104,7 +99,17 @@ function SiteField({
 				{fieldNames[name] ?? name}
 				{required ? " *" : ""}
 			</label>
-			{options ? (
+			{catalog ? (
+				<CatalogSelect
+					id={id}
+					name={name}
+					value={value}
+					onChange={change}
+					category={catalog}
+					required={required}
+					disabled={disabled}
+				/>
+			) : options ? (
 				<select
 					{...props}
 					onChange={(e) => change(e.target.value)}
@@ -152,6 +157,7 @@ export function PropertyWorkspace({
 	onSaved?: () => Promise<void>;
 	knownCustomer?: CustomerRecord;
 }) {
+	const catalogs = useCatalogs();
 	const [surveyId, setSurveyId] = useState<string | null>(null);
 	const [customers, setCustomers] = useState<CustomerSummary[]>([]),
 		[selected, setSelected] = useState(customerId ?? "");
@@ -454,7 +460,7 @@ export function PropertyWorkspace({
 										name="kind"
 										value={draft.kind}
 										change={(v) => change("kind", v as PropertyDraft["kind"])}
-										options={Object.entries(kindNames) as [string, string][]}
+										catalog="property_kind"
 									/>
 									<SiteField
 										name="status"
@@ -657,7 +663,8 @@ export function PropertyWorkspace({
 									</span>
 								</div>
 								<p>
-									{kindNames[row.kind]} · {row.customer_name}
+									{catalogs.label("property_kind", row.kind)} ·{" "}
+									{row.customer_name}
 								</p>
 								<p>
 									{[

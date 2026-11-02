@@ -13,3 +13,5 @@ export type Member = {
 	status: string;
 	revision: number;
 };
+
+export function canManage(role: string, area: string, method: string): boolean;

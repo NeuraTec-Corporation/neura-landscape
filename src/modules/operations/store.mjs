@@ -77,7 +77,8 @@ function cents(value, label) {
 }
 
 export function profitability(visit) {
-	if (visit.status !== "completed") return null;
+	if (visit.status !== "completed" || visit.cost_complete === false)
+		return null;
 
 	const cost =
 		Number(visit.labor_cents) +

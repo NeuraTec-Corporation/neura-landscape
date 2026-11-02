@@ -1,3 +1,4 @@
+import { requireOption } from "./catalog.mjs";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 export const frequencies = [
@@ -13,7 +14,8 @@ const schema = z.object({
 	revision: z.number().int().positive().optional(),
 	property_id: z.string().min(1),
 	service: z.string().trim().min(1).max(500),
-	frequency: z.enum(frequencies),
+	service_key: z.string().min(1).nullable().optional(),
+	frequency: z.string().trim().min(1),
 	monthly: z.coerce
 		.number()
 		.finite()
@@ -52,6 +54,16 @@ export async function saveContract(db, input) {
 			if (old.property_id !== v.property_id)
 				throw new Error("La localidad del contrato no se puede cambiar.");
 		}
+		await requireOption(
+			tx,
+			"contract_frequency",
+			v.frequency,
+			v.id
+				? (await tx.query("SELECT frequency FROM contracts WHERE id=$1", [id]))
+						.rows[0]?.frequency
+				: undefined,
+		);
+		if (v.service_key) await requireOption(tx, "service", v.service_key);
 		const values = [
 			id,
 			v.property_id,
@@ -72,6 +84,11 @@ export async function saveContract(db, input) {
 				"INSERT INTO contracts(id,property_id,service,frequency,monthly_cents,visits_per_month,estimated_minutes,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
 				values,
 			);
+		if (v.service_key)
+			await tx.query("UPDATE contracts SET service_key=$2 WHERE id=$1", [
+				id,
+				v.service_key,
+			]);
 		await tx.query(
 			"INSERT INTO service_audit(entity,entity_id,event) VALUES($1,$2,$3)",
 			["contract", id, v.id ? "updated" : "created"],

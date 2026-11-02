@@ -1,9 +1,4 @@
-import { saveContract } from "@/modules/operations/contracts.mjs";
-import {
-	database,
-	snapshot,
-	mutate,
-} from "../../../modules/operations/index.mjs";
+import { database, snapshot } from "../../../modules/operations/index.mjs";
 import { authorizedRequest as allowedRequest } from "../_identity";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,17 +7,14 @@ async function allowed(request: Request) {
 }
 export async function GET(request: Request) {
 	if (!(await allowed(request)))
-		return Response.json(
-			{ error: "Prototipo local: acceso solo desde este equipo." },
-			{ status: 403 },
-		);
+		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 	try {
 		return Response.json(await snapshot(await database()), {
 			headers: { "Cache-Control": "no-store" },
 		});
 	} catch {
 		return Response.json(
-			{ error: "No se pudo abrir la base local." },
+			{ error: "No se pudieron consultar los registros." },
 			{ status: 500 },
 		);
 	}
@@ -55,15 +47,11 @@ export async function POST(request: Request) {
 				{ status: 422 },
 			);
 		return Response.json(
-			input.action === "contract"
-				? await saveContract(await database(), {
-						...input,
-						status: input.status ?? "active",
-					})
-				: await mutate(await database(), input),
 			{
-				status: 201,
+				error:
+					"Usa los módulos actuales de Contratos, Empleados, Cuadrillas y Agenda para registrar operaciones con sus controles.",
 			},
+			{ status: 422 },
 		);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "";

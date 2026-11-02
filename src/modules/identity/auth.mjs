@@ -81,3 +81,29 @@ export function canUse(role, path, method = "GET") {
 		);
 	return false;
 }
+
+export function canManage(role, area, method) {
+	if (
+		![
+			"workforce",
+			"visits",
+			"costs",
+			"finance",
+			"dashboard",
+			"settings",
+		].includes(area)
+	)
+		return false;
+	if (["it_admin", "owner"].includes(role)) return true;
+	if (role === "manager")
+		return (
+			["workforce", "visits", "costs", "dashboard"].includes(area) ||
+			(area === "finance" && method === "GET")
+		);
+	if (role === "finance")
+		return (
+			["finance", "costs"].includes(area) ||
+			(area === "dashboard" && method === "GET")
+		);
+	return false;
+}

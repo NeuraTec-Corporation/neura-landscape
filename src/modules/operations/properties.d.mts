@@ -4,13 +4,7 @@ export type PropertyDraft = {
 	customer_id: string;
 	name: string;
 	code: string;
-	kind:
-		| "residential"
-		| "commercial"
-		| "office"
-		| "warehouse"
-		| "land"
-		| "other";
+	kind: string;
 	status: "active" | "inactive";
 	line1: string;
 	line2: string;

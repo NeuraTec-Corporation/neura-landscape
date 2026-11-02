@@ -1,6 +1,8 @@
 "use client";
 import Image from "next/image";
-import { useEffect, useId, useState } from "react";
+import { ZoneSelector } from "./zone-selector";
+import { CatalogSelect, useCatalogs } from "./catalogs";
+import { useEffect, useId, useState, useRef } from "react";
 type Item = {
 	id: string;
 	revision: number;
@@ -45,50 +47,6 @@ type Data = {
 	unmeasured: number;
 	uploadReady: boolean;
 };
-const zoneKinds = {
-	lawn: "Césped",
-	garden: "Jardín / jardinera",
-	driveway: "Driveway / garaje",
-	walkway: "Sendero",
-	patio: "Patio",
-	other: "Otra zona",
-};
-const elementKinds = {
-	tree: "Árbol",
-	fruit_tree: "Árbol frutal",
-	planter: "Jardinera",
-	hedge: "Seto",
-	irrigation: "Riego",
-	lawn: "Césped",
-	surface: "Superficie",
-	other: "Otro elemento",
-};
-const services = {
-	maintenance: "Mantenimiento",
-	mowing: "Corte de césped",
-	pruning: "Poda",
-	planting: "Siembra",
-	snow: "Retiro de nieve",
-	inspection: "Inspección",
-	preserve: "Conservación",
-	other: "Otro trabajo",
-};
-const frequencies = {
-	on_request: "A pedido",
-	weekly: "Semanal",
-	every14days: "Cada 14 días",
-	monthly: "Mensual",
-	quarterly: "Trimestral",
-	annual: "Anual",
-	seasonal: "Por temporada",
-};
-const seasons = {
-	all: "Todo el año",
-	spring: "Primavera",
-	summer: "Verano",
-	autumn: "Otoño",
-	winter: "Invierno",
-};
 function Field({
 	label,
 	name,
@@ -96,6 +54,8 @@ function Field({
 	options,
 	type = "text",
 	required = false,
+	catalog,
+	error,
 }: {
 	label: string;
 	name: string;
@@ -103,15 +63,27 @@ function Field({
 	options?: Record<string, string>;
 	type?: string;
 	required?: boolean;
+	catalog?: string;
+	error?: string;
 }) {
 	const id = useId();
 	return (
 		<label htmlFor={id}>
 			{label}
 			{required ? " *" : ""}
-			{options ? (
+			{catalog ? (
+				<CatalogSelect
+					id={id}
+					name={name}
+					category={catalog}
+					defaultValue={String(value ?? "")}
+					required={required}
+				/>
+			) : options ? (
 				<select
 					id={id}
+					aria-invalid={!!error}
+					aria-describedby={error ? `${id}-error` : undefined}
 					name={name}
 					defaultValue={value ?? ""}
 					required={required}
@@ -130,9 +102,28 @@ function Field({
 					type={type}
 					required={required}
 					step={type === "number" ? "any" : undefined}
+					min={
+						name === "latitude"
+							? -90
+							: name === "longitude"
+								? -180
+								: type === "number"
+									? 0
+									: undefined
+					}
+					max={
+						name === "latitude" ? 90 : name === "longitude" ? 180 : undefined
+					}
+					aria-invalid={!!error}
+					aria-describedby={error ? `${id}-error` : undefined}
 					maxLength={type === "text" ? 200 : undefined}
 				/>
 			)}
+			{error ? (
+				<small className="field-error" id={`${id}-error`}>
+					{error}
+				</small>
+			) : null}
 		</label>
 	);
 }
@@ -145,6 +136,9 @@ export function SurveyWorkspace({
 	onClose: () => void;
 	readOnly?: boolean;
 }) {
+	const catalogs = useCatalogs();
+	const editForm = useRef<HTMLFormElement>(null);
+	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 	const [data, setData] = useState<Data | null>(null),
 		[tab, setTab] = useState("overview"),
 		[edit, setEdit] = useState<Item | null>(null),
@@ -153,6 +147,13 @@ export function SurveyWorkspace({
 		[notice, setNotice] = useState(""),
 		[busy, setBusy] = useState(false),
 		[map, setMap] = useState(false);
+	useEffect(() => {
+		if (Object.keys(fieldErrors).length)
+			editForm.current
+				?.querySelector<HTMLElement>('[aria-invalid="true"]')
+				?.focus();
+	}, [fieldErrors]);
+
 	async function refresh() {
 		const r = await fetch(
 			`/api/survey?property_id=${encodeURIComponent(propertyId)}`,
@@ -182,6 +183,7 @@ export function SurveyWorkspace({
 		setBusy(true);
 		setError("");
 		setNotice("");
+		setFieldErrors({});
 		let saved = false;
 		try {
 			const r = await fetch("/api/survey", {
@@ -190,9 +192,12 @@ export function SurveyWorkspace({
 				body: JSON.stringify(input),
 			});
 			const value = await r.json();
-			if (!r.ok) throw new Error(value.error);
+			if (!r.ok) {
+				setFieldErrors(value.fields ?? {});
+				throw new Error(value.error);
+			}
 			saved = true;
-			setEdit(null);
+			setEdit(null);setFieldErrors({});setError("");
 			setCreating(false);
 			setNotice("Levantamiento guardado.");
 			await refresh();
@@ -232,6 +237,30 @@ export function SurveyWorkspace({
 			{error ? (
 				<p role="alert" className="notice error">
 					{error}
+					{Object.entries(fieldErrors).length ? (
+						<span className="validation-list">
+							{Object.entries(fieldErrors).map(([field, message]) => (
+								<span key={field}>
+									{(
+										{
+											name: "Nombre",
+											kind: "Tipo",
+											area: "Superficie",
+											latitude: "Latitud",
+											longitude: "Longitud",
+											quantity: "Cantidad",
+											zone_id: "Zona",
+											unit: "Unidad",
+											service: "Servicio",
+											frequency: "Frecuencia",
+											season: "Temporada",
+										} as Record<string, string>
+									)[field] ?? field}
+									: {message}
+								</span>
+							))}
+						</span>
+					) : null}
 				</p>
 			) : null}
 			{notice ? (
@@ -279,7 +308,7 @@ export function SurveyWorkspace({
 										!window.confirm("¿Cambiar de sección sin guardar?")
 									)
 										return;
-									setEdit(null);
+									setEdit(null);setFieldErrors({});setError("");
 									setCreating(false);
 									setTab(id);
 								}}
@@ -313,7 +342,7 @@ export function SurveyWorkspace({
 											<div>
 												<h4>{z.name}</h4>
 												<p>
-													{zoneKinds[z.kind as keyof typeof zoneKinds]} ·{" "}
+													{catalogs.label("zone_kind", z.kind)} ·{" "}
 													{z.area === null
 														? "Sin medir"
 														: `${z.area} ${z.unit === "sqft" ? "ft²" : "m²"}`}
@@ -411,7 +440,7 @@ export function SurveyWorkspace({
 										type="button"
 										disabled={busy}
 										onClick={() => {
-											setEdit(null);
+											setEdit(null);setFieldErrors({});setError("");
 											setCreating(true);
 										}}
 									>
@@ -423,6 +452,8 @@ export function SurveyWorkspace({
 								<form
 									className="survey-form"
 									key={edit?.id ?? `${tab}-new`}
+									ref={editForm}
+									noValidate
 									onSubmit={async (e) => {
 										e.preventDefault();
 										const form = e.currentTarget,
@@ -436,8 +467,14 @@ export function SurveyWorkspace({
 											entity: tab === "zones" ? "zone" : "element",
 											property_id: propertyId,
 											...(edit ? { id: edit.id, revision: edit.revision } : {}),
-											latitude: numeric(input.latitude),
-											longitude: numeric(input.longitude),
+											latitude:
+												tab === "elements"
+													? (edit?.latitude ?? null)
+													: numeric(input.latitude),
+											longitude:
+												tab === "elements"
+													? (edit?.longitude ?? null)
+													: numeric(input.longitude),
 											...(tab === "zones"
 												? { area: numeric(input.area) }
 												: { quantity: Number(input.quantity) }),
@@ -455,12 +492,16 @@ export function SurveyWorkspace({
 												name="name"
 												value={edit?.name}
 												required
+												error={fieldErrors.name}
 											/>
 											<Field
 												label="Tipo"
 												name="kind"
-												value={edit?.kind}
-												options={tab === "zones" ? zoneKinds : elementKinds}
+												value={
+													edit?.kind ?? (tab === "zones" ? "lawn" : "tree")
+												}
+												catalog={tab === "zones" ? "zone_kind" : "element_kind"}
+												error={fieldErrors.kind}
 											/>
 											{tab === "zones" ? (
 												<>
@@ -469,37 +510,31 @@ export function SurveyWorkspace({
 														name="area"
 														type="number"
 														value={edit?.area}
+														error={fieldErrors.area}
 													/>
 													<Field
 														label="Unidad de superficie"
 														name="unit"
 														value={edit?.unit ?? "sqft"}
-														options={{
-															sqft: "Pies cuadrados (ft²)",
-															sqm: "Metros cuadrados (m²)",
-														}}
+														catalog="area_unit"
+														error={fieldErrors.unit}
 													/>
 													<Field
 														label="Calidad de la medida"
 														name="measurement_status"
 														value={edit?.measurement_status ?? "estimated"}
-														options={{
-															estimated: "Estimada",
-															measured: "Medida en campo",
-															verified: "Verificada",
-														}}
+														catalog="measurement_quality"
+														error={fieldErrors.measurement_status}
 													/>
 												</>
 											) : (
 												<>
-													<Field
-														label="Zona"
-														name="zone_id"
-														value={edit?.zone_id}
-														options={Object.fromEntries(
-															data.zones.map((z) => [z.id, z.name]),
-														)}
-														required
+													<ZoneSelector
+														zones={data.zones}
+														propertyId={propertyId}
+														initialValue={edit?.zone_id}
+														onSaved={refresh}
+														error={fieldErrors.zone_id}
 													/>
 													<Field
 														label="Cantidad"
@@ -507,38 +542,37 @@ export function SurveyWorkspace({
 														type="number"
 														value={edit?.quantity ?? 1}
 														required
+														error={fieldErrors.quantity}
 													/>
 													<Field
 														label="Unidad"
 														name="unit"
 														value={edit?.unit ?? "each"}
-														options={{
-															each: "Unidades",
-															sqft: "Pies cuadrados (ft²)",
-															sqm: "Metros cuadrados (m²)",
-															ft: "Pies lineales (ft)",
-															m: "Metros lineales (m)",
-														}}
+														catalog="element_unit"
+														error={fieldErrors.unit}
 													/>
 													<Field
 														label="Servicio previsto"
 														name="service"
 														value={edit?.service ?? "maintenance"}
-														options={services}
+														catalog="service"
+														error={fieldErrors.service}
 													/>
 													<Field
 														label="Frecuencia prevista"
 														name="frequency"
 														value={edit?.frequency ?? "on_request"}
-														options={frequencies}
+														catalog="frequency"
+														error={fieldErrors.frequency}
 													/>
 													<Field
 														label="Temporada"
 														name="season"
 														value={edit?.season ?? "all"}
-														options={seasons}
+														catalog="season"
+														error={fieldErrors.season}
 													/>
-													<label>
+													<label className="field-wide">
 														Conservación y precauciones
 														<textarea
 															name="protection_notes"
@@ -549,19 +583,25 @@ export function SurveyWorkspace({
 													</label>
 												</>
 											)}
-											<Field
-												label="Latitud del punto (opcional)"
-												name="latitude"
-												type="number"
-												value={edit?.latitude}
-											/>
-											<Field
-												label="Longitud del punto (opcional)"
-												name="longitude"
-												type="number"
-												value={edit?.longitude}
-											/>
-											<label>
+											{tab === "zones" ? (
+												<div className="coordinate-row">
+													<Field
+														label="Latitud del punto (opcional)"
+														name="latitude"
+														type="number"
+														value={edit?.latitude}
+														error={fieldErrors.latitude}
+													/>
+													<Field
+														label="Longitud del punto (opcional)"
+														name="longitude"
+														type="number"
+														value={edit?.longitude}
+														error={fieldErrors.longitude}
+													/>
+												</div>
+											) : null}
+											<label className="field-wide">
 												Notas y método de medición
 												<textarea
 													name="notes"
@@ -570,53 +610,62 @@ export function SurveyWorkspace({
 												/>
 											</label>
 										</div>
-										<p>
-											Ubica el punto desde donde estás solo si coincide con el
-											elemento o zona.
-										</p>
-										<button
-											type="button"
-											onClick={(event) => {
-												const form = event.currentTarget.form;
-												return navigator.geolocation
-													? navigator.geolocation.getCurrentPosition(
-															(position) => {
-																if (form) {
-																	(
-																		form.elements.namedItem(
-																			"latitude",
-																		) as HTMLInputElement
-																	).value = String(position.coords.latitude);
-																	(
-																		form.elements.namedItem(
-																			"longitude",
-																		) as HTMLInputElement
-																	).value = String(position.coords.longitude);
-																	setNotice(
-																		`GPS capturado · precisión aproximada ${Math.round(position.coords.accuracy)} m.`,
-																	);
-																}
-															},
-															() =>
-																setError(
-																	"No se obtuvo la ubicación. Puedes ingresarla manualmente.",
-																),
-															{ enableHighAccuracy: true, timeout: 15000 },
-														)
-													: setError(
-															"Este dispositivo no ofrece geolocalización.",
-														);
-											}}
-										>
-											Usar mi posición GPS
-										</button>
+										{tab === "zones" ? (
+											<>
+												{" "}
+												<p>
+													Ubica el punto desde donde estás solo si coincide con
+													el elemento o zona.
+												</p>
+												<button
+													type="button"
+													onClick={(event) => {
+														const form = event.currentTarget.form;
+														return navigator.geolocation
+															? navigator.geolocation.getCurrentPosition(
+																	(position) => {
+																		if (form) {
+																			(
+																				form.elements.namedItem(
+																					"latitude",
+																				) as HTMLInputElement
+																			).value = String(
+																				position.coords.latitude,
+																			);
+																			(
+																				form.elements.namedItem(
+																					"longitude",
+																				) as HTMLInputElement
+																			).value = String(
+																				position.coords.longitude,
+																			);
+																			setNotice(
+																				`GPS capturado · precisión aproximada ${Math.round(position.coords.accuracy)} m.`,
+																			);
+																		}
+																	},
+																	() =>
+																		setError(
+																			"No se obtuvo la ubicación. Puedes ingresarla manualmente.",
+																		),
+																	{ enableHighAccuracy: true, timeout: 15000 },
+																)
+															: setError(
+																	"Este dispositivo no ofrece geolocalización.",
+																);
+													}}
+												>
+													Usar mi posición GPS
+												</button>
+											</>
+										) : null}
 										<button type="submit">
 											{busy ? "Guardando..." : "Guardar"}
 										</button>
 										<button
 											type="button"
 											onClick={() => {
-												setEdit(null);
+												setEdit(null);setFieldErrors({});setError("");
 												setCreating(false);
 											}}
 										>
@@ -631,19 +680,15 @@ export function SurveyWorkspace({
 										<h4>{item.name}</h4>
 										<p>
 											{tab === "zones"
-												? `${zoneKinds[item.kind as keyof typeof zoneKinds]} · ${item.area === null ? "Sin medir" : `${item.area} ${item.unit === "sqft" ? "ft²" : "m²"}`}`
-												: `${elementKinds[item.kind as keyof typeof elementKinds]} · ${item.quantity} ${item.unit === "each" ? "unidades" : item.unit}`}
+												? `${catalogs.label("zone_kind", item.kind)} · ${item.area === null ? "Sin medir" : `${item.area} ${item.unit === "sqft" ? "ft²" : "m²"}`}`
+												: `${catalogs.label("element_kind", item.kind)} · ${item.quantity} ${item.unit === "each" ? "unidades" : item.unit}`}
 										</p>
 										{item.zone_id ? (
 											<p>
 												{data.zones.find((z) => z.id === item.zone_id)?.name} ·{" "}
-												{services[item.service as keyof typeof services]} ·{" "}
-												{
-													frequencies[
-														item.frequency as keyof typeof frequencies
-													]
-												}{" "}
-												· {seasons[item.season as keyof typeof seasons]}
+												{catalogs.label("service", item.service ?? "")} ·{" "}
+												{catalogs.label("frequency", item.frequency ?? "")} ·{" "}
+												{catalogs.label("season", item.season ?? "")}
 											</p>
 										) : null}
 										{item.protection_notes ? (
@@ -686,7 +731,7 @@ export function SurveyWorkspace({
 													disabled={busy}
 													onClick={() => {
 														setCreating(false);
-														setEdit(item);
+														setEdit(item);setFieldErrors({});setError("");
 													}}
 												>
 													Editar
@@ -817,6 +862,7 @@ export function SurveyWorkspace({
 													detail: "Detalle",
 													overview: "General",
 												}}
+												error={fieldErrors.viewpoint}
 											/>
 											<Field
 												label="Zona (opcional)"
@@ -842,6 +888,7 @@ export function SurveyWorkspace({
 												label="Descripción de la fotografía"
 												name="caption"
 												required
+												error={fieldErrors.caption}
 											/>
 										</div>
 										<button type="submit">
@@ -864,7 +911,14 @@ export function SurveyWorkspace({
 											alt={photo.caption}
 										/>
 										<figcaption>
-											<strong>{photo.caption}</strong><a href={`/api/photos?id=${photo.id}`} target="_blank" rel="noreferrer">Abrir fotografía completa ↗</a>
+											<strong>{photo.caption}</strong>
+											<a
+												href={`/api/photos?id=${photo.id}`}
+												target="_blank"
+												rel="noreferrer"
+											>
+												Abrir fotografía completa ↗
+											</a>
 											<span>
 												{photo.element_id
 													? data.elements.find((e) => e.id === photo.element_id)
@@ -874,7 +928,45 @@ export function SurveyWorkspace({
 																?.name
 														: "Localidad completa"}
 											</span>
-										{!readOnly?<button type="button" className="quiet-button" disabled={busy} onClick={async()=>{if(!window.confirm('¿Retirar esta fotografía del registro activo? Se conservará en el historial.'))return;setBusy(true);setError('');try{const response=await fetch(`/api/photos?id=${photo.id}`,{method:'DELETE'});if(!response.ok)throw new Error('No se pudo retirar la fotografía.');await refresh();}catch(e){setError(e instanceof Error?e.message:'No se pudo retirar.');}finally{setBusy(false);}}}>Retirar fotografía</button>:null}</figcaption>
+											{!readOnly ? (
+												<button
+													type="button"
+													className="quiet-button"
+													disabled={busy}
+													onClick={async () => {
+														if (
+															!window.confirm(
+																"¿Retirar esta fotografía del registro activo? Se conservará en el historial.",
+															)
+														)
+															return;
+														setBusy(true);
+														setError("");
+														try {
+															const response = await fetch(
+																`/api/photos?id=${photo.id}`,
+																{ method: "DELETE" },
+															);
+															if (!response.ok)
+																throw new Error(
+																	"No se pudo retirar la fotografía.",
+																);
+															await refresh();
+														} catch (e) {
+															setError(
+																e instanceof Error
+																	? e.message
+																	: "No se pudo retirar.",
+															);
+														} finally {
+															setBusy(false);
+														}
+													}}
+												>
+													Retirar fotografía
+												</button>
+											) : null}
+										</figcaption>
 									</figure>
 								))}
 							</div>
