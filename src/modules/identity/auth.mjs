@@ -86,6 +86,7 @@ export function canManage(role, area, method) {
 	if (
 		![
 			"workforce",
+			"estimates",
 			"visits",
 			"costs",
 			"finance",
@@ -97,13 +98,15 @@ export function canManage(role, area, method) {
 	if (["it_admin", "owner"].includes(role)) return true;
 	if (role === "manager")
 		return (
-			["workforce", "visits", "costs", "dashboard"].includes(area) ||
+			["workforce", "visits", "costs", "dashboard", "estimates"].includes(
+				area,
+			) ||
 			(area === "finance" && method === "GET")
 		);
 	if (role === "finance")
 		return (
 			["finance", "costs"].includes(area) ||
-			(area === "dashboard" && method === "GET")
+			(["dashboard", "estimates"].includes(area) && method === "GET")
 		);
 	return false;
 }

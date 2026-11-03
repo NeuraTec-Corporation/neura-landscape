@@ -1339,3 +1339,30 @@ button:disabled {
 @media(max-width:1100px){.dashboard-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-chart-grid{grid-template-columns:1fr}.dashboard-hero{align-items:start;flex-direction:column}.amount-line,.manage-form .amount-line:has(select){grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.manage-grid,.manage-card-grid,.visit-grid,.manage-kpis,.crew-person{grid-template-columns:1fr}.dashboard-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.dashboard-filter-grid label{font-size:11px}.dashboard-kpis{gap:12px}.kpi-card{padding:17px;gap:12px}.kpi-card>span{font-size:11px}.kpi-card>strong{font-size:27px}.dashboard-hero{padding:25px 22px;gap:18px}.dashboard-finance{padding:20px 14px}.dashboard-filters{padding:20px 16px}.status-chart{gap:20px}.status-donut{width:140px;height:140px}.status-donut>div{width:104px;height:104px}.chart-legend{min-width:130px;gap:14px}.chart-legend li{font-size:11px}.task-planner{padding:16px;gap:10px;flex-wrap:wrap}.task-planner>.manage-grid{flex-basis:calc(100% - 40px)}.task-execution{grid-template-columns:repeat(2,minmax(0,1fr))}.task-execution>div:first-child{grid-column:1/-1}.manage-actions button{flex-grow:1}.manage-actions .button-link{flex-grow:1;justify-content:center}.manage-form .amount-line{padding:14px}.catalog-dialog{padding:20px 16px}.catalog-list article{align-items:start;flex-direction:column;gap:12px}.catalog-list .manage-actions{width:100%}.survey-fields>.coordinate-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.coordinate-row label{font-size:11px}.coordinate-row input{font-size:14px;padding:10px}.invoice-amount{font-size:30px}.manage-workspace .panel{padding:22px 17px}.cost-summary p{gap:12px}.range-shortcuts{width:100%}.range-shortcuts button{flex:1}}
 }
+
+@layer estimates {
+.estimate-workspace{min-width:0}
+.estimate-workspace .manage-form h3{margin:30px 0 20px;padding-top:22px;border-top:1px solid #dce5d4;font-size:18px}
+.estimate-workspace .manage-form fieldset{border:0;padding:0;margin:0;min-width:0}
+.estimate-workspace fieldset:disabled{opacity:.75}
+.estimate-breakdown{border:1px solid #cbdcc0;background:linear-gradient(135deg,#f0f5e6,#e5eed8);padding:26px;border-radius:16px;margin:24px 0}
+.estimate-workspace .estimate-breakdown h3{margin:0;padding:0;border:0}
+.estimate-breakdown>p{font-size:13px;line-height:1.7;color:#4b6344}
+.estimate-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin:24px 0}
+.estimate-metrics>div{display:grid;gap:12px;padding:18px;background:#ffffffb8;border-radius:12px;min-width:0}
+.estimate-metrics span{font-size:12px;line-height:1.5;color:#56704b}
+.estimate-metrics strong{font-size:clamp(21px,2.6vw,30px);font-weight:500;overflow-wrap:anywhere}
+.estimate-components{display:grid;grid-template-columns:1fr auto;gap:12px;font-size:14px;margin:24px 0;padding:20px 0;border-top:1px solid #c9d8bb;border-bottom:1px solid #c9d8bb}
+.estimate-components dd{margin:0;font-weight:600}
+.estimate-zones{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:22px 0}
+.estimate-zone{display:flex;gap:12px;align-items:center;border:1px solid #d5e0ca;padding:18px;border-radius:12px;background:#f4f7ee}
+.estimate-zone small{display:block;margin-top:7px;font-size:12px;font-weight:400;line-height:1.5}
+.estimate-workspace .estimate-check{display:flex;align-items:start;gap:12px;margin:22px 0;font-size:13px;line-height:1.7}
+.estimate-workspace input[type=checkbox]{width:22px;min-width:22px;height:22px;min-height:22px;margin:2px 0;accent-color:#315e43}
+.estimate-resource{display:grid;grid-template-columns:1.4fr 1fr .6fr .8fr .8fr;gap:14px;padding:20px;border:1px solid #d9e2cf;border-radius:12px;margin:16px 0}
+.estimate-resource>button{grid-column:1/-1;justify-self:start}
+.estimate-warning{background:#fff1d1;border-left:3px solid #ba943c;padding:15px;border-radius:7px}
+.estimate-caption{font-size:12px}
+@media(max-width:1100px){.estimate-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.estimate-resource{grid-template-columns:repeat(2,minmax(0,1fr))}.estimate-zones{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:720px){.estimate-breakdown{padding:20px 14px}.estimate-metrics{gap:10px}.estimate-metrics>div{padding:14px 12px}.estimate-metrics strong{font-size:22px}.estimate-zones{grid-template-columns:1fr}.estimate-resource{grid-template-columns:1fr;padding:16px}.estimate-workspace .panel{padding:22px 17px}.estimate-components{font-size:13px}}
+}

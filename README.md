@@ -234,3 +234,26 @@ Verify with `npm run lint`, `npm run typecheck`, `npm run build`, `npm test` and
 `npm audit --audit-level=low`. The HTTP suite uses an isolated in-memory database,
 not the hosted evaluation records. Integraciones displays actual configured status;
 Google Places, road routing and external billing remain disconnected.
+
+## Traceable mowing estimate drafts (migration 008)
+
+Open **Presupuestos**. Select a locality and its lawn zones; add a production rate
+under Rendimientos (area per person-hour with source), review labor/resource costs,
+indirects and target sales margin, and save. Missing rates/prices remain pending.
+Rates have no invented defaults. Setup is person-minutes; effort is not a crew route
+duration. Area overlap is operator-declared, not detected from a map.
+
+Each save preserves a version with its original source and price. Editing a saved
+draft recalculates against current sources; stale edits/references are rejected.
+Changing/retiring a rate never silently reprices stored revisions. This increment
+creates internal drafts only: no client approval, contract conversion or invoicing.
+
+New estimates domain code is TypeScript checked directly and runtime-validated.
+Regression tests cover revoked archived assignments and the estimate HTTP workflow.
+On workstations where Windows blocks generated production prerender directories,
+a diagnostic HTTP run is available with LANDSCAPE_TEST_DEV=true. It tests an
+isolated development server; it does not substitute for the default CI production
+build/start verification. Never report a failed production build as passed.
+
+Google/Places remain disconnected; individual login activation, restoration tests,
+multi-company isolation and later approved-estimate/work-order flows are pending.

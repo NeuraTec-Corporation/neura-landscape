@@ -19,7 +19,8 @@ before(async () => {
 		process.execPath,
 		[
 			"node_modules/next/dist/bin/next",
-			"start",
+			process.env.LANDSCAPE_TEST_DEV === "true" ? "dev" : "start",
+			...(process.env.LANDSCAPE_TEST_DEV === "true" ? ["--webpack"] : []),
 			"--hostname",
 			"127.0.0.1",
 			"--port",
@@ -51,7 +52,11 @@ before(async () => {
 	server.on("error", (error) => {
 		failure = error;
 	});
-	for (let attempt = 0; attempt < 100; attempt++) {
+	for (
+		let attempt = 0;
+		attempt < (process.env.LANDSCAPE_TEST_DEV === "true" ? 300 : 100);
+		attempt++
+	) {
 		if (failure || server.exitCode !== null)
 			throw new Error(`Server failed: ${failure ?? output}`);
 		try {
@@ -100,6 +105,7 @@ test("prototype routes expose distinct screens and retain noindex", async () => 
 	for (const [path, content] of [
 		["clientes", "Clientes"],
 		["contratos", "Contratos"],
+		["presupuestos", "Presupuestos"],
 		["propiedades", "Propiedades"],
 		["agenda", "Trabajos y agenda"],
 		["control", "Panel gerencial"],
@@ -445,4 +451,100 @@ test("HTTP workflow saves related records and computes completed visit costs", a
 		body: JSON.stringify({ action: "delete", id: contract.id, revision: 1 }),
 	});
 	assert.equal(denied.status, 403);
+});
+
+test("estimate HTTP workflow persists calculations and historical rates without changing contracts", async () => {
+	const get = await fetch(`${base}/api/estimates`);
+	assert.equal(get.status, 200);
+	assert.match(get.headers.get("cache-control"), /no-store/);
+	const workspace = await get.json(),
+		property = workspace.properties.find(
+			(p) => p.name.toUpperCase() === "JARDÍN HTTP",
+		),
+		zone = workspace.zones.find((z) => z.property_id === property.id);
+	assert.ok(zone);
+	assert.equal(workspace.canEdit, true);
+	const post = async (input) => {
+		const r = await fetch(`${base}/api/estimates`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json", Origin: base },
+			body: JSON.stringify(input),
+		});
+		const v = await r.json();
+		assert.equal(r.status, 200, JSON.stringify(v));
+		return v;
+	};
+	const rateInput = {
+		action: "rate",
+		name: "Rendimiento HTTP",
+		unit: "sqft",
+		quantity_per_person_hour: 100,
+		setup_person_minutes: 0,
+		source: "Medición sintética HTTP",
+		confidence: "estimated",
+		active: true,
+	};
+	const rate = await post(rateInput);
+	const input = {
+		action: "save",
+		property_id: property.id,
+		title: "Presupuesto HTTP",
+		rate_id: rate.id,
+		rate_revision: 1,
+		zone_ids: [zone.id],
+		zone_revisions: { [zone.id]: zone.revision },
+		areas_independent: true,
+		resources_reviewed: true,
+		labor_hourly: 20,
+		overhead_percent: 0,
+		margin_percent: 20,
+		lines: [],
+		reason: "Versión inicial HTTP",
+		notes: "",
+	};
+	const contractCount = (await (await fetch(`${base}/api/contracts`)).json())
+		.length;
+	const saved = await post(input);
+	assert.equal(saved.snapshot.calculation.price_cents, 3750);
+	assert.equal(saved.revision, 1);
+	await post({
+		...rateInput,
+		id: rate.id,
+		revision: 1,
+		quantity_per_person_hour: 200,
+	});
+	const current = await (await fetch(`${base}/api/estimates`)).json();
+	assert.equal(
+		current.estimates.find((e) => e.id === saved.id).snapshot.calculation
+			.price_cents,
+		3750,
+	);
+	const stale = await fetch(`${base}/api/estimates`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json", Origin: base },
+		body: JSON.stringify({ ...input, id: saved.id, revision: 1 }),
+	});
+	assert.equal(stale.status, 409);
+	assert.equal(
+		(await (await fetch(`${base}/api/contracts`)).json()).length,
+		contractCount,
+	);
+	assert.equal(
+		(
+			await fetch(`${base}/api/estimates`, {
+				headers: { Origin: "https://external.invalid" },
+			})
+		).status,
+		403,
+	);
+	assert.equal(
+		(
+			await fetch(`${base}/api/estimates`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json", Origin: base },
+				body: "{",
+			})
+		).status,
+		400,
+	);
 });

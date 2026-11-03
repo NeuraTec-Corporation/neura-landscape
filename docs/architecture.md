@@ -1,28 +1,42 @@
 # Landscape application boundaries
 
+Current incremental model: one modular Next.js application, the existing PostgreSQL database, and the existing feature branch. No second product, Core clone or microservice was introduced.
+
 | Boundary | Ownership |
 | --- | --- |
-| src/app | Routing, form composition and HTTP transport |
-| src/modules/customers | Customer contract, validation, relational persistence and revision conflicts |
-| src/modules/operations | Properties/contracts/crews/visits, costs, persistence adapters |
-| src/shared/ui | Neutral presentation |
-| src/integrations | Future approved external adapters |
-| db/migrations | Versioned PostgreSQL schema |
+| src/app | Routes, transport and UI composition |
+| src/modules/customers | Project-owned customer contracts and persistence |
+| src/modules/operations | Existing properties, contracts, visits, workforce and cost services |
+| src/modules/identity | Session membership and resource authorization |
+| src/modules/estimates | Typed mowing rate/calculation contract and versioned draft estimates |
+| src/shared/ui | Project-neutral presentation |
+| src/integrations | Reserved provider boundary; no live incumbent connector |
+| db/migrations | Additive versioned PostgreSQL schema |
 
-Customer services have no Next.js, Vercel or Landscape property-table dependency.
-The HTTP endpoint composes the public operations count with customer records.
-UI imports customer types, not server services. Server-only Google Places key is
-used by the address endpoint; no key is sent to the browser.
+Estimates has two public entry points: index.ts for server cases and contract.ts for
+pure validated types/calculation shared with the preview UI. Its structural database
+port accepts existing PostgreSQL/PGlite adapters. It does not import Next.js, corporate
+packages or operations internals. It queries the existing locality/zone tables through
+that port; those records are not duplicated. UI previews are advisory: the server
+re-reads sources, checks their revisions and stores the authoritative snapshot.
 
-Hosted storage uses pg/PostgreSQL; development/isolated tests can use PGlite.
-DATABASE_URL is mandatory on Vercel. SQL migrations are included in function tracing.
-Host/same-Origin checks remain, and Vercel Authentication protects every deployment.
-No local-filesystem hosted fallback or automatic local-data upload is permitted.
+TypeScript checks the new estimates implementation directly. Older .mjs domains
+still rely on runtime validation/tests and declaration files; strict TypeScript does
+not establish type coverage for every existing module. Boundary tests currently
+enforce shared/integration restrictions, not the complete future module graph.
 
-This release is a protected single-workspace customer/operations evaluation.
-Application OIDC/RBAC, tenant isolation, delivery adapters, observability and backup
-acceptance remain separate capabilities; no complete production-enterprise claim.
+Both assignedWork and assignedProperty use one authorization scope requiring active
+worker/crew-lead membership, a current crew link, undeleted pending/in-progress visit,
+undeleted active contract/locality and undeleted crew. An archived assignment alone
+cannot authorize property or photo reads.
 
-ARGOS/SAAC were read-only design references. No corporate repository or frozen source
-was modified, cloned or copied. Current decisions/evidence remain in Landscape's
-existing canonical Notion page. There is one active checkout and existing task branch.
+Google individual authentication remains unconfigured/off in the hosted evaluation;
+Vercel Authentication protects it externally. Enabled app-auth fails closed when not
+configured. Per-role integration/tenant acceptance, real Google sessions, backup
+restore, offline execution and multi-company isolation remain separate gates.
+
+The existing operations module is still broad and identity still uses its database
+entry point. These known boundaries will be extracted incrementally against public
+contracts; this release does not claim adoption of a production corporate Core.
+Landscape Intelligence, routing, telematics, stock, voice agents and automated offers
+are not implemented by the estimate increment.

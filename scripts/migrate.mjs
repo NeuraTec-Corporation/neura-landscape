@@ -5,7 +5,7 @@ if (!process.env.DATABASE_URL)
 const db = postgresDatabase(process.env.DATABASE_URL);
 try {
 	await migrate(db, true);
-	console.log("PostgreSQL migrations through 007 completed.");
+	console.log("PostgreSQL migrations through 008 completed.");
 } finally {
 	await db.close();
 }

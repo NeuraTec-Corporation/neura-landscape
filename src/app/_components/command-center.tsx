@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EstimateWorkspace } from "./estimate-workspace";
 import { UsersWorkspace } from "./users-workspace";
 import { SettingsWorkspace, IntegrationsWorkspace } from "./settings-workspace";
 import { ManagementDashboard } from "./management-dashboard";
@@ -15,6 +16,7 @@ export const sections = [
 	{ id: "resumen", label: "Panel gerencial" },
 	{ id: "clientes", label: "Clientes" },
 	{ id: "propiedades", label: "Propiedades y localidades" },
+	{ id: "presupuestos", label: "Presupuestos" },
 	{ id: "contratos", label: "Contratos" },
 	{ id: "agenda", label: "Trabajos y agenda" },
 	{ id: "control", label: "Panel gerencial", hidden: true },
@@ -70,7 +72,11 @@ export function CommandCenter({ section }: { section: string }) {
 				</header>
 				<main id="content">
 					<div
-						hidden={section === "resumen" || section === "control"}
+						hidden={
+							section === "resumen" ||
+							section === "control" ||
+							section === "presupuestos"
+						}
 						className={`page-heading ${section === "clientes" ? "compact" : ""}`}
 					>
 						<div>
@@ -90,6 +96,8 @@ export function CommandCenter({ section }: { section: string }) {
 						<PropertyWorkspace />
 					) : section === "usuarios" ? (
 						<UsersWorkspace />
+					) : section === "presupuestos" ? (
+						<EstimateWorkspace />
 					) : section === "contratos" ? (
 						<ContractWorkspace />
 					) : section === "resumen" || section === "control" ? (

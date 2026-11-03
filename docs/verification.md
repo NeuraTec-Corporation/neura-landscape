@@ -1,4 +1,33 @@
-# Mission 001 verification notes
+# Verification — scope correction and estimate drafts
+
+Current local checks for the approved B00/B01/B04 increment: lint and TypeScript
+passed; npm audit reported zero vulnerabilities; 32/32 tests passed using
+LANDSCAPE_TEST_DEV=true, including isolated HTTP workflows. This is explicitly a
+development-server run, not the default production-start run.
+
+Local production builds compiled/typechecked but encountered Windows EPERM while
+recreating generated .next folders (including API and prerender segment paths).
+Preparing generated directories did not establish repeatable clean production
+builds. Do not call that workstation issue fixed. Production CI evidence is
+recorded separately in the release report/canonical Notion after publication.
+
+Mobile browser at 390×844: page width 375, no horizontal overflow. Created a rate,
+selected a 150 ft² zone, calculated 1.50 person-hours at USD20/h, saved USD30 cost /
+USD37.50 price at 20% margin, reloaded, edited the margin, and selected revision 1
+to confirm its original price. Fixtures existed only in an isolated in-memory
+local server which was stopped after verification. No hosted fixtures inserted.
+
+Regression cases revoke worker list/direct property access after archived visits,
+contracts, localities or crews; inactive/disabled membership and lost crew linkage.
+Estimate tests cover dimensional conversion, margin versus markup, pending costs,
+source/draft revision conflicts, snapshot history and archive preservation.
+They do not certify real Google login, tenant isolation, PostgreSQL restore,
+multi-connection contention, road routing or production capacity.
+
+The sections below preserve earlier foundation evidence; their counts and scope
+are historical and do not describe the complete current application.
+
+# Historical foundation evidence — Mission 001 verification notes
 
 Baseline: origin https://github.com/NeuraTec-Corporation/neura-landscape.git
 Initial main: bd38a638226579d0f4571cdeb8d53f19f3a0a910
