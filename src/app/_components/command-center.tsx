@@ -1,3 +1,4 @@
+import { WorkspaceNavigation } from "./workspace-navigation";
 import Link from "next/link";
 import { EstimateWorkspace } from "./estimate-workspace";
 import { UsersWorkspace } from "./users-workspace";
@@ -21,10 +22,10 @@ export const sections = [
 	{ id: "agenda", label: "Trabajos y agenda" },
 	{ id: "control", label: "Panel gerencial", hidden: true },
 	{ id: "costos", label: "Costos" },
-	{ id: "facturacion", label: "Facturación y cobros" },
+	{ id: "facturacion", label: "Facturas y cobros" },
 	{ id: "empleados", label: "Empleados" },
 	{ id: "cuadrillas", label: "Cuadrillas" },
-	{ id: "usuarios", label: "Usuarios y niveles" },
+	{ id: "usuarios", label: "Usuarios y permisos" },
 	{ id: "configuracion", label: "Configuración" },
 	{ id: "integraciones", label: "Integraciones" },
 ] as const;
@@ -40,22 +41,7 @@ export function CommandCenter({ section }: { section: string }) {
 					NEURA<span>LANDSCAPE</span>
 				</Link>
 				<p className="workspace-label">OPERATIONS WORKSPACE</p>
-				<nav aria-label="Navegación principal">
-					{sections
-						.filter((s) => !("hidden" in s))
-						.map((s, i) => (
-							<Link
-								key={s.id}
-								href={s.id === "resumen" ? "/" : `/${s.id}`}
-								aria-current={s.id === section ? "page" : undefined}
-							>
-								<span className="nav-number" aria-hidden="true">
-									{String(i + 1).padStart(2, "0")}
-								</span>
-								{s.label}
-							</Link>
-						))}
-				</nav>
+				<WorkspaceNavigation section={section} />
 				<div className="sidebar-note">
 					● NeuraTec Landscape
 					<p>
@@ -84,10 +70,6 @@ export function CommandCenter({ section }: { section: string }) {
 							<h1>
 								{section === "resumen" ? "Panel gerencial" : current.label}
 							</h1>
-							<p className="description">
-								Clientes, propiedades y trabajos conectados con costos por
-								visita.
-							</p>
 						</div>
 					</div>
 					{section === "clientes" ? (

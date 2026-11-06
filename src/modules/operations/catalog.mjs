@@ -33,8 +33,23 @@ export async function requireOption(tx, category, key, previous) {
 			[category]: "La opción no existe o está inactiva.",
 		});
 }
+export async function catalogMetadata(db) {
+	const rows = (
+		await db.query("SELECT * FROM catalog_categories ORDER BY label")
+	).rows;
+	return {
+		categories: Object.fromEntries(rows.map((r) => [r.category, r.label])),
+		extensible: Object.fromEntries(rows.map((r) => [r.category, r.extensible])),
+	};
+}
+export function canManageCatalog(role, category) {
+	return (
+		["it_admin", "owner"].includes(role) ||
+		(role === "manager" && !["app_role", "member_status"].includes(category))
+	);
+}
 const schema = z.object({
-	category: z.enum(Object.keys(categories)),
+	category: z.string().min(1).max(80),
 	key: z.string().max(80).optional(),
 	label: text,
 	active: z.boolean(),
@@ -44,10 +59,26 @@ const schema = z.object({
 export async function saveOption(db, input) {
 	const v = parse(schema, input);
 	return db.transaction(async (tx) => {
+		const metadata = (
+			await tx.query(
+				"SELECT * FROM catalog_categories WHERE category=$1 FOR SHARE",
+				[v.category],
+			)
+		).rows[0];
+		if (!metadata)
+			throw new ManageError("Categoría de catálogo no disponible.");
+		if (!v.key && !metadata.extensible)
+			throw new ManageError(
+				"Esta categoría usa claves de sistema; puedes editar etiquetas y disponibilidad.",
+			);
 		const key = v.key || `custom_${randomUUID()}`;
 		if (!v.key && v.semantic_key) {
-			const valid = await tx.query("SELECT key FROM catalog_options WHERE category=$1 AND key=$2 AND key=semantic_key", [v.category, v.semantic_key]);
-			if (!valid.rows.length) throw new ManageError("Selecciona una clasificación base válida.");
+			const valid = await tx.query(
+				"SELECT key FROM catalog_options WHERE category=$1 AND key=$2 AND key=semantic_key",
+				[v.category, v.semantic_key],
+			);
+			if (!valid.rows.length)
+				throw new ManageError("Selecciona una clasificación base válida.");
 		}
 		if (v.key) {
 			const old = (

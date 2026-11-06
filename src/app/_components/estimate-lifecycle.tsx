@@ -1,4 +1,5 @@
 "use client";
+import { CatalogField } from "./catalogs";
 import { useState } from "react";
 import type { Workspace } from "@/modules/estimates/contract";
 import { usd } from "./management-shared";
@@ -76,7 +77,8 @@ export function EstimateLifecycle({
 					{e.snapshot.calculation.status !== "complete" ? (
 						<p role="status">Completa el cálculo antes de emitir.</p>
 					) : (
-						<form className="manage-form"
+						<form
+							className="manage-form"
 							key={e.id + e.revision}
 							onSubmit={async (ev) => {
 								ev.preventDefault();
@@ -106,17 +108,12 @@ export function EstimateLifecycle({
 										Fin del servicio (opcional)
 										<input name="end_date" type="date" />
 									</label>
-									<label>
-										Frecuencia
-										<select name="frequency" required>
-											<option value="">Selecciona...</option>
-											{data.frequency_options.map((o) => (
-												<option key={o.key} value={o.key}>
-													{o.label}
-												</option>
-											))}
-										</select>
-									</label>
+									<CatalogField
+										label="Frecuencia"
+										category="contract_frequency"
+										name="frequency"
+										required
+									/>
 									<label>
 										Visitas acordadas al mes
 										<input
@@ -139,13 +136,12 @@ export function EstimateLifecycle({
 											required
 										/>
 									</label>
-									<label>
-										Momento de cobro
-										<select name="billing_timing">
-											<option value="advance">Por adelantado</option>
-											<option value="arrears">Al finalizar el período</option>
-										</select>
-									</label>
+									<CatalogField
+										label="Momento de cobro"
+										category="billing_timing"
+										name="billing_timing"
+										defaultValue="advance"
+									/>
 									<label>
 										Plazo de pago (días)
 										<input
@@ -276,7 +272,8 @@ export function EstimateLifecycle({
 							<>
 								<details>
 									<summary>Registrar aceptación recibida</summary>
-									<form className="manage-form"
+									<form
+										className="manage-form"
 										onSubmit={async (ev) => {
 											ev.preventDefault();
 											const f = new FormData(ev.currentTarget);
@@ -314,18 +311,12 @@ export function EstimateLifecycle({
 														required
 													/>
 												</label>
-												<label>
-													Evidencia recibida
-													<select name="evidence_method">
-														<option value="signed_document">
-															Documento firmado
-														</option>
-														<option value="email">Correo electrónico</option>
-														<option value="written_confirmation">
-															Confirmación escrita
-														</option>
-													</select>
-												</label>
+												<CatalogField
+													label="Evidencia recibida"
+													category="acceptance_evidence"
+													name="evidence_method"
+													defaultValue="signed_document"
+												/>
 												<label>
 													Referencia verificable de la evidencia
 													<textarea
@@ -372,8 +363,37 @@ export function EstimateLifecycle({
 								</div>
 							</>
 						) : null}
-						{data.canEdit && o.status === "accepted" && !o.contract_id ? (<form className="manage-form" onSubmit={async ev=>{ev.preventDefault();await save({action:"bind",offer_id:o.id,revision:o.revision,contract_revision:c?.revision});}}><fieldset disabled={busy}><label><input type="checkbox" required/> Confirmo que estas condiciones aceptadas deben {o.target_contract_id?"actualizar el contrato existente":"crear el contrato en borrador"}.</label><button type="submit">{o.target_contract_id?"Aplicar cambio aceptado":"Crear contrato en borrador"}</button></fieldset></form>) : null}
-{o.contract_id ? (
+						{data.canEdit && o.status === "accepted" && !o.contract_id ? (
+							<form
+								className="manage-form"
+								onSubmit={async (ev) => {
+									ev.preventDefault();
+									await save({
+										action: "bind",
+										offer_id: o.id,
+										revision: o.revision,
+										contract_revision: c?.revision,
+									});
+								}}
+							>
+								<fieldset disabled={busy}>
+									<label>
+										<input type="checkbox" required /> Confirmo que estas
+										condiciones aceptadas deben{" "}
+										{o.target_contract_id
+											? "actualizar el contrato existente"
+											: "crear el contrato en borrador"}
+										.
+									</label>
+									<button type="submit">
+										{o.target_contract_id
+											? "Aplicar cambio aceptado"
+											: "Crear contrato en borrador"}
+									</button>
+								</fieldset>
+							</form>
+						) : null}
+						{o.contract_id ? (
 							<p className="notice">
 								Vinculado al contrato · Acuerdo vigente v{c?.baseline_version} ·{" "}
 								<a href="/contratos">Ver contratos</a>. Para cambiar

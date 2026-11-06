@@ -1,7 +1,8 @@
 "use client";
 import { CatalogSelect, useCatalogs } from "./catalogs";
+import { DataDirectory } from "./data-directory";
 import { SurveyWorkspace } from "./survey-workspace";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, useRef } from "react";
 import { getCountries } from "libphonenumber-js";
 import { PhoneField } from "@/shared/ui";
 import type {
@@ -85,6 +86,7 @@ function SiteField({
 	multiline?: boolean;
 	disabled?: boolean;
 }) {
+	catalog = catalog || (name === "status" ? "property_status" : undefined);
 	const id = useId();
 	const props = {
 		id,
@@ -158,6 +160,8 @@ export function PropertyWorkspace({
 	knownCustomer?: CustomerRecord;
 }) {
 	const catalogs = useCatalogs();
+	const editorRef = useRef<HTMLFormElement>(null);
+	const [detailId, setDetailId] = useState<string | null>(null);
 	const [surveyId, setSurveyId] = useState<string | null>(null);
 	const [customers, setCustomers] = useState<CustomerSummary[]>([]),
 		[selected, setSelected] = useState(customerId ?? "");
@@ -187,9 +191,22 @@ export function PropertyWorkspace({
 	}, [customerId]);
 	useEffect(() => {
 		if (!selected) {
-			setItems([]);
 			setProfile(null);
-			return;
+			const controller = new AbortController();
+			setLoading(true);
+			fetch("/api/properties", { signal: controller.signal, cache: "no-store" })
+				.then(async (r) => {
+					const v = await r.json();
+					if (!r.ok) throw new Error(v.error);
+					setItems(v);
+				})
+				.catch((e) => {
+					if (e.name !== "AbortError") setError(e.message);
+				})
+				.finally(() => {
+					if (!controller.signal.aborted) setLoading(false);
+				});
+			return () => controller.abort();
 		}
 		const controller = new AbortController();
 		setLoading(true);
@@ -227,6 +244,17 @@ export function PropertyWorkspace({
 			});
 		return () => controller.abort();
 	}, [selected, knownCustomer]);
+	const draftKey = draft?.id || Boolean(draft);
+	useEffect(() => {
+		if (draftKey && !loading)
+			requestAnimationFrame(() => {
+				editorRef.current?.scrollIntoView({
+					behavior: "smooth",
+					block: "start",
+				});
+				editorRef.current?.focus({ preventScroll: true });
+			});
+	}, [draftKey, loading]);
 	const customerName =
 		customers.find((c) => c.id === selected)?.name ??
 		profile?.name ??
@@ -344,8 +372,8 @@ export function PropertyWorkspace({
 					<div>
 						<h2>Propiedades y localidades</h2>
 						<p>
-							Selecciona un cliente para gestionar todos sus lugares de
-							servicio.
+							Consulta las localidades de toda la cartera. Selecciona un cliente
+							para crear nuevos lugares de servicio.
 						</p>
 					</div>
 					<SiteField
@@ -353,7 +381,7 @@ export function PropertyWorkspace({
 						value={selected}
 						disabled={busy}
 						options={[
-							["", "Selecciona un cliente"],
+							["", "Todos los clientes"],
 							...customers.map((c) => [c.id, c.name] as [string, string]),
 						]}
 						change={(value) => {
@@ -392,11 +420,13 @@ export function PropertyWorkspace({
 				</p>
 			) : null}
 			{loading ? <p role="status">Cargando localidades del cliente…</p> : null}
-			{selected && !loading ? (
+			{!loading ? (
 				<>
 					<div className="crm-toolbar site-toolbar">
 						<div>
-							<p className="eyebrow">{customerName}</p>
+							<p className="eyebrow">
+								{selected ? customerName : "Todos los clientes"}
+							</p>
 							<h2>
 								{items.length}{" "}
 								{items.length === 1
@@ -410,7 +440,7 @@ export function PropertyWorkspace({
 						</div>
 						<button
 							type="button"
-							disabled={busy}
+							disabled={busy || !selected}
 							onClick={() => {
 								if (
 									draft &&
@@ -432,6 +462,8 @@ export function PropertyWorkspace({
 					</div>
 					{draft ? (
 						<form
+							ref={editorRef}
+							tabIndex={-1}
 							className="crm-profile-panel site-editor"
 							onSubmit={save}
 							noValidate
@@ -648,141 +680,202 @@ export function PropertyWorkspace({
 							</fieldset>
 						</form>
 					) : null}
+					<DataDirectory
+						label="Localidades"
+						rows={items}
+						columns={[
+							{
+								key: "name",
+								label: "Localidad",
+								value: (r) => `${r.name} ${r.code}`,
+								render: (r) => (
+									<>
+										<strong>{r.name}</strong>
+										<small>{r.code}</small>
+									</>
+								),
+							},
+							{
+								key: "customer",
+								label: "Cliente",
+								value: (r) => r.customer_name,
+							},
+							{
+								key: "city",
+								label: "Ciudad",
+								value: (r) => r.city,
+								secondary: true,
+							},
+							{
+								key: "status",
+								label: "Estado",
+								value: (r) => catalogs.label("property_status", r.status),
+								secondary: true,
+							},
+						]}
+						actions={(r) => (
+							<>
+								<button
+									type="button"
+									className="quiet-button"
+									onClick={() => {
+										setSelected(r.customer_id);
+										edit(r);
+									}}
+								>
+									Editar
+								</button>
+								<button
+									type="button"
+									className="quiet-button"
+									onClick={() => setDetailId(detailId === r.id ? null : r.id)}
+								>
+									Detalles
+								</button>
+							</>
+						)}
+					/>
 					<div className="site-list">
-						{items.map((row) => (
-							<article className="panel site-card" key={row.id}>
-								<div className="panel-title">
-									<div>
-										<span className="eyebrow">
-											{row.code || "Código pendiente"}
+						{items
+							.filter((row) => row.id === detailId)
+							.map((row) => (
+								<article className="panel site-card" key={row.id}>
+									<div className="panel-title">
+										<div>
+											<span className="eyebrow">
+												{row.code || "Código pendiente"}
+											</span>
+											<h3>{row.name}</h3>
+										</div>
+										<span className={`status-tag ${row.status}`}>
+											{row.status === "active" ? "Activa" : "Inactiva"}
 										</span>
-										<h3>{row.name}</h3>
 									</div>
-									<span className={`status-tag ${row.status}`}>
-										{row.status === "active" ? "Activa" : "Inactiva"}
-									</span>
-								</div>
-								<p>
-									{catalogs.label("property_kind", row.kind)} ·{" "}
-									{row.customer_name}
-								</p>
-								<p>
-									{[
-										row.line1 || row.address,
-										row.line2,
-										row.city,
-										row.region,
-										row.postal_code,
-										row.country,
-									]
-										.filter(Boolean)
-										.join(", ")}
-								</p>
-								{!row.city ||
-								!row.region ||
-								!row.country ||
-								!row.postal_code ? (
-									<p className="site-incomplete">Dirección por completar</p>
-								) : null}
-								<p>
-									{row.contact_name
-										? `Contacto: ${row.contact_name}`
-										: "Sin contacto local"}
-									{row.contact_phone ? ` · ${row.contact_phone}` : ""}
-								</p>
-								<div className="site-facts">
-									<span>
-										Césped:{" "}
-										{row.lawn_sqft === null
-											? "Sin medir"
-											: `${row.lawn_sqft} sq ft`}
-									</span>
-									<span>
-										Jardines:{" "}
-										{row.garden_sqft === null
-											? "Sin medir"
-											: `${row.garden_sqft} sq ft`}
-									</span>
-									<span>{row.contract_count} contratos vinculados</span>
-								</div>
-								{row.service_hours ? <p>Horario: {row.service_hours}</p> : null}
-								{row.access_instructions ? (
-									<p>Acceso: {row.access_instructions}</p>
-								) : null}
-								<div className="contact-heading">
-									<button type="button" onClick={() => setSurveyId(row.id)}>
-										Zonas, elementos y fotos
-									</button>
-									<a
-										target="_blank"
-										rel="noreferrer"
-										href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(row.latitude !== null && row.longitude !== null ? `${row.latitude},${row.longitude}` : [row.line1 || row.address, row.city, row.region, row.country].filter(Boolean).join(", "))}`}
-									>
-										Abrir ubicación en Maps ↗
-									</a>
-									<button
-										className="quiet-button"
-										type="button"
-										disabled={busy}
-										onClick={() => {
-											if (
-												draft &&
-												!confirm(
-													"¿Abrir esta localidad y descartar el formulario sin guardar?",
+									<p>
+										{catalogs.label("property_kind", row.kind)} ·{" "}
+										{row.customer_name}
+									</p>
+									<p>
+										{[
+											row.line1 || row.address,
+											row.line2,
+											row.city,
+											row.region,
+											row.postal_code,
+											row.country,
+										]
+											.filter(Boolean)
+											.join(", ")}
+									</p>
+									{!row.city ||
+									!row.region ||
+									!row.country ||
+									!row.postal_code ? (
+										<p className="site-incomplete">Dirección por completar</p>
+									) : null}
+									<p>
+										{row.contact_name
+											? `Contacto: ${row.contact_name}`
+											: "Sin contacto local"}
+										{row.contact_phone ? ` · ${row.contact_phone}` : ""}
+									</p>
+									<div className="site-facts">
+										<span>
+											Césped:{" "}
+											{row.lawn_sqft === null
+												? "Sin medir"
+												: `${row.lawn_sqft} sq ft`}
+										</span>
+										<span>
+											Jardines:{" "}
+											{row.garden_sqft === null
+												? "Sin medir"
+												: `${row.garden_sqft} sq ft`}
+										</span>
+										<span>{row.contract_count} contratos vinculados</span>
+									</div>
+									{row.service_hours ? (
+										<p>Horario: {row.service_hours}</p>
+									) : null}
+									{row.access_instructions ? (
+										<p>Acceso: {row.access_instructions}</p>
+									) : null}
+									<div className="contact-heading">
+										<button type="button" onClick={() => setSurveyId(row.id)}>
+											Zonas, elementos y fotos
+										</button>
+										<a
+											target="_blank"
+											rel="noreferrer"
+											href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(row.latitude !== null && row.longitude !== null ? `${row.latitude},${row.longitude}` : [row.line1 || row.address, row.city, row.region, row.country].filter(Boolean).join(", "))}`}
+										>
+											Abrir ubicación en Maps ↗
+										</a>
+										<button
+											className="quiet-button"
+											type="button"
+											disabled={busy}
+											onClick={() => {
+												if (
+													draft &&
+													!confirm(
+														"¿Abrir esta localidad y descartar el formulario sin guardar?",
+													)
 												)
-											)
-												return;
-											edit(row);
-										}}
-									>
-										Editar localidad
-									</button>
-									<button
-										type="button"
-										disabled={busy}
-										onClick={async () => {
-											if (
-												!window.confirm(
-													`¿Eliminar ${row.name}? Se conservará el historial. Primero deben eliminarse sus contratos vinculados.`,
+													return;
+												edit(row);
+											}}
+										>
+											Editar localidad
+										</button>
+										<button
+											type="button"
+											disabled={busy}
+											onClick={async () => {
+												if (
+													!window.confirm(
+														`¿Eliminar ${row.name}? Se conservará el historial. Primero deben eliminarse sus contratos vinculados.`,
+													)
 												)
-											)
-												return;
-											setBusy(true);
-											setError("");
-											try {
-												const response = await fetch("/api/properties", {
-													method: "POST",
-													headers: { "Content-Type": "application/json" },
-													body: JSON.stringify({
-														action: "delete",
-														id: row.id,
-														revision: row.revision,
-													}),
-												});
-												const result = await response.json();
-												if (!response.ok) throw new Error(result.error);
-												setItems((items) =>
-													items.filter((item) => item.id !== row.id),
-												);
-												setDraft(null);
-												setNotice("Localidad eliminada; historial conservado.");
-												await onSaved?.();
-											} catch (e) {
-												setError(
-													e instanceof Error
-														? e.message
-														: "No se pudo eliminar.",
-												);
-											} finally {
-												setBusy(false);
-											}
-										}}
-									>
-										Eliminar localidad
-									</button>
-								</div>
-							</article>
-						))}
+													return;
+												setBusy(true);
+												setError("");
+												try {
+													const response = await fetch("/api/properties", {
+														method: "POST",
+														headers: { "Content-Type": "application/json" },
+														body: JSON.stringify({
+															action: "delete",
+															id: row.id,
+															revision: row.revision,
+														}),
+													});
+													const result = await response.json();
+													if (!response.ok) throw new Error(result.error);
+													setItems((items) =>
+														items.filter((item) => item.id !== row.id),
+													);
+													setDraft(null);
+													setNotice(
+														"Localidad eliminada; historial conservado.",
+													);
+													await onSaved?.();
+												} catch (e) {
+													setError(
+														e instanceof Error
+															? e.message
+															: "No se pudo eliminar.",
+													);
+												} finally {
+													setBusy(false);
+												}
+											}}
+										>
+											Eliminar localidad
+										</button>
+									</div>
+								</article>
+							))}
 					</div>
 					{!items.length && !draft ? (
 						<div className="crm-empty">

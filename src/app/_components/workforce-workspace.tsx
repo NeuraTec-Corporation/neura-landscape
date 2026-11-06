@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
-import { CatalogSelect, useCatalogs } from "./catalogs";
+import { useState, useRef, useEffect } from "react";
+import { DataDirectory } from "./data-directory";
+import { CatalogField, CatalogSelect, useCatalogs } from "./catalogs";
 import { PhoneField } from "@/shared/ui";
 import { Notices, useManagement, usd } from "./management-shared";
 export type Employee = {
@@ -45,6 +46,27 @@ export function WorkforceWorkspace({ mode }: { mode: "employees" | "crews" }) {
 		),
 		[phone, setPhone] = useState("");
 	const data = state.data;
+	const editor = useRef<HTMLElement>(null);
+	const [detailId, setDetailId] = useState<string | null>(null),
+		[showEditor, setShowEditor] = useState(false);
+	const isEditing = Boolean(employee || crew);
+	useEffect(() => {
+		if (showEditor || isEditing)
+			requestAnimationFrame(() => {
+				editor.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+				editor.current?.focus({ preventScroll: true });
+			});
+	}, [showEditor, isEditing]);
+	useEffect(() => {
+		if (state.error)
+			requestAnimationFrame(() => {
+				const field = editor.current?.querySelector<HTMLElement>(
+					"[aria-invalid=true],input:invalid,select:invalid",
+				);
+				if (field) field.focus();
+				else editor.current?.focus();
+			});
+	}, [state.error]);
 	return (
 		<div className="manage-workspace">
 			<Notices error={state.error} notice={state.notice} />
@@ -68,7 +90,12 @@ export function WorkforceWorkspace({ mode }: { mode: "employees" | "crews" }) {
 			) : (
 				<>
 					{mode === "employees" ? (
-						<section className="panel">
+						<section
+							ref={editor}
+							tabIndex={-1}
+							hidden={!showEditor && !employee}
+							className="panel editor-panel"
+						>
 							<h2>{employee ? "Editar empleado" : "Nuevo empleado"}</h2>
 							<form
 								key={employee?.id ?? "new"}
@@ -88,6 +115,7 @@ export function WorkforceWorkspace({ mode }: { mode: "employees" | "crews" }) {
 										})
 									) {
 										setEmployee(null);
+										setShowEditor(false);
 										setPhone("");
 										form.reset();
 									}
@@ -154,16 +182,12 @@ export function WorkforceWorkspace({ mode }: { mode: "employees" | "crews" }) {
 												}
 											/>
 										</label>
-										<label>
-											Estado
-											<select
-												name="status"
-												defaultValue={employee?.status ?? "active"}
-											>
-												<option value="active">Activo</option>
-												<option value="inactive">Inactivo</option>
-											</select>
-										</label>
+										<CatalogField
+											label="Estado"
+											category="employee_status"
+											name="status"
+											defaultValue={employee?.status ?? "active"}
+										/>
 										<label className="field-wide">
 											Habilidades y observaciones
 											<textarea
@@ -181,12 +205,13 @@ export function WorkforceWorkspace({ mode }: { mode: "employees" | "crews" }) {
 										<button type="submit">
 											{employee ? "Guardar empleado" : "Crear empleado"}
 										</button>
-										{employee ? (
+										{showEditor || employee ? (
 											<button
 												type="button"
 												className="quiet-button"
 												onClick={() => {
 													setEmployee(null);
+													setShowEditor(false);
 													setPhone("");
 												}}
 											>
@@ -198,7 +223,12 @@ export function WorkforceWorkspace({ mode }: { mode: "employees" | "crews" }) {
 							</form>
 						</section>
 					) : (
-						<section className="panel">
+						<section
+							ref={editor}
+							tabIndex={-1}
+							hidden={!showEditor && !crew}
+							className="panel editor-panel"
+						>
 							<h2>{crew ? "Editar cuadrilla" : "Nueva cuadrilla"}</h2>
 							<form
 								key={crew?.id ?? "new"}
@@ -216,6 +246,7 @@ export function WorkforceWorkspace({ mode }: { mode: "employees" | "crews" }) {
 										})
 									) {
 										setCrew(null);
+										setShowEditor(false);
 										setMembers([]);
 										form.reset();
 									}
@@ -345,12 +376,13 @@ export function WorkforceWorkspace({ mode }: { mode: "employees" | "crews" }) {
 										<button type="submit">
 											{crew ? "Guardar cuadrilla" : "Crear cuadrilla"}
 										</button>
-										{crew ? (
+										{showEditor || crew ? (
 											<button
 												className="quiet-button"
 												type="button"
 												onClick={() => {
 													setCrew(null);
+													setShowEditor(false);
 													setMembers([]);
 												}}
 											>
@@ -362,133 +394,282 @@ export function WorkforceWorkspace({ mode }: { mode: "employees" | "crews" }) {
 							</form>
 						</section>
 					)}
+					<div className="directory-heading">
+						<h2>
+							{mode === "employees"
+								? "Directorio de empleados"
+								: "Directorio de cuadrillas"}
+						</h2>
+						<button
+							type="button"
+							onClick={() => {
+								setCrew(null);
+								setEmployee(null);
+								setMembers([]);
+								setPhone("");
+								setShowEditor(true);
+							}}
+						>
+							{mode === "employees" ? "+ Nuevo empleado" : "+ Nueva cuadrilla"}
+						</button>
+					</div>
+					{mode === "employees" ? (
+						<DataDirectory
+							label="Empleados"
+							rows={data.employees}
+							columns={[
+								{
+									key: "name",
+									label: "Persona",
+									value: (e) => `${e.first_name} ${e.last_name}`,
+									render: (e) => (
+										<>
+											<strong>
+												{e.first_name} {e.last_name}
+											</strong>
+											<small>{e.code}</small>
+										</>
+									),
+								},
+								{
+									key: "role",
+									label: "Función",
+									value: (e) => c.label("employee_role", e.role_key),
+								},
+								{
+									key: "status",
+									label: "Estado",
+									value: (e) => c.label("employee_status", e.status),
+									secondary: true,
+								},
+							]}
+							actions={(e) => (
+								<>
+									<button
+										type="button"
+										onClick={() => {
+											setEmployee(e);
+											setPhone(e.phone);
+											setShowEditor(true);
+										}}
+									>
+										Editar
+									</button>
+									<button
+										type="button"
+										className="quiet-button"
+										onClick={() => setDetailId(detailId === e.id ? null : e.id)}
+									>
+										Detalle
+									</button>
+								</>
+							)}
+						/>
+					) : (
+						<DataDirectory
+							label="Cuadrillas"
+							rows={data.crews}
+							columns={[
+								{
+									key: "name",
+									label: "Cuadrilla",
+									value: (t) => t.name,
+									render: (t) => (
+										<>
+											<strong>{t.name}</strong>
+											<small>
+												{t.shift_start}–{t.shift_end}
+											</small>
+										</>
+									),
+								},
+								{
+									key: "members",
+									label: "Integrantes",
+									value: (t) =>
+										t.members.map((m) => m.name).join(", ") ||
+										`${t.workers} sin identificar`,
+									render: (t) => (
+										<>
+											<strong>{t.members.length || t.workers} personas</strong>
+											<small>
+												{t.members.map((m) => m.name).join(", ") ||
+													"Integrantes por identificar"}
+											</small>
+										</>
+									),
+								},
+								{
+									key: "shift",
+									label: "Descanso",
+									value: (t) => `${t.break_minutes} min`,
+									secondary: true,
+								},
+							]}
+							actions={(t) => (
+								<>
+									<button
+										type="button"
+										onClick={() => {
+											setCrew(t);
+											setMembers(
+												t.members.map((m) => ({
+													employee_id: m.employee_id,
+													duty: m.duty,
+												})),
+											);
+											setShowEditor(true);
+										}}
+									>
+										Editar
+									</button>
+									<button
+										type="button"
+										className="quiet-button"
+										onClick={() => setDetailId(detailId === t.id ? null : t.id)}
+									>
+										Detalle
+									</button>
+								</>
+							)}
+						/>
+					)}
 					<div className="manage-card-grid">
 						{mode === "employees"
-							? data.employees.map((e) => (
-									<article className="panel person-card" key={e.id}>
-										<div className="person-avatar" aria-hidden="true">
-											{e.first_name[0]}
-											{e.last_name[0]}
-										</div>
-										<h3>
-											{e.first_name} {e.last_name}
-										</h3>
-										<p>
-											{e.code} · {c.label("employee_role", e.role_key)}
-										</p>
-										<span className={`status-tag ${e.status}`}>
-											{e.status === "active" ? "Activo" : "Inactivo"}
-										</span>
-										<p>
-											{e.email || "Sin correo"} {e.phone ? `· ${e.phone}` : ""}
-										</p>
-										<p>{e.skills}</p>
-										<p>
-											Costo por hora:{" "}
-											<strong>
-												{e.hourly_cents === null
-													? "Pendiente"
-													: usd(e.hourly_cents)}
-											</strong>
-										</p>
-										<div className="manage-actions">
-											<button
-												type="button"
-												onClick={() => {
-													setEmployee(e);
-													setPhone(e.phone);
-												}}
-											>
-												Editar
-											</button>
-											<button
-												className="quiet-button"
-												type="button"
-												disabled={state.busy}
-												onClick={() => {
-													if (
-														window.confirm(
-															"¿Dar de baja a esta persona? Sus trabajos históricos se conservarán.",
-														)
-													)
-														void state.save({
-															action: "delete",
-															entity: "employee",
-															id: e.id,
-															revision: e.revision,
-														});
-												}}
-											>
-												Eliminar
-											</button>
-										</div>
-									</article>
-								))
-							: data.crews.map((team) => (
-									<article className="panel" key={team.id}>
-										<p className="eyebrow">CUADRILLA</p>
-										<h3>{team.name}</h3>
-										<p>
-											{team.shift_start}–{team.shift_end} · {team.break_minutes}{" "}
-											min de descanso
-										</p>
-										{team.members.length ? (
-											<ul className="crew-roster">
-												{team.members.map((member) => (
-													<li key={member.employee_id}>
-														<strong>{member.name}</strong>
-														<span>
-															{c.label("employee_role", member.duty)}
-															{member.status !== "active" ? " · Inactivo" : ""}
-														</span>
-													</li>
-												))}
-											</ul>
-										) : (
-											<p className="notice">
-												{team.workers} trabajadores históricos sin identificar.
-												Edita la cuadrilla para asignar personas antes de
-												programar nuevas visitas.
+							? data.employees
+									.filter((e) => e.id === detailId)
+									.map((e) => (
+										<article className="panel person-card" key={e.id}>
+											<div className="person-avatar" aria-hidden="true">
+												{e.first_name[0]}
+												{e.last_name[0]}
+											</div>
+											<h3>
+												{e.first_name} {e.last_name}
+											</h3>
+											<p>
+												{e.code} · {c.label("employee_role", e.role_key)}
 											</p>
-										)}
-										<div className="manage-actions">
-											<button
-												type="button"
-												onClick={() => {
-													setCrew(team);
-													setMembers(
-														team.members.map((m) => ({
-															employee_id: m.employee_id,
-															duty: m.duty,
-														})),
-													);
-												}}
-											>
-												Editar cuadrilla
-											</button>
-											<button
-												type="button"
-												className="quiet-button"
-												disabled={state.busy}
-												onClick={() => {
-													if (
-														window.confirm(
-															"¿Dar de baja la cuadrilla? Primero deben resolverse sus visitas pendientes.",
+											<span className={`status-tag ${e.status}`}>
+												{e.status === "active" ? "Activo" : "Inactivo"}
+											</span>
+											<p>
+												{e.email || "Sin correo"}{" "}
+												{e.phone ? `· ${e.phone}` : ""}
+											</p>
+											<p>{e.skills}</p>
+											<p>
+												Costo por hora:{" "}
+												<strong>
+													{e.hourly_cents === null
+														? "Pendiente"
+														: usd(e.hourly_cents)}
+												</strong>
+											</p>
+											<div className="manage-actions">
+												<button
+													type="button"
+													onClick={() => {
+														setEmployee(e);
+														setShowEditor(true);
+														setPhone(e.phone);
+													}}
+												>
+													Editar
+												</button>
+												<button
+													className="quiet-button"
+													type="button"
+													disabled={state.busy}
+													onClick={() => {
+														if (
+															window.confirm(
+																"¿Dar de baja a esta persona? Sus trabajos históricos se conservarán.",
+															)
 														)
-													)
-														void state.save({
-															action: "delete",
-															entity: "crew",
-															id: team.id,
-															revision: team.revision,
-														});
-												}}
-											>
-												Eliminar cuadrilla
-											</button>
-										</div>
-									</article>
-								))}
+															void state.save({
+																action: "delete",
+																entity: "employee",
+																id: e.id,
+																revision: e.revision,
+															});
+													}}
+												>
+													Eliminar
+												</button>
+											</div>
+										</article>
+									))
+							: data.crews
+									.filter((t) => t.id === detailId)
+									.map((team) => (
+										<article className="panel" key={team.id}>
+											<p className="eyebrow">CUADRILLA</p>
+											<h3>{team.name}</h3>
+											<p>
+												{team.shift_start}–{team.shift_end} ·{" "}
+												{team.break_minutes} min de descanso
+											</p>
+											{team.members.length ? (
+												<ul className="crew-roster">
+													{team.members.map((member) => (
+														<li key={member.employee_id}>
+															<strong>{member.name}</strong>
+															<span>
+																{c.label("employee_role", member.duty)}
+																{member.status !== "active"
+																	? " · Inactivo"
+																	: ""}
+															</span>
+														</li>
+													))}
+												</ul>
+											) : (
+												<p className="notice">
+													{team.workers} trabajadores históricos sin
+													identificar. Edita la cuadrilla para asignar personas
+													antes de programar nuevas visitas.
+												</p>
+											)}
+											<div className="manage-actions">
+												<button
+													type="button"
+													onClick={() => {
+														setCrew(team);
+														setShowEditor(true);
+														setMembers(
+															team.members.map((m) => ({
+																employee_id: m.employee_id,
+																duty: m.duty,
+															})),
+														);
+													}}
+												>
+													Editar cuadrilla
+												</button>
+												<button
+													type="button"
+													className="quiet-button"
+													disabled={state.busy}
+													onClick={() => {
+														if (
+															window.confirm(
+																"¿Dar de baja la cuadrilla? Primero deben resolverse sus visitas pendientes.",
+															)
+														)
+															void state.save({
+																action: "delete",
+																entity: "crew",
+																id: team.id,
+																revision: team.revision,
+															});
+													}}
+												>
+													Eliminar cuadrilla
+												</button>
+											</div>
+										</article>
+									))}
 					</div>
 				</>
 			)}

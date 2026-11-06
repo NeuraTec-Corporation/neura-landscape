@@ -1,4 +1,5 @@
 "use client";
+import { CatalogField } from "./catalogs";
 import { useEffect, useState, useCallback } from "react";
 const roles = {
 	it_admin: "Administrador de TI",
@@ -115,23 +116,18 @@ export function UsersWorkspace() {
 								disabled={!!edit}
 							/>
 						</label>
-						<label>
-							Rol
-							<select name="role" defaultValue={edit?.role ?? "worker"}>
-								{Object.entries(roles).map(([key, label]) => (
-									<option key={key} value={key}>
-										{label}
-									</option>
-								))}
-							</select>
-						</label>
-						<label>
-							Estado
-							<select name="status" defaultValue={edit?.status ?? "active"}>
-								<option value="active">Activo</option>
-								<option value="disabled">Deshabilitado</option>
-							</select>
-						</label>
+						<CatalogField
+							label="Rol"
+							category="app_role"
+							name="role"
+							defaultValue={edit?.role ?? "worker"}
+						/>
+						<CatalogField
+							label="Estado"
+							category="member_status"
+							name="status"
+							defaultValue={edit?.status ?? "active"}
+						/>
 					</div>
 					<fieldset className="survey-assignments">
 						<legend>Cuadrillas asignadas</legend>

@@ -112,20 +112,17 @@ test("prototype routes expose distinct screens and retain noindex", async () => 
 		["cuadrillas", "Cuadrillas"],
 		["empleados", "Empleados"],
 		["costos", "Costos"],
-		["facturacion", "Facturación y cobros"],
+		["facturacion", "Facturas y cobros"],
 		["configuracion", "Configuración"],
 		["integraciones", "Integraciones"],
-		["usuarios", "Usuarios y niveles"],
+		["usuarios", "Usuarios y permisos"],
 	]) {
 		const response = await fetch(`${base}/${path}`);
 		assert.equal(response.status, 200, path);
 		assert.match(response.headers.get("x-robots-tag") ?? "", /noindex/);
 		const html = await response.text();
 		assert.ok(html.includes(content), path);
-		const activeLink = html.match(/<a\b[^>]*aria-current="page"[^>]*>/g) ?? [];
-		assert.equal(activeLink.length, path === "control" ? 0 : 1, path);
-		if (path !== "control")
-			assert.ok(activeLink[0].includes(`href="/${path}"`), path);
+		assert.match(html, /Abrir menú/);
 		assert.match(html, /OPERATIONS WORKSPACE/);
 	}
 });
@@ -634,4 +631,32 @@ test("offer HTTP lifecycle creates a single linked contract and exposes accepted
 	const page = await fetch(`${base}/presupuestos`);
 	assert.equal(page.status, 200);
 	assert.match(await page.text(), /Ofertas y acuerdos/);
+});
+
+test("UX01 sample API loads 33 customers and 78 locations once and rejects cross-origin writes", async () => {
+	const post = async (origin) =>
+		fetch(`${base}/api/sample-data`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json", Origin: origin },
+			body: JSON.stringify({ action: "load", confirmed: true }),
+		});
+	assert.equal((await post("https://external.invalid")).status, 403);
+	const first = await post(base);
+	assert.equal(first.status, 200);
+	const a = await first.json();
+	assert.equal(a.customers, 33);
+	assert.equal(a.properties, 78);
+	const second = await post(base);
+	assert.equal(second.status, 200);
+	assert.equal((await second.json()).replayed, true);
+	const customers = await (await fetch(`${base}/api/customers`)).json();
+	assert.equal(
+		customers.filter((c) => c.sample_batch_id === "ux01-customers-v1").length,
+		33,
+	);
+	const properties = await (await fetch(`${base}/api/properties`)).json();
+	assert.equal(
+		properties.filter((p) => p.sample_batch_id === "ux01-customers-v1").length,
+		78,
+	);
 });

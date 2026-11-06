@@ -1,5 +1,5 @@
 "use client";
-import { CatalogSelect } from "./catalogs";
+import { CatalogField, CatalogSelect } from "./catalogs";
 import { useEffect, useState } from "react";
 type Row = {
 	source_offer_id?: string | null;
@@ -284,16 +284,12 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 										required
 									/>
 								</label>
-								<label>
-									Estado
-									<select name="status" defaultValue={edit?.status ?? "active"}>
-										{Object.entries(statuses).map(([key, label]) => (
-											<option key={key} value={key}>
-												{label}
-											</option>
-										))}
-									</select>
-								</label>
+								<CatalogField
+									label="Estado"
+									category="contract_status"
+									name="status"
+									defaultValue={edit?.status ?? "active"}
+								/>
 								<label>
 									Precio mensual (USD)
 									<input

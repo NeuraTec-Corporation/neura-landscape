@@ -2,7 +2,7 @@ export type Contact = {
 	id?: string;
 	first_name: string;
 	last_name: string;
-	relationship: "self" | "spouse" | "child" | "representative" | "other";
+	relationship: string;
 	roles: ("primary" | "signer" | "approver" | "billing" | "notifications")[];
 	phone_mobile: string;
 	phone_home: string;
@@ -18,7 +18,7 @@ export type Contact = {
 };
 export type Address = {
 	id?: string;
-	label: "home" | "billing" | "service" | "office";
+	label: string;
 	line1: string;
 	line2: string;
 	city: string;
@@ -37,14 +37,7 @@ export type CustomerDraft = {
 	last_name: string;
 	company_name: string;
 	status: "prospect" | "active" | "inactive";
-	marital_status:
-		| ""
-		| "single"
-		| "married"
-		| "partner"
-		| "divorced"
-		| "widowed"
-		| "undisclosed";
+	marital_status: string;
 	language: "es" | "en";
 	timezone: string;
 	notes: string;
@@ -72,6 +65,7 @@ export type CustomerSummary = {
 	revision: number | null;
 	updated_at: string | null;
 	property_count?: number;
+	sample_batch_id?: string | null;
 	email: string | null;
 	phone: string | null;
 };

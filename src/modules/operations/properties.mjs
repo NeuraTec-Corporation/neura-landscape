@@ -125,7 +125,7 @@ export class PropertyError extends Error {
 export async function listProperties(db, customerId) {
 	const rows = (
 		await db.query(
-			"SELECT p.*,c.name customer_name,(SELECT count(*)::int FROM contracts ct WHERE ct.property_id=p.id) contract_count FROM properties p JOIN customers c ON c.id=p.customer_id WHERE p.deleted_at IS NULL AND ($1::text IS NULL OR p.customer_id=$1) ORDER BY p.status,p.name,p.id",
+			"SELECT p.*,(SELECT batch_id FROM sample_data_records sr WHERE sr.entity='property' AND sr.entity_id=p.id) sample_batch_id,c.name customer_name,(SELECT count(*)::int FROM contracts ct WHERE ct.property_id=p.id) contract_count FROM properties p JOIN customers c ON c.id=p.customer_id WHERE p.deleted_at IS NULL AND ($1::text IS NULL OR p.customer_id=$1) ORDER BY p.status,p.name,p.id",
 
 			[customerId || null],
 		)

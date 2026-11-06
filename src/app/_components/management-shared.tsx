@@ -1,4 +1,5 @@
 "use client";
+import { CatalogField } from "./catalogs";
 import { useCallback, useEffect, useState } from "react";
 export const usd = (cents: number) =>
 	new Intl.NumberFormat("es-US", { style: "currency", currency: "USD" }).format(
@@ -127,22 +128,17 @@ export function AmountLines({
 				<fieldset className="amount-line" key={line.clientKey}>
 					<legend>Línea {i + 1}</legend>
 					{categories ? (
-						<label>
-							Categoría
-							<select
-								value={line.category}
-								onChange={(e) =>
-									update(i, {
-										category: e.target.value as AmountLine["category"],
-									})
-								}
-							>
-								<option value="materials">Materiales</option>
-								<option value="equipment">Maquinaria</option>
-								<option value="travel">Traslado</option>
-								<option value="overhead">Indirectos</option>
-							</select>
-						</label>
+						<CatalogField
+							label="Categoría"
+							category="visit_cost_category"
+							name="visit_cost_category"
+							value={line.category}
+							onChange={(next) =>
+								update(i, {
+									category: next as AmountLine["category"],
+								})
+							}
+						/>
 					) : null}
 					<label>
 						Descripción

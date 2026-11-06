@@ -3,7 +3,8 @@ import { principal } from "../_identity";
 import { ManageError, withActor } from "@/modules/operations/manage.mjs";
 import {
 	catalogOptions,
-	categories,
+	catalogMetadata,
+	canManageCatalog,
 	saveOption,
 } from "@/modules/operations/catalog.mjs";
 export const runtime = "nodejs";
@@ -13,12 +14,17 @@ export async function GET(request: Request) {
 	if (!actor)
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 	try {
+		const db = await database(),
+			metadata = await catalogMetadata(db);
 		return Response.json(
 			{
-				options: await catalogOptions(await database()),
-				categories,
+				options: await catalogOptions(db),
+				...metadata,
 				role: actor.role,
 				canEdit: ["it_admin", "owner", "manager"].includes(actor.role),
+				manageableCategories: Object.keys(metadata.categories).filter((c) =>
+					canManageCatalog(actor.role, c),
+				),
 			},
 			{ headers: { "Cache-Control": "no-store" } },
 		);
@@ -43,6 +49,8 @@ export async function POST(request: Request) {
 				{ status: 413 },
 			);
 		const input = JSON.parse(raw);
+		if (!canManageCatalog(actor.role, input.category))
+			return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 		return Response.json(
 			await withActor(actor.email || "protected-evaluation", async () =>
 				saveOption(await database(), input),

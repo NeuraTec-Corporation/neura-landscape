@@ -114,6 +114,16 @@ export async function saveCrew(db, input) {
 			if (!old || old.deleted_at || old.revision !== v.revision)
 				throw new ManageError("La cuadrilla cambió. Recarga.", 409);
 		}
+		const previous = new Map(
+			v.id
+				? (
+						await tx.query(
+							"SELECT employee_id,duty FROM crew_employees WHERE crew_id=$1",
+							[id],
+						)
+					).rows.map((m) => [m.employee_id, m.duty])
+				: [],
+		);
 		let sum = 0,
 			known = true;
 		for (const member of v.members) {
@@ -127,7 +137,12 @@ export async function saveCrew(db, input) {
 				throw new ManageError(
 					"Todos los integrantes deben ser empleados activos.",
 				);
-			await requireOption(tx, "employee_role", member.duty);
+			await requireOption(
+				tx,
+				"employee_role",
+				member.duty,
+				previous.get(member.employee_id),
+			);
 			if (e.hourly_cents === null) known = false;
 			else sum += e.hourly_cents;
 		}

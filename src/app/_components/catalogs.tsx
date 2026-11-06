@@ -21,6 +21,8 @@ type CatalogData = {
 	options: Option[];
 	categories: Record<string, string>;
 	canEdit: boolean;
+	extensible?: Record<string, boolean>;
+	manageableCategories?: string[];
 };
 const Context = createContext<{
 	data: CatalogData;
@@ -91,6 +93,9 @@ export function useCatalogs() {
 	const context = useContext(Context);
 	return {
 		...context,
+		canManage: (category: string) =>
+			context.data.canEdit &&
+			(context.data.manageableCategories ?? []).includes(category),
 		options: (category: string, current?: string) =>
 			Object.fromEntries(
 				context.data.options
@@ -105,6 +110,7 @@ export function useCatalogs() {
 	};
 }
 export function CatalogSelect({
+	allowedKeys,
 	category,
 	name,
 	value,
@@ -115,6 +121,7 @@ export function CatalogSelect({
 	disabled = false,
 }: {
 	category: string;
+	allowedKeys?: readonly string[];
 	name: string;
 	value?: string;
 	defaultValue?: string;
@@ -143,13 +150,21 @@ export function CatalogSelect({
 				disabled={disabled}
 			>
 				<option value="">Selecciona...</option>
-				{Object.entries(options).map(([key, label]) => (
-					<option key={key} value={key}>
-						{label}
-					</option>
-				))}
+				{current && !options[current] ? (
+					<option value={current}>{current} (histórico)</option>
+				) : null}
+				{Object.entries(options)
+					.filter(
+						([key]) =>
+							!allowedKeys || allowedKeys.includes(key) || key === current,
+					)
+					.map(([key, label]) => (
+						<option key={key} value={key}>
+							{label}
+						</option>
+					))}
 			</select>
-			{c.data.canEdit && !disabled ? (
+			{c.canManage(category) && !disabled ? (
 				<button
 					type="button"
 					className="catalog-add"
@@ -219,12 +234,18 @@ export function CatalogManager({
 					))}
 				</select>
 			</label>
+			{c.data.extensible?.[category] === false ? (
+				<p className="catalog-policy">
+					Opciones con reglas del sistema: edita etiquetas o disponibilidad.
+				</p>
+			) : null}
 			{error ? (
 				<p role="alert" className="notice error">
 					{error}
 				</p>
 			) : null}
-			{c.data.canEdit ? (
+			{c.canManage(category) &&
+			(edit || c.data.extensible?.[category] !== false) ? (
 				<form
 					className="manage-form"
 					key={edit?.key ?? category}
@@ -312,7 +333,7 @@ export function CatalogManager({
 								<strong>{o.label}</strong>
 								<small>{o.active ? "Activa" : "Retirada del menú"}</small>
 							</div>
-							{c.data.canEdit ? (
+							{c.canManage(category) ? (
 								<div className="manage-actions">
 									<button
 										className="quiet-button"
@@ -337,12 +358,34 @@ export function CatalogManager({
 										>
 											Eliminar del menú
 										</button>
-									) : null}
+									) : (
+										<button
+											type="button"
+											className="quiet-button"
+											disabled={busy}
+											onClick={() => void send({ ...o, active: true })}
+										>
+											Restaurar opción
+										</button>
+									)}
 								</div>
 							) : null}
 						</article>
 					))}
 			</div>
 		</section>
+	);
+}
+
+export function CatalogField({
+	label,
+	...props
+}: React.ComponentProps<typeof CatalogSelect> & { label: string }) {
+	const id = useId();
+	return (
+		<div className="catalog-field">
+			<label htmlFor={id}>{label}</label>
+			<CatalogSelect {...props} id={id} />
+		</div>
 	);
 }

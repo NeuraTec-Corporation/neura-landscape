@@ -197,7 +197,9 @@ export function SurveyWorkspace({
 				throw new Error(value.error);
 			}
 			saved = true;
-			setEdit(null);setFieldErrors({});setError("");
+			setEdit(null);
+			setFieldErrors({});
+			setError("");
 			setCreating(false);
 			setNotice("Levantamiento guardado.");
 			await refresh();
@@ -308,7 +310,9 @@ export function SurveyWorkspace({
 										!window.confirm("¿Cambiar de sección sin guardar?")
 									)
 										return;
-									setEdit(null);setFieldErrors({});setError("");
+									setEdit(null);
+									setFieldErrors({});
+									setError("");
 									setCreating(false);
 									setTab(id);
 								}}
@@ -347,7 +351,12 @@ export function SurveyWorkspace({
 														? "Sin medir"
 														: `${z.area} ${catalogs.label("area_unit", z.unit ?? "sqft")}`}
 												</p>
-												<span className="pill">{catalogs.label("measurement_quality", z.measurement_status ?? "estimated")}</span>
+												<span className="pill">
+													{catalogs.label(
+														"measurement_quality",
+														z.measurement_status ?? "estimated",
+													)}
+												</span>
 											</div>
 										</article>
 									))}
@@ -432,7 +441,9 @@ export function SurveyWorkspace({
 										type="button"
 										disabled={busy}
 										onClick={() => {
-											setEdit(null);setFieldErrors({});setError("");
+											setEdit(null);
+											setFieldErrors({});
+											setError("");
 											setCreating(true);
 										}}
 									>
@@ -657,7 +668,9 @@ export function SurveyWorkspace({
 										<button
 											type="button"
 											onClick={() => {
-												setEdit(null);setFieldErrors({});setError("");
+												setEdit(null);
+												setFieldErrors({});
+												setError("");
 												setCreating(false);
 											}}
 										>
@@ -723,7 +736,9 @@ export function SurveyWorkspace({
 													disabled={busy}
 													onClick={() => {
 														setCreating(false);
-														setEdit(item);setFieldErrors({});setError("");
+														setEdit(item);
+														setFieldErrors({});
+														setError("");
 													}}
 												>
 													Editar
@@ -846,6 +861,7 @@ export function SurveyWorkspace({
 											<Field
 												label="Vista"
 												name="viewpoint"
+												catalog="photo_view"
 												value="front"
 												options={{
 													front: "Frente",

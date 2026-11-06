@@ -1,5 +1,7 @@
 "use client";
+import { SampleDataPanel } from "./sample-data-panel";
 import { useEffect, useId, useState } from "react";
+import { CatalogSelect, useCatalogs } from "./catalogs";
 import { PhoneField } from "@/shared/ui";
 import { PropertyWorkspace } from "./property-workspace";
 function validationLocation(path: string) {
@@ -104,11 +106,7 @@ const fresh = (): CustomerDraft => ({
 	contacts: [freshContact()],
 	addresses: [freshAddress()],
 });
-const statuses = {
-	prospect: "Prospecto",
-	active: "Activo",
-	inactive: "Inactivo",
-};
+
 const roleLabels = {
 	primary: "Contacto principal",
 	signer: "Responsable del contrato",
@@ -138,13 +136,35 @@ function Field({
 	placeholder?: string;
 }) {
 	const id = useId();
+	const category = (
+		{
+			"Tipo de cuenta": "customer_kind",
+			"Estado comercial": "customer_status",
+			"Estado civil (opcional)": "marital_status",
+			"Idioma de atención": "customer_language",
+			"Relación con el cliente": "customer_relationship",
+			"Teléfono preferido para llamadas": "contact_phone",
+			"Canal preferido": "communication_channel",
+			"Tipo de dirección": "address_label",
+			"Canal previsto": "communication_channel",
+		} as Record<string, string>
+	)[label];
 	return (
 		<div className="crm-field">
 			<label htmlFor={id}>
 				{label}
 				{required ? <span className="required"> *</span> : null}
 			</label>
-			{options ? (
+			{category ? (
+				<CatalogSelect
+					id={id}
+					name={id}
+					category={category}
+					value={value}
+					onChange={onChange}
+					required={required}
+				/>
+			) : options ? (
 				<select
 					id={id}
 					value={value}
@@ -274,6 +294,7 @@ function AddressLookup({
 	);
 }
 export function CustomerWorkspace() {
+	const catalogs = useCatalogs();
 	const [items, setItems] = useState<CustomerSummary[]>([]);
 	const [record, setRecord] = useState<CustomerRecord | null>(null);
 	const [draft, setDraft] = useState<CustomerDraft | null>(null);
@@ -471,6 +492,7 @@ export function CustomerWorkspace() {
 							</article>
 						))}
 					</div>
+					<SampleDataPanel onLoaded={() => void refresh()} />
 					<div className="crm-directory">
 						<div className="crm-toolbar">
 							<div>
@@ -527,7 +549,7 @@ export function CustomerWorkspace() {
 										<th>Cliente</th>
 										<th>Contacto</th>
 										<th>Estado</th>
-										<th>Propiedades</th>
+										<th>Locales</th>
 										<th>
 											<span className="sr-only">Acciones</span>
 										</th>
@@ -551,6 +573,9 @@ export function CustomerWorkspace() {
 														</span>
 														<div>
 															<b>{row.name}</b>
+															{row.sample_batch_id ? (
+																<span className="sample-badge">PRUEBA</span>
+															) : null}
 															<small>
 																{row.kind === "company"
 																	? "Empresa"
@@ -570,11 +595,23 @@ export function CustomerWorkspace() {
 														className={`status-tag ${row.status ?? "prospect"}`}
 													>
 														{row.status
-															? statuses[row.status]
+															? catalogs.label("customer_status", row.status)
 															: "Por completar"}
 													</span>
 												</td>
-												<td>{row.property_count}</td>
+												<td>
+													<button
+														type="button"
+														className="quiet-button"
+														onClick={() => {
+															void open(row.id).then(() =>
+																setTab("localidades"),
+															);
+														}}
+													>
+														{row.property_count} localidades →
+													</button>
+												</td>
 												<td>
 													<button
 														type="button"
@@ -582,7 +619,7 @@ export function CustomerWorkspace() {
 														disabled={busy}
 														onClick={() => open(row.id)}
 													>
-														Abrir expediente →
+														Abrir →
 													</button>
 												</td>
 											</tr>
@@ -656,7 +693,7 @@ export function CustomerWorkspace() {
 							</p>
 						</div>
 						<span className={`status-tag ${draft.status}`}>
-							{statuses[draft.status]}
+							{catalogs.label("customer_status", draft.status)}
 						</span>
 					</div>
 					<div
@@ -950,7 +987,7 @@ export function CustomerWorkspace() {
 										</div>
 										<fieldset className="crm-checks">
 											<legend>Responsabilidades</legend>
-											{Object.entries(roleLabels).map(([role, label]) => (
+											{Object.keys(roleLabels).map((role) => (
 												<label key={role}>
 													<input
 														type="checkbox"
@@ -968,7 +1005,7 @@ export function CustomerWorkspace() {
 															})
 														}
 													/>
-													{label}
+													{catalogs.label("contact_role", role)}
 												</label>
 											))}
 										</fieldset>
@@ -1235,7 +1272,7 @@ export function CustomerWorkspace() {
 								)}
 							</>
 						) : null}
-						<div className="site-panel" hidden={tab !== 'localidades'}>
+						<div className="site-panel" hidden={tab !== "localidades"}>
 							{record?.id ? (
 								<PropertyWorkspace
 									key={record.id}
@@ -1282,7 +1319,7 @@ export function CustomerWorkspace() {
 							</>
 						) : null}
 					</div>
-					<div className="crm-savebar" hidden={tab === 'localidades'}>
+					<div className="crm-savebar" hidden={tab === "localidades"}>
 						<span>
 							{record
 								? "Los cambios se guardarán como una nueva revisión."

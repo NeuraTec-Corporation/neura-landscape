@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readFile } from "node:fs/promises";
+import { migrate } from "../src/modules/operations/migrations.mjs";
 import { PGlite } from "@electric-sql/pglite";
 import {
 	customerSchema,
@@ -98,8 +98,7 @@ test("customer contract validates identity, relationships, phones, hours and con
 test("customer dossier saves relational contacts, addresses, revision, reminder and audit", async () => {
 	const db = new PGlite();
 	try {
-		for (const file of ["001_foundation.sql", "002_customer_profiles.sql"])
-			await db.exec(await readFile(`db/migrations/${file}`, "utf8"));
+		await migrate(db);
 		const created = await saveCustomer(db, profile());
 		let record = await getCustomer(db, created.id);
 		assert.equal(record.name, "ANA MARÍA PÉREZ");

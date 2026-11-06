@@ -10,7 +10,7 @@ export class CustomerError extends Error {
 export async function listCustomers(db) {
 	const rows = (
 		await db.query(
-			"SELECT c.id,c.name,p.status,p.kind,p.revision,p.updated_at,(SELECT email FROM customer_contacts cc WHERE cc.customer_id=c.id AND cc.roles ? 'primary' ORDER BY cc.id LIMIT 1) email,(SELECT phone_mobile FROM customer_contacts cc WHERE cc.customer_id=c.id AND cc.roles ? 'primary' ORDER BY cc.id LIMIT 1) phone FROM customers c LEFT JOIN customer_profiles p ON p.customer_id=c.id ORDER BY c.name",
+			"SELECT c.id,c.name,(SELECT batch_id FROM sample_data_records sr WHERE sr.entity='customer' AND sr.entity_id=c.id) sample_batch_id,p.status,p.kind,p.revision,p.updated_at,(SELECT email FROM customer_contacts cc WHERE cc.customer_id=c.id AND cc.roles ? 'primary' ORDER BY cc.id LIMIT 1) email,(SELECT phone_mobile FROM customer_contacts cc WHERE cc.customer_id=c.id AND cc.roles ? 'primary' ORDER BY cc.id LIMIT 1) phone FROM customers c LEFT JOIN customer_profiles p ON p.customer_id=c.id ORDER BY c.name",
 		)
 	).rows;
 	return rows;
@@ -81,6 +81,77 @@ export async function saveCustomer(db, input) {
 					409,
 				);
 		}
+		const previous = v.id
+			? (
+					await tx.query(
+						"SELECT * FROM customer_profiles WHERE customer_id=$1",
+						[id],
+					)
+				).rows[0]
+			: null;
+		const oldContacts = new Map(
+			v.id
+				? (
+						await tx.query(
+							"SELECT * FROM customer_contacts WHERE customer_id=$1",
+							[id],
+						)
+					).rows.map((c) => [c.id, c])
+				: [],
+		);
+		const oldAddresses = new Map(
+			v.id
+				? (
+						await tx.query(
+							"SELECT * FROM customer_addresses WHERE customer_id=$1",
+							[id],
+						)
+					).rows.map((a) => [a.id, a])
+				: [],
+		);
+		const option = async (category, value, old, field) => {
+			if (value === old || value === "") return;
+			const row = await tx.query(
+				"SELECT key FROM catalog_options WHERE category=$1 AND key=$2 AND active=true FOR SHARE",
+				[category, value],
+			);
+			if (!row.rows.length)
+				throw new CustomerError(
+					"Selecciona una opción activa del catálogo.",
+					422,
+					{ [field]: "La opción no está disponible." },
+				);
+		};
+		for (const [category, key] of [
+			["customer_kind", "kind"],
+			["customer_status", "status"],
+			["marital_status", "marital_status"],
+			["customer_language", "language"],
+		])
+			await option(category, v[key], previous?.[key], key);
+		for (const [i, c] of v.contacts.entries()) {
+			const old = oldContacts.get(c.id);
+			for (const [category, key] of [
+				["customer_relationship", "relationship"],
+				["communication_channel", "preferred_channel"],
+				["contact_phone", "preferred_phone"],
+			])
+				await option(category, c[key], old?.[key], `contacts.${i}.${key}`);
+			for (const role of c.roles)
+				await option(
+					"contact_role",
+					role,
+					old?.roles?.includes(role) ? role : undefined,
+					`contacts.${i}.roles`,
+				);
+		}
+		for (const [i, a] of v.addresses.entries())
+			await option(
+				"address_label",
+				a.label,
+				oldAddresses.get(a.id)?.label,
+				`addresses.${i}.label`,
+			);
 		for (const c of v.contacts) {
 			if (c.email) {
 				const duplicate = (

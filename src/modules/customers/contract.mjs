@@ -46,13 +46,7 @@ export const contactSchema = z
 		id: z.string().uuid().optional(),
 		first_name: personalName,
 		last_name: personalName,
-		relationship: z.enum([
-			"self",
-			"spouse",
-			"child",
-			"representative",
-			"other",
-		]),
+		relationship: z.string().trim().min(1).max(80),
 		roles: z
 			.array(
 				z.enum(["primary", "signer", "approver", "billing", "notifications"]),
@@ -92,7 +86,7 @@ export const contactSchema = z
 export const addressSchema = z
 	.object({
 		id: z.string().uuid().optional(),
-		label: z.enum(["home", "billing", "service", "office"]),
+		label: z.string().trim().min(1).max(80),
 		line1: required,
 		line2: upper(),
 		city: required,
@@ -123,15 +117,7 @@ export const customerSchema = z
 		last_name: upper(),
 		company_name: upper(200),
 		status: z.enum(["prospect", "active", "inactive"]),
-		marital_status: z.enum([
-			"",
-			"single",
-			"married",
-			"partner",
-			"divorced",
-			"widowed",
-			"undisclosed",
-		]),
+		marital_status: z.string().trim().max(80),
 		language: z.enum(["es", "en"]),
 		timezone: z
 			.string()

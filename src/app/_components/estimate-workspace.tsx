@@ -1,4 +1,5 @@
 "use client";
+import { CatalogField } from "./catalogs";
 import { EstimateLifecycle } from "./estimate-lifecycle";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -264,21 +265,19 @@ export function EstimateWorkspace() {
 											}
 										/>
 									</label>
-									<label>
-										Unidad de superficie
-										<select
-											value={rateForm.unit}
-											onChange={(e) =>
-												setRateForm((v) => ({
-													...v,
-													unit: e.target.value as "sqft" | "sqm",
-												}))
-											}
-										>
-											<option value="sqft">Pies cuadrados (ft²)</option>
-											<option value="sqm">Metros cuadrados (m²)</option>
-										</select>
-									</label>
+									<CatalogField
+										label="Unidad de superficie"
+										category="area_unit"
+										name="area_unit"
+										allowedKeys={["sqft", "sqm"]}
+										value={rateForm.unit}
+										onChange={(next) =>
+											setRateForm((v) => ({
+												...v,
+												unit: next as "sqft" | "sqm",
+											}))
+										}
+									/>
 									<label>
 										Superficie por hora-persona *
 										<input
@@ -321,25 +320,18 @@ export function EstimateWorkspace() {
 											}
 										/>
 									</label>
-									<label>
-										Calidad de la referencia
-										<select
-											value={rateForm.confidence}
-											onChange={(e) =>
-												setRateForm((v) => ({
-													...v,
-													confidence: e.target.value as
-														| "estimated"
-														| "field_validated",
-												}))
-											}
-										>
-											<option value="estimated">Estimación declarada</option>
-											<option value="field_validated">
-												Validación de campo declarada
-											</option>
-										</select>
-									</label>
+									<CatalogField
+										label="Calidad de la referencia"
+										category="rate_quality"
+										name="rate_quality"
+										value={rateForm.confidence}
+										onChange={(next) =>
+											setRateForm((v) => ({
+												...v,
+												confidence: next as "estimated" | "field_validated",
+											}))
+										}
+									/>
 								</div>
 								<label className="estimate-check">
 									<input
@@ -684,30 +676,25 @@ export function EstimateWorkspace() {
 												}
 											/>
 										</label>
-										<label>
-											Categoría
-											<select
-												value={line.category}
-												onChange={(e) =>
-													update(
-														"lines",
-														draft.lines.map((l, n) =>
-															n === i
-																? {
-																		...l,
-																		category: e.target
-																			.value as typeof l.category,
-																	}
-																: l,
-														),
-													)
-												}
-											>
-												<option value="materials">Material</option>
-												<option value="equipment">Equipo</option>
-												<option value="other">Otro</option>
-											</select>
-										</label>
+										<CatalogField
+											label="Categoría"
+											category="cost_category"
+											name="cost_category"
+											value={line.category}
+											onChange={(next) =>
+												update(
+													"lines",
+													draft.lines.map((l, n) =>
+														n === i
+															? {
+																	...l,
+																	category: next as typeof l.category,
+																}
+															: l,
+													),
+												)
+											}
+										/>
 										<label>
 											Cantidad
 											<input
@@ -893,7 +880,10 @@ export function EstimateWorkspace() {
 									<strong className="invoice-amount">
 										{money(e.snapshot.calculation.price_cents)}
 									</strong>
-									<div className="manage-actions"><button type="button" onClick={()=>setTab("agreements")}>Ofertas y acuerdos</button>
+									<div className="manage-actions">
+										<button type="button" onClick={() => setTab("agreements")}>
+											Ofertas y acuerdos
+										</button>
 										<button
 											type="button"
 											onClick={() => {
@@ -922,7 +912,11 @@ export function EstimateWorkspace() {
 														);
 													}}
 												>
-													{data.offers.some(o=>o.estimate_id===e.id&&o.contract_id)?"Preparar cambio":"Editar borrador"}
+													{data.offers.some(
+														(o) => o.estimate_id === e.id && o.contract_id,
+													)
+														? "Preparar cambio"
+														: "Editar borrador"}
 												</button>
 												<button
 													type="button"
