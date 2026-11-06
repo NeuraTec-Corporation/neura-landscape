@@ -2,6 +2,10 @@ import { database } from "@/modules/operations/index.mjs";
 import { principal } from "../_identity";
 import { canManage } from "@/modules/identity/auth.mjs";
 import {
+	issueOffer,
+	acceptOffer,
+	closeOffer,
+	bindOffer,
 	estimateWorkspace,
 	saveEstimate,
 	saveRate,
@@ -63,6 +67,13 @@ export async function POST(request: Request) {
 		const v = parsed as Record<string, unknown>;
 		const db = await database(),
 			who = actor.email || "protected-evaluation";
+		if (v.action === "issue")
+			return Response.json(await issueOffer(db, v, who));
+		if (v.action === "accept")
+			return Response.json(await acceptOffer(db, v, who));
+		if (v.action === "withdraw" || v.action === "decline")
+			return Response.json(await closeOffer(db, v, who));
+		if (v.action === "bind") return Response.json(await bindOffer(db, v, who));
 		if (v.action === "rate") return Response.json(await saveRate(db, v, who));
 		if (v.action === "save")
 			return Response.json(await saveEstimate(db, v, who));

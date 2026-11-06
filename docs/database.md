@@ -14,6 +14,7 @@ Money is integer cents. All current amounts are USD; no currency conversion is i
 | 006 | invited app members and user-to-crew access |
 | 007 | employees/crew membership, tasks/personnel snapshots, cost lines, internal invoices/payments |
 | 008 | production_rates, estimate_drafts and append-only estimate_revisions |
+| 009 | frozen estimate_offers, accepted contract_baselines and validity/payment terms |
 
 The migration runner uses schema_migrations, transactions and a hosted advisory lock.
 Do not edit applied migrations. Version 008 adds tables without changing existing IDs,
@@ -31,8 +32,7 @@ preservation, not a database immutability guarantee against privileged SQL acces
 
 Server save validates active locality, lawn zones, no duplicate zone IDs, current zone
 and rate revisions, money/units, overlap declaration and current draft revision.
-Archiving preserves revision records. No estimate is approved, sent, signed, invoiced,
-or converted into a contract by this increment.
+Archiving preserves revision records. B04 drafts alone do not send, sign, invoice or create contracts. B05 adds the controlled offer lifecycle described below.
 
 Original ft²/m² amounts remain in snapshots; conversion uses 1 ft² = 0.09290304 m².
 Person-hours round to six decimals and monetary components round in cents. Setup is
@@ -45,3 +45,13 @@ areas. Measurements are not claimed field-verified merely by using them.
 Single-workspace scope remains. There are no tenant keys/RLS or client portal grants.
 Restore, production PostgreSQL concurrency, historical contract quotas and resource
 inventory valuation are not certified by PGlite tests or this additive migration.
+
+## B05 offer-to-contract lifecycle
+
+Each estimate revision may be issued once with frozen commercial terms and source snapshot. Pending issued or accepted-but-unbound offers block draft changes. Withdrawal/decline stores a reason; another offer requires a new estimate revision. Received acceptance records name, authority, timestamp, evidence type/reference and the managing actor. This is an internal evidence record, not client authentication or electronic signing.
+
+The accepted per-visit price is multiplied by the explicit visits/month to produce the monthly fee; frequency does not infer a monthly count. Binding creates one draft contract with service dates, advance/arrears billing and due days. Retries return that same contract. It creates no visits, invoices or payments. Existing manual contracts are unchanged.
+
+New revisions of a bound estimate propose amendments to the same contract/current baseline. Applying an accepted amendment checks contract revision and baseline under transaction locks, appends contract_baselines, and preserves earlier offer/estimate snapshots. Future amendments remain pending until their start date; application is manual. Direct material edits of linked contracts are blocked; status edits remain supported. Scheduled and actual visit start dates must respect contract validity. Existing visit allocation snapshots remain unchanged; historical monthly quotas/proration are not reconstructed.
+
+Application services preserve history; privileged SQL can still alter rows. PGlite tests do not certify multi-connection PostgreSQL contention.

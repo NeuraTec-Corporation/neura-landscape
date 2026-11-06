@@ -108,7 +108,7 @@ test("property migration preserves existing identifiers, address text and contra
 		assert.equal(
 			(await db.query("SELECT count(*)::int n FROM schema_migrations")).rows[0]
 				.n,
-			8,
+			9,
 		);
 	} finally {
 		await db.close();

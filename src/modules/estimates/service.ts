@@ -116,6 +116,18 @@ export async function saveEstimate(
 			throw new EstimateError(
 				"Conserva la localidad del presupuesto; crea otro para otra propiedad.",
 			);
+		if (
+			(
+				await tx.query(
+					"SELECT id FROM estimate_offers WHERE estimate_id=$1 AND (status='issued' OR (status='accepted' AND contract_id IS NULL)) LIMIT 1",
+					[id],
+				)
+			).rows.length
+		)
+			throw new EstimateError(
+				"La versión emitida está bloqueada. Retira la oferta pendiente o vincula la aceptación antes de preparar cambios.",
+				409,
+			);
 		const property = (
 			await tx.query<{
 				id: string;
@@ -240,6 +252,21 @@ export async function archiveEstimate(
 	const v = parse(archiveSchema, input);
 	const id = v.id;
 	return db.transaction(async (tx) => {
+		await tx.query("SELECT id FROM estimate_drafts WHERE id=$1 FOR UPDATE", [
+			id,
+		]);
+		if (
+			(
+				await tx.query(
+					"SELECT id FROM estimate_offers WHERE estimate_id=$1 AND status IN ('issued','accepted') LIMIT 1",
+					[id],
+				)
+			).rows.length
+		)
+			throw new EstimateError(
+				"Conserva el presupuesto con su oferta o contrato. No puede retirarse.",
+				409,
+			);
 		const row = (
 			await tx.query(
 				"UPDATE estimate_drafts SET deleted_at=now(),revision=revision+1,updated_at=now() WHERE id=$1 AND revision=$2 AND deleted_at IS NULL RETURNING id",
@@ -278,6 +305,26 @@ export async function estimateWorkspace(db: Database) {
 				"SELECT r.* FROM estimate_revisions r JOIN estimate_drafts e ON e.id=r.estimate_id WHERE e.deleted_at IS NULL ORDER BY r.created_at DESC LIMIT 2000",
 			)
 		).rows,
+		offers: (
+			await tx.query(
+				"SELECT o.*,e.number,e.title,c.name customer_name FROM estimate_offers o JOIN estimate_drafts e ON e.id=o.estimate_id JOIN customers c ON c.id=e.customer_id ORDER BY o.issued_at DESC LIMIT 500",
+			)
+		).rows,
+		contracts: (
+			await tx.query(
+				"SELECT * FROM contracts WHERE source_offer_id IS NOT NULL ORDER BY id LIMIT 500",
+			)
+		).rows,
+		baselines: (
+			await tx.query(
+				"SELECT * FROM contract_baselines ORDER BY contract_id,version DESC LIMIT 2000",
+			)
+		).rows,
+		frequency_options: (
+			await tx.query(
+				"SELECT key,label FROM catalog_options WHERE category='contract_frequency' AND active=true ORDER BY label",
+			)
+		).rows,
 		limits: {
 			properties: 500,
 			zones: 5000,
@@ -287,3 +334,5 @@ export async function estimateWorkspace(db: Database) {
 		},
 	}));
 }
+
+export { audit as recordEstimateAudit };

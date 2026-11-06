@@ -548,3 +548,90 @@ test("estimate HTTP workflow persists calculations and historical rates without 
 		400,
 	);
 });
+
+test("offer HTTP lifecycle creates a single linked contract and exposes accepted baseline history", async () => {
+	const post = async (body) => {
+		const r = await fetch(`${base}/api/estimates`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json", Origin: base },
+			body: JSON.stringify(body),
+		});
+		const v = await r.json();
+		assert.equal(r.status, 200, JSON.stringify(v));
+		return v;
+	};
+	const ws = await (await fetch(`${base}/api/estimates`)).json();
+	const e = ws.estimates.find((e) => e.title === "Presupuesto HTTP");
+	assert.ok(e);
+	const today = new Date().toLocaleDateString("sv-SE", {
+		timeZone: "America/New_York",
+	});
+	const offered = await post({
+		action: "issue",
+		id: e.id,
+		revision: e.revision,
+		terms: {
+			valid_until: today,
+			start_date: today,
+			end_date: "",
+			frequency: "Semanal",
+			visits_per_month: 4,
+			estimated_minutes: 30,
+			billing_timing: "advance",
+			due_days: 15,
+			scope: "Corte de césped HTTP",
+			exclusions: "Sin poda",
+			payment_terms: "Cuota mensual sintética QA",
+			reviewed: true,
+		},
+	});
+	await post({
+		action: "accept",
+		offer_id: offered.id,
+		revision: 1,
+		accepted_by: "Titular HTTP QA",
+		authority: "Representante autorizado QA",
+		accepted_at: new Date().toISOString(),
+		evidence_method: "written_confirmation",
+		evidence_reference: "Prueba HTTP sintética local",
+		confirmed: true,
+	});
+	const linked = await post({
+		action: "bind",
+		offer_id: offered.id,
+		revision: 2,
+	});
+	assert.equal(
+		(await post({ action: "bind", offer_id: offered.id, revision: 2 })).id,
+		linked.id,
+	);
+	const current = await (await fetch(`${base}/api/estimates`)).json();
+	assert.equal(
+		current.baselines.filter((b) => b.contract_id === linked.id).length,
+		1,
+	);
+	const c = current.contracts.find((c) => c.id === linked.id);
+	assert.equal(c.status, "draft");
+	assert.equal(c.monthly_cents, 15000);
+	assert.equal(c.source_offer_id, offered.id);
+	const rejected = await fetch(`${base}/api/contracts`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json", Origin: base },
+		body: JSON.stringify({
+			id: c.id,
+			revision: c.revision,
+			property_id: c.property_id,
+			service: c.service,
+			service_key: c.service_key,
+			frequency: c.frequency,
+			monthly: 200,
+			visits_per_month: c.visits_per_month,
+			estimated_minutes: c.estimated_minutes,
+			status: "active",
+		}),
+	});
+	assert.equal(rejected.status, 422);
+	const page = await fetch(`${base}/presupuestos`);
+	assert.equal(page.status, 200);
+	assert.match(await page.text(), /Ofertas y acuerdos/);
+});

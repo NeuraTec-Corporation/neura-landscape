@@ -1,3 +1,13 @@
+# Verification — B05 accepted offer lifecycle
+
+B05 local lint/types pass, npm audit reports zero vulnerabilities. The isolated development-server suite passes 39/39 tests, including 6 transactional lifecycle/validity scenarios and the HTTP offer → received acceptance → single draft contract workflow. Finance-read/worker-denial and cross-origin checks remain covered. PGlite duplicate binding tests exercise adapter serialization, not independent PostgreSQL connection contention.
+
+The mobile browser issued a USD25/visit, four-visits USD100/month synthetic offer and recorded received written acceptance, preserving it on reopening. The browser confirmation adapter then blocked the final visual binding action. Binding passed service and HTTP tests; browser completion is not claimed. The UI now uses an inline review checkbox instead of a JavaScript confirmation for binding. No hosted customer fixtures were written. The isolated in-memory server was stopped.
+
+Current workstation build compiled and passed TypeScript, then failed prerendering /integraciones with Windows EPERM mkdir .next/server/app/integraciones.segments/$d$section. This environment issue remains open. Production CI/Preview evidence is recorded in the release report after publication.
+
+Historical evidence follows.
+
 # Verification — scope correction and estimate drafts
 
 Current local checks for the approved B00/B01/B04 increment: lint and TypeScript

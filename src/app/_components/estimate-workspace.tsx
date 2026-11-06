@@ -1,4 +1,5 @@
 "use client";
+import { EstimateLifecycle } from "./estimate-lifecycle";
 import { useEffect, useRef, useState } from "react";
 import {
 	calculate,
@@ -199,6 +200,13 @@ export function EstimateWorkspace() {
 			<div className="detail-tabs">
 				<button
 					type="button"
+					aria-pressed={tab === "agreements"}
+					onClick={() => setTab("agreements")}
+				>
+					Ofertas y acuerdos
+				</button>
+				<button
+					type="button"
 					aria-pressed={tab === "drafts"}
 					onClick={() => setTab("drafts")}
 				>
@@ -216,6 +224,8 @@ export function EstimateWorkspace() {
 				<p role="status">
 					{error ? "Presupuestos no disponibles." : "Cargando presupuestos..."}
 				</p>
+			) : tab === "agreements" ? (
+				<EstimateLifecycle data={data} busy={busy} save={save} />
 			) : tab === "rates" ? (
 				<>
 					<section className="panel">
@@ -883,7 +893,7 @@ export function EstimateWorkspace() {
 									<strong className="invoice-amount">
 										{money(e.snapshot.calculation.price_cents)}
 									</strong>
-									<div className="manage-actions">
+									<div className="manage-actions"><button type="button" onClick={()=>setTab("agreements")}>Ofertas y acuerdos</button>
 										<button
 											type="button"
 											onClick={() => {
@@ -912,7 +922,7 @@ export function EstimateWorkspace() {
 														);
 													}}
 												>
-													Editar borrador
+													{data.offers.some(o=>o.estimate_id===e.id&&o.contract_id)?"Preparar cambio":"Editar borrador"}
 												</button>
 												<button
 													type="button"

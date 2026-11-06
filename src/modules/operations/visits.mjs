@@ -48,7 +48,7 @@ export async function saveVisit(db, input) {
 		if (!crew) throw new ManageError("Selecciona una cuadrilla disponible.");
 		const contract = (
 			await tx.query(
-				"SELECT c.*,p.deleted_at property_deleted FROM contracts c JOIN properties p ON p.id=c.property_id WHERE c.id=$1 FOR UPDATE OF c,p",
+				"SELECT c.*,c.effective_from::text effective_from,c.effective_until::text effective_until,p.deleted_at property_deleted FROM contracts c JOIN properties p ON p.id=c.property_id WHERE c.id=$1 FOR UPDATE OF c,p",
 				[v.contract_id],
 			)
 		).rows[0];
@@ -59,6 +59,16 @@ export async function saveVisit(db, input) {
 			contract.status !== "active"
 		)
 			throw new ManageError("Selecciona un contrato activo.");
+		const serviceDay = new Date(v.scheduled_at).toLocaleDateString("sv-SE", {
+			timeZone: "America/New_York",
+		});
+		if (
+			(contract.effective_from && serviceDay < contract.effective_from) ||
+			(contract.effective_until && serviceDay > contract.effective_until)
+		)
+			throw new ManageError(
+				"La visita debe estar dentro de la vigencia del contrato.",
+			);
 		const old = v.id
 			? (await tx.query("SELECT * FROM visits WHERE id=$1 FOR UPDATE", [id]))
 					.rows[0]
@@ -69,13 +79,32 @@ export async function saveVisit(db, input) {
 			throw new ManageError(
 				"Solo se reprograman visitas pendientes. Las realizadas conservan su historial.",
 			);
-		const previousPlan = old ? {
-			visit: old,
-			tasks: (await tx.query("SELECT * FROM visit_tasks WHERE visit_id=$1", [id])).rows,
-			personnel: (await tx.query("SELECT * FROM visit_personnel WHERE visit_id=$1", [id])).rows,
-		} : null;
-		if (old && old.contract_id !== v.contract_id && (await tx.query("SELECT id FROM visit_cost_lines WHERE visit_id=$1 LIMIT 1", [id])).rows.length)
-			throw new ManageError("Esta visita ya tiene costos. Conserva su contrato y crea otra visita para un contrato diferente.");
+		const previousPlan = old
+			? {
+					visit: old,
+					tasks: (
+						await tx.query("SELECT * FROM visit_tasks WHERE visit_id=$1", [id])
+					).rows,
+					personnel: (
+						await tx.query("SELECT * FROM visit_personnel WHERE visit_id=$1", [
+							id,
+						])
+					).rows,
+				}
+			: null;
+		if (
+			old &&
+			old.contract_id !== v.contract_id &&
+			(
+				await tx.query(
+					"SELECT id FROM visit_cost_lines WHERE visit_id=$1 LIMIT 1",
+					[id],
+				)
+			).rows.length
+		)
+			throw new ManageError(
+				"Esta visita ya tiene costos. Conserva su contrato y crea otra visita para un contrato diferente.",
+			);
 		const people = (
 			await tx.query(
 				"SELECT e.*,m.duty FROM crew_employees m JOIN employees e ON e.id=m.employee_id WHERE m.crew_id=$1 AND e.status='active' AND e.deleted_at IS NULL ORDER BY e.id FOR UPDATE OF e",
@@ -274,7 +303,7 @@ export async function changeVisit(db, input) {
 				).rows[0],
 				contract = (
 					await tx.query(
-						"SELECT status,deleted_at FROM contracts WHERE id=$1",
+						"SELECT status,deleted_at,effective_from::text,effective_until::text FROM contracts WHERE id=$1",
 						[row.contract_id],
 					)
 				).rows[0];
@@ -285,6 +314,16 @@ export async function changeVisit(db, input) {
 			)
 				throw new ManageError(
 					"Revisa el contrato y la cuadrilla antes de iniciar.",
+				);
+			const actualDay = new Date().toLocaleDateString("sv-SE", {
+				timeZone: "America/New_York",
+			});
+			if (
+				(contract.effective_from && actualDay < contract.effective_from) ||
+				(contract.effective_until && actualDay > contract.effective_until)
+			)
+				throw new ManageError(
+					"La visita debe iniciarse dentro de la vigencia del contrato.",
 				);
 			const staff = (
 				await tx.query(

@@ -2,6 +2,10 @@
 import { CatalogSelect } from "./catalogs";
 import { useEffect, useState } from "react";
 type Row = {
+	source_offer_id?: string | null;
+	baseline_version?: number;
+	effective_from?: string | null;
+	effective_until?: string | null;
 	id: string;
 	revision: number;
 	property_id: string;
@@ -195,6 +199,16 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 							if (
 								await submit({
 									...input,
+									...(edit?.source_offer_id
+										? {
+												service: edit.service,
+												service_key: edit.service_key,
+												frequency: edit.frequency,
+												monthly: edit.monthly_cents / 100,
+												visits_per_month: edit.visits_per_month,
+												estimated_minutes: edit.estimated_minutes,
+											}
+										: {}),
 									...(edit
 										? {
 												id: edit.id,
@@ -207,6 +221,13 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 								form.reset();
 						}}
 					>
+						{edit?.source_offer_id ? (
+							<p className="notice">
+								Acuerdo aceptado v{edit.baseline_version}. Aquí puedes cambiar
+								el estado. Para modificar precio o alcance, prepara un cambio en{" "}
+								<a href="/presupuestos">Presupuestos → Ofertas y acuerdos</a>.
+							</p>
+						) : null}
 						<fieldset disabled={busy || !loaded}>
 							<div className="crm-grid">
 								<label>
@@ -236,6 +257,7 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 										id="contract-service"
 										category="service"
 										name="service_key"
+										disabled={!!edit?.source_offer_id}
 										defaultValue={edit?.service_key ?? ""}
 										required
 									/>
@@ -244,6 +266,7 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 									Alcance del servicio
 									<input
 										name="service"
+										disabled={!!edit?.source_offer_id}
 										required
 										maxLength={500}
 										defaultValue={edit?.service ?? ""}
@@ -256,6 +279,7 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 										id="contract-frequency"
 										category="contract_frequency"
 										name="frequency"
+										disabled={!!edit?.source_offer_id}
 										defaultValue={edit?.frequency ?? "Semanal"}
 										required
 									/>
@@ -274,6 +298,7 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 									Precio mensual (USD)
 									<input
 										name="monthly"
+										disabled={!!edit?.source_offer_id}
 										required
 										type="number"
 										min="0"
@@ -286,6 +311,7 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 									Visitas acordadas al mes
 									<input
 										name="visits_per_month"
+										disabled={!!edit?.source_offer_id}
 										required
 										type="number"
 										min="1"
@@ -297,6 +323,7 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 									Minutos previstos por visita
 									<input
 										name="estimated_minutes"
+										disabled={!!edit?.source_offer_id}
 										required
 										type="number"
 										min="1"
@@ -337,6 +364,15 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 					<article key={r.id} className="panel">
 						<p className="eyebrow">{r.customer_name}</p>
 						<h2>{r.property_name}</h2>
+						{r.source_offer_id ? (
+							<p className="pill">
+								Acuerdo aceptado v{r.baseline_version} · Vigencia{" "}
+								{String(r.effective_from).slice(0, 10)} —{" "}
+								{r.effective_until
+									? String(r.effective_until).slice(0, 10)
+									: "Abierta"}
+							</p>
+						) : null}
 						<p>
 							{r.property_code} ·{" "}
 							<strong>

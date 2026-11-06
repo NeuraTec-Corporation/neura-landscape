@@ -53,6 +53,18 @@ export async function saveContract(db, input) {
 				throw new Error("El contrato cambió. Recarga antes de editar.");
 			if (old.property_id !== v.property_id)
 				throw new Error("La localidad del contrato no se puede cambiar.");
+			if (
+				old.source_offer_id &&
+				(old.service !== v.service ||
+					old.frequency !== v.frequency ||
+					old.monthly_cents !== Math.round(v.monthly * 100) ||
+					old.visits_per_month !== v.visits_per_month ||
+					old.estimated_minutes !== v.estimated_minutes ||
+					(v.service_key !== undefined && v.service_key !== old.service_key))
+			)
+				throw new Error(
+					"Contrato vinculado a presupuesto aceptado: prepara un cambio autorizado desde Presupuestos.",
+				);
 		}
 		await requireOption(
 			tx,

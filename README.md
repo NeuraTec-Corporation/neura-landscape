@@ -257,3 +257,11 @@ build/start verification. Never report a failed production build as passed.
 
 Google/Places remain disconnected; individual login activation, restoration tests,
 multi-company isolation and later approved-estimate/work-order flows are pending.
+
+## Accepted offers and contract baselines (B05 / migration 009)
+
+Open Presupuestos → Ofertas y acuerdos. Select a complete saved mowing estimate; review the per-visit price, explicit visits/month, crew minutes, validity, scope/exclusions and payment terms. Issue the frozen offer. Record received written acceptance with the authorized person and evidence reference, then create its draft contract. Activate the contract under Contratos when operationally ready. No messages are sent and no invoice/visit is generated automatically.
+
+To change an accepted agreement, prepare/save a new estimate revision, issue the amended terms, record another acceptance and apply it to the existing contract. Its earlier agreement remains in history. Pending offers can be withdrawn or marked declined with a reason. Accepted terms cannot be overwritten directly in Contratos. Future accepted changes require manual application on/after their effective date.
+
+This internal acceptance register is not electronic signing or a client portal. Google OAuth remains a separate configuration/acceptance gate; no external services or charges were added.

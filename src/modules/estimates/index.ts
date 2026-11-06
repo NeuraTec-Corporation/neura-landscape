@@ -6,3 +6,5 @@ export {
 	type Database,
 } from "./service.ts";
 export { EstimateError } from "./contract.ts";
+
+export {issueOffer,acceptOffer,closeOffer,bindOffer} from "./lifecycle.ts";

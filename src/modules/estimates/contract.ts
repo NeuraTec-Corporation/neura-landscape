@@ -1,3 +1,4 @@
+import type { Offer, BoundContract, OfferTerms } from "./lifecycle-contract.ts";
 import { z } from "zod";
 export class EstimateError extends Error {
 	status: number;
@@ -238,6 +239,15 @@ export type EstimateRecord = {
 	reason: string;
 };
 export type Workspace = {
+	offers: (Offer & { number: string; title: string; customer_name: string })[];
+	contracts: BoundContract[];
+	baselines: {
+		contract_id: string;
+		version: number;
+		effective_from: string;
+		snapshot: { terms: OfferTerms; accepted_by: string };
+	}[];
+	frequency_options: { key: string; label: string }[];
 	properties: {
 		id: string;
 		name: string;

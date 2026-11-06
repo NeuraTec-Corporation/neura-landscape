@@ -7,3 +7,5 @@ export async function customerPropertyCounts(db) {
 		)
 	).rows;
 }
+
+export {applyAcceptedOffer,BaselineError} from "./baselines.ts";

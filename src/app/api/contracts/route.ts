@@ -52,7 +52,7 @@ export async function POST(request: Request) {
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "";
 		const safe =
-			/Selecciona|Contrato no|contrato cambió|localidad del|Finaliza|Registro modificado/.test(
+			/Selecciona|Contrato vinculado|Contrato no|contrato cambió|localidad del|Finaliza|Registro modificado/.test(
 				message,
 			);
 		return Response.json(
