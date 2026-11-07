@@ -1,0 +1,93 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.4/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!!**/node_modules",
+      "!!**/.next",
+      "!next-env.d.ts",
+      "!package-lock.json"
+    ]
+  },
+  "formatter": {
+    "enabled": false
+  },
+  "assist": {
+    "enabled": false
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended"
+    }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "src/shared/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/app",
+                      "@/app/**",
+                      "@/modules",
+                      "@/modules/**",
+                      "@/integrations",
+                      "@/integrations/**",
+                      "../..",
+                      "../../**"
+                    ],
+                    "message": "Respect the documented module boundary."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/integrations/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/app",
+                      "@/app/**",
+                      "@/modules",
+                      "@/modules/**",
+                      "@/shared/ui",
+                      "@/shared/ui/**",
+                      "..",
+                      "../**"
+                    ],
+                    "message": "Respect the documented module boundary."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

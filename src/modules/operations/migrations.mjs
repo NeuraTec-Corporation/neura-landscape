@@ -1,0 +1,31 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+const files = [
+	"001_foundation.sql",
+	"002_customer_profiles.sql",
+	"003_property_locations.sql",
+	"004_service_control.sql",
+	"005_property_survey.sql",
+	"006_identity_roles.sql",
+	"007_operational_management.sql",
+	"008_estimate_drafts.sql",
+	"009_estimate_acceptance.sql",
+	"010_ux_catalogs_samples.sql",
+ "011_sample_operations.sql",
+];
+export async function migrate(db, advisory = false) {
+	await db.transaction(async (tx) => {
+		if (advisory) await tx.query("SELECT pg_advisory_xact_lock(703919)");
+		await tx.exec(
+			"CREATE TABLE IF NOT EXISTS schema_migrations(version integer PRIMARY KEY)",
+		);
+		const applied = new Set(
+			(await tx.query("SELECT version FROM schema_migrations")).rows.map(
+				(row) => row.version,
+			),
+		);
+		for (const file of files)
+			if (!applied.has(Number(file.slice(0, 3))))
+				await tx.exec(await readFile(resolve("db/migrations", file), "utf8"));
+	});
+}
