@@ -660,3 +660,26 @@ test("UX01 sample API loads 33 customers and 78 locations once and rejects cross
 		78,
 	);
 });
+
+test("operational sample API populates the dashboard and isolates synthetic records", async () => {
+	const response = await fetch(`${base}/api/sample-data`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json", Origin: base },
+		body: JSON.stringify({ action: "load_operations", confirmed: true }),
+	});
+	const r = await response.json();
+	assert.equal(response.status, 200, JSON.stringify(r));
+	assert.equal(r.operations.visits, 296);
+	assert.equal(r.operations.estimates, 78);
+	const get = await fetch(
+		`${base}/api/management?area=dashboard&origin=sample&from=${r.operations.history_from}&to=${r.operations.to}`,
+	);
+	assert.equal(get.status, 200);
+	const d = await get.json();
+	assert.equal(d.portfolio.customers, 33);
+	assert.equal(d.portfolio.active_contracts, 74);
+	assert.ok(d.summary.completed > 0);
+	assert.ok(d.production.length >= 7);
+	assert.ok(d.summary.billed_cents > 0);
+	assert.ok(d.summary.receivable_cents > 0);
+});

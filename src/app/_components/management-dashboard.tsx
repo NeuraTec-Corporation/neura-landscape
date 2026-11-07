@@ -1,9 +1,32 @@
 "use client";
-import { useEffect, useState } from "react";
+import { DataDirectory } from "./data-directory";
+import { SampleDataPanel } from "./sample-data-panel";
+import { useEffect, useState, useRef } from "react";
 import { useCatalogs } from "./catalogs";
 import { Notices, today, usd } from "./management-shared";
 import type { Visit } from "./visits-workspace";
 type Dashboard = {
+	costBreakdown: Record<string, number>;
+	portfolio: {
+		customers: number;
+		properties: number;
+		active_contracts: number;
+		crews: number;
+		sample_customers: number;
+	};
+	scenario: { from: string; to: string; anchor_day: string } | null;
+	customers: {
+		id: string;
+		name: string;
+		properties: number;
+		completed: number;
+		pending: number;
+		cancelled: number;
+		services: string[];
+		billed_cents: number;
+		collected_cents: number;
+		balance_cents: number;
+	}[];
 	obligationsAvailable: boolean;
 	obligationsMonth: string;
 	obligations: {
@@ -73,6 +96,8 @@ const monthEnd = (day: string) => {
 	return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
 };
 export function ManagementDashboard() {
+	const detailRef = useRef<HTMLElement>(null);
+	const [refreshKey, setRefreshKey] = useState(0);
 	const c = useCatalogs(),
 		[filters, setFilters] = useState({
 			from: `${today().slice(0, 7)}-01`,
@@ -84,6 +109,7 @@ export function ManagementDashboard() {
 			service: "",
 			crew_id: "",
 			date_basis: "scheduled",
+			origin: "all",
 		}),
 		[data, setData] = useState<Dashboard | null>(null),
 		[error, setError] = useState(""),
@@ -92,7 +118,20 @@ export function ManagementDashboard() {
 			"visits" | "production" | "people" | "invoices" | "debt" | null
 		>(null),
 		[updated, setUpdated] = useState("");
-	const query = new URLSearchParams(filters).toString();
+	useEffect(() => {
+		if (details && !loading)
+			requestAnimationFrame(() => {
+				detailRef.current?.scrollIntoView({
+					behavior: "smooth",
+					block: "start",
+				});
+				detailRef.current?.focus({ preventScroll: true });
+			});
+	}, [details, loading]);
+	const query = new URLSearchParams({
+		...filters,
+		_refresh: String(refreshKey),
+	}).toString();
 	useEffect(() => {
 		const controller = new AbortController();
 		setLoading(true);
@@ -163,9 +202,26 @@ export function ManagementDashboard() {
 				</div>
 			</header>
 			<Notices error={error} />
+			<SampleDataPanel
+				operational
+				onLoaded={() => setRefreshKey((v) => v + 1)}
+			/>
+
 			<section className="panel dashboard-filters">
 				<div className="manage-actions">
-					<h3>¿Qué quieres revisar?</h3>
+					<h3>Período y alcance</h3>
+					<div className="dashboard-origin">
+						<label htmlFor="dashboard-origin">Origen de los datos</label>
+						<select
+							id="dashboard-origin"
+							value={filters.origin}
+							onChange={(e) => update("origin", e.target.value)}
+						>
+							<option value="all">Todos los registros</option>
+							<option value="sample">Solo escenario de prueba</option>
+							<option value="existing">Otros registros</option>
+						</select>
+					</div>
 					<div className="range-shortcuts">
 						<button type="button" onClick={() => quick("today")}>
 							Hoy
@@ -179,122 +235,132 @@ export function ManagementDashboard() {
 					</div>
 				</div>
 				<details className="dashboard-filter-details">
-<summary>Filtros y fechas · {filters.from} → {filters.to}{Object.entries(filters).some(([key,value]) => !["from","to","date_basis"].includes(key) && value) ? " · Filtros activos" : ""}</summary>
-<div className="dashboard-filter-grid">
-					<label>
-						Desde
-						<input
-							type="date"
-							value={filters.from}
-							onChange={(e) => update("from", e.target.value)}
-						/>
-					</label>
-					<label>
-						Hasta
-						<input
-							type="date"
-							value={filters.to}
-							onChange={(e) => update("to", e.target.value)}
-						/>
-					</label>
-					<label>
-						Cliente
-						<select
-							value={filters.customer_id}
-							onChange={(e) => update("customer_id", e.target.value)}
-						>
-							<option value="">Todos</option>
-							{data?.options.customers.map((v) => (
-								<option key={v.id} value={v.id}>
-									{v.name}
-								</option>
-							))}
-						</select>
-					</label>
-					<label>
-						Ciudad
-						<select
-							value={filters.city}
-							onChange={(e) => update("city", e.target.value)}
-						>
-							<option value="">Todas</option>
-							{data?.options.cities.map((v) => (
-								<option key={v}>{v}</option>
-							))}
-						</select>
-					</label>
-					<label>
-						Estado / provincia
-						<select
-							value={filters.region}
-							onChange={(e) => update("region", e.target.value)}
-						>
-							<option value="">Todos</option>
-							{data?.options.regions.map((v) => (
-								<option key={v}>{v}</option>
-							))}
-						</select>
-					</label>
-					<label>
-						Estado del trabajo
-						<select
-							value={filters.status}
-							onChange={(e) => update("status", e.target.value)}
-						>
-							<option value="">Todos</option>
-							{Object.entries(statuses).map(([key, label]) => (
-								<option key={key} value={key}>
-									{label}
-								</option>
-							))}
-						</select>
-					</label>
-					<label>
-						Servicio
-						<select
-							value={filters.service}
-							onChange={(e) => update("service", e.target.value)}
-						>
-							<option value="">Todos</option>
-							{Object.entries(c.options("service", filters.service)).map(
-								([key, label]) => (
+					<summary>
+						Fechas · {filters.from} → {filters.to}
+						{Object.entries(filters).some(
+							([key, value]) =>
+								(!["from", "to", "date_basis", "origin"].includes(key) &&
+									value) ||
+								(key === "origin" && value !== "all"),
+						)
+							? " · Filtros activos"
+							: ""}
+					</summary>
+					<div className="dashboard-filter-grid">
+						<label>
+							Desde
+							<input
+								type="date"
+								value={filters.from}
+								onChange={(e) => update("from", e.target.value)}
+							/>
+						</label>
+						<label>
+							Hasta
+							<input
+								type="date"
+								value={filters.to}
+								onChange={(e) => update("to", e.target.value)}
+							/>
+						</label>
+						<label>
+							Cliente
+							<select
+								value={filters.customer_id}
+								onChange={(e) => update("customer_id", e.target.value)}
+							>
+								<option value="">Todos</option>
+								{data?.options.customers.map((v) => (
+									<option key={v.id} value={v.id}>
+										{v.name}
+									</option>
+								))}
+							</select>
+						</label>
+						<label>
+							Ciudad
+							<select
+								value={filters.city}
+								onChange={(e) => update("city", e.target.value)}
+							>
+								<option value="">Todas</option>
+								{data?.options.cities.map((v) => (
+									<option key={v}>{v}</option>
+								))}
+							</select>
+						</label>
+						<label>
+							Estado / provincia
+							<select
+								value={filters.region}
+								onChange={(e) => update("region", e.target.value)}
+							>
+								<option value="">Todos</option>
+								{data?.options.regions.map((v) => (
+									<option key={v}>{v}</option>
+								))}
+							</select>
+						</label>
+						<label>
+							Estado del trabajo
+							<select
+								value={filters.status}
+								onChange={(e) => update("status", e.target.value)}
+							>
+								<option value="">Todos</option>
+								{Object.entries(statuses).map(([key, label]) => (
 									<option key={key} value={key}>
 										{label}
 									</option>
-								),
-							)}
-						</select>
-					</label>
-					<label>
-						Cuadrilla
-						<select
-							value={filters.crew_id}
-							onChange={(e) => update("crew_id", e.target.value)}
-						>
-							<option value="">Todas</option>
-							{data?.options.crews.map((v) => (
-								<option key={v.id} value={v.id}>
-									{v.name}
-								</option>
-							))}
-						</select>
-					</label>
-					<label>
-						Fechas del trabajo
-						<select
-							value={filters.date_basis}
-							onChange={(e) => update("date_basis", e.target.value)}
-						>
-							<option value="scheduled">Según programación</option>
-							<option value="completed">Según finalización real</option>
-						</select>
-					</label>
-				</div>
-				<p className="filter-hint">
-					Para saber dónde se cortó césped esta semana: elige Esta semana,
-					Completadas, Corte de césped y Según finalización real.
-				</p>
-</details>
+								))}
+							</select>
+						</label>
+						<label>
+							Servicio
+							<select
+								value={filters.service}
+								onChange={(e) => update("service", e.target.value)}
+							>
+								<option value="">Todos</option>
+								{Object.entries(c.options("service", filters.service)).map(
+									([key, label]) => (
+										<option key={key} value={key}>
+											{label}
+										</option>
+									),
+								)}
+							</select>
+						</label>
+						<label>
+							Cuadrilla
+							<select
+								value={filters.crew_id}
+								onChange={(e) => update("crew_id", e.target.value)}
+							>
+								<option value="">Todas</option>
+								{data?.options.crews.map((v) => (
+									<option key={v.id} value={v.id}>
+										{v.name}
+									</option>
+								))}
+							</select>
+						</label>
+						<label>
+							Fechas del trabajo
+							<select
+								value={filters.date_basis}
+								onChange={(e) => update("date_basis", e.target.value)}
+							>
+								<option value="scheduled">Según programación</option>
+								<option value="completed">Según finalización real</option>
+							</select>
+						</label>
+					</div>
+					<p className="filter-hint">
+						Para saber dónde se cortó césped esta semana: elige Esta semana,
+						Completadas, Corte de césped y Según finalización real.
+					</p>
+				</details>
 			</section>
 			{loading ? (
 				<p role="status" className="dashboard-refresh">
@@ -306,6 +372,56 @@ export function ManagementDashboard() {
 					aria-busy={loading}
 					className={loading ? "dashboard-data refreshing" : "dashboard-data"}
 				>
+					<aside
+						className="scenario-banner"
+						hidden={!data.portfolio.sample_customers}
+					>
+						<div>
+							<strong>DATOS SINTÉTICOS DE EVALUACIÓN</strong>
+							<p>
+								{data.portfolio.sample_customers} clientes de prueba. Servicios,
+								importes y pagos simulados; sin cobros reales.
+							</p>
+						</div>
+						{data.scenario && filters.origin !== "sample" ? (
+							<button
+								type="button"
+								className="quiet-button"
+								onClick={() =>
+									setFilters((f) => ({
+										...f,
+										from: data.scenario?.from || f.from,
+										to: data.scenario?.to || f.to,
+										origin: "sample",
+									}))
+								}
+							>
+								Solo escenario de prueba
+							</button>
+						) : null}
+					</aside>
+					<section className="portfolio-kpis" aria-label="Cartera del alcance">
+						<a href="/clientes">
+							<span>Clientes</span>
+							<strong>{data.portfolio.customers}</strong>
+							<small>en la cartera seleccionada</small>
+						</a>
+						<a href="/propiedades">
+							<span>Localidades</span>
+							<strong>{data.portfolio.properties}</strong>
+							<small>fichas de servicio</small>
+						</a>
+						<a href="/contratos">
+							<span>Contratos activos</span>
+							<strong>{data.portfolio.active_contracts}</strong>
+							<small>compromisos vigentes</small>
+						</a>
+						<a href="/cuadrillas">
+							<span>Cuadrillas asignadas</span>
+							<strong>{data.portfolio.crews}</strong>
+							<small>con visitas del período</small>
+						</a>
+					</section>
 					<section
 						className="dashboard-kpis"
 						aria-label="Indicadores operativos"
@@ -346,6 +462,64 @@ export function ManagementDashboard() {
 							<strong>{s.blocked_tasks}</strong>
 							<small>{s.cancelled} visitas canceladas</small>
 						</button>
+					</section>
+					<section className="dashboard-finance">
+						<div className="manage-actions">
+							<div>
+								<p className="eyebrow">FACTURACIÓN Y CARTERA</p>
+								<h3>Dinero documentado, sin mezclarlo con estimaciones.</h3>
+							</div>
+							<a className="button-link" href="/facturacion">
+								Registrar documentos y pagos
+							</a>
+						</div>
+						<details className="kpi-help">
+							<summary>Cómo se calculan estos importes</summary>
+							<p>
+								Este bloque usa cliente, ciudad y región. Facturado y cobrado
+								corresponden a sus propias fechas del período; los saldos
+								incluyen todas las facturas emitidas de ese alcance. Servicio,
+								cuadrilla y estado del trabajo filtran la operación.
+							</p>
+						</details>
+						<div className="dashboard-kpis">
+							<button
+								type="button"
+								className="kpi-card"
+								onClick={() => setDetails("invoices")}
+							>
+								<span>Facturado en el período</span>
+								<strong>{usd(s.billed_cents)}</strong>
+								<small>{s.invoice_count} documentos emitidos registrados</small>
+							</button>
+							<button
+								type="button"
+								className="kpi-card"
+								onClick={() => setDetails("invoices")}
+							>
+								<span>Cobrado en el período</span>
+								<strong>{usd(s.collected_cents)}</strong>
+								<small>pagos recibidos registrados</small>
+							</button>
+							<button
+								type="button"
+								className="kpi-card amber"
+								onClick={() => setDetails("debt")}
+							>
+								<span>Saldo pendiente registrado</span>
+								<strong>{usd(s.receivable_cents)}</strong>
+								<small>saldo abierto, incluso de períodos anteriores</small>
+							</button>
+							<button
+								type="button"
+								className="kpi-card coral"
+								onClick={() => setDetails("debt")}
+							>
+								<span>Saldo vencido registrado</span>
+								<strong>{usd(s.overdue_cents)}</strong>
+								<small>vencimiento anterior a hoy</small>
+							</button>
+						</div>
 					</section>
 					<section className="dashboard-chart-grid">
 						<article className="panel">
@@ -437,61 +611,7 @@ export function ManagementDashboard() {
 							) : null}
 						</article>
 					</section>
-					<section className="dashboard-finance">
-						<div className="manage-actions">
-							<div>
-								<p className="eyebrow">FACTURACIÓN Y CARTERA</p>
-								<h3>Dinero documentado, sin mezclarlo con estimaciones.</h3>
-							</div>
-							<a className="button-link" href="/facturacion">
-								Registrar documentos y pagos
-							</a>
-						</div>
-						<p>
-							Este bloque usa cliente, ciudad y región. Facturado y cobrado
-							corresponden a sus propias fechas del período; los saldos incluyen
-							todas las facturas emitidas de ese alcance. Servicio, cuadrilla y
-							estado del trabajo filtran la operación.
-						</p>
-						<div className="dashboard-kpis">
-							<button
-								type="button"
-								className="kpi-card"
-								onClick={() => setDetails("invoices")}
-							>
-								<span>Facturado en el período</span>
-								<strong>{usd(s.billed_cents)}</strong>
-								<small>{s.invoice_count} documentos emitidos registrados</small>
-							</button>
-							<button
-								type="button"
-								className="kpi-card"
-								onClick={() => setDetails("invoices")}
-							>
-								<span>Cobrado en el período</span>
-								<strong>{usd(s.collected_cents)}</strong>
-								<small>pagos recibidos registrados</small>
-							</button>
-							<button
-								type="button"
-								className="kpi-card amber"
-								onClick={() => setDetails("debt")}
-							>
-								<span>Saldo pendiente registrado</span>
-								<strong>{usd(s.receivable_cents)}</strong>
-								<small>saldo abierto, incluso de períodos anteriores</small>
-							</button>
-							<button
-								type="button"
-								className="kpi-card coral"
-								onClick={() => setDetails("debt")}
-							>
-								<span>Saldo vencido registrado</span>
-								<strong>{usd(s.overdue_cents)}</strong>
-								<small>vencimiento anterior a hoy</small>
-							</button>
-						</div>
-					</section>
+
 					<section className="panel">
 						<div className="manage-actions">
 							<div>
@@ -511,24 +631,46 @@ export function ManagementDashboard() {
 									están programadas. Este bloque es mensual y no prorratea la
 									cuota semanal.
 								</p>
-								<div className="obligation-grid">
-									{data.obligations
-										.filter((o) => o.remaining > 0)
-										.map((o) => (
-											<article key={o.id}>
-												<strong>{o.customer_name}</strong>
-												<span>{o.property_name}</span>
-												<p>
-													<b>{o.completed}</b> realizadas / {o.visits_per_month}{" "}
-													acordadas
-												</p>
-												<p>
-													{o.planned} programadas · <b>{o.unplanned}</b> sin
-													programar
-												</p>
-											</article>
-										))}
-								</div>
+								<DataDirectory
+									label="Compromisos por localidad"
+									rows={data.obligations.filter((o) => o.remaining > 0)}
+									columns={[
+										{
+											key: "client",
+											label: "Cliente y localidad",
+											value: (o) => `${o.customer_name} ${o.property_name}`,
+											render: (o) => (
+												<>
+													<strong>{o.customer_name}</strong>
+													<small>{o.property_name}</small>
+												</>
+											),
+										},
+										{
+											key: "done",
+											label: "Realizadas",
+											value: (o) =>
+												`${String(o.completed)} / ${o.visits_per_month}`,
+										},
+										{
+											key: "planned",
+											label: "Programadas",
+											value: (o) => String(o.planned),
+											secondary: true,
+										},
+										{
+											key: "missing",
+											label: "Sin programar",
+											value: (o) => String(o.unplanned),
+											secondary: true,
+										},
+									]}
+									actions={() => (
+										<a className="button-link" href="/agenda">
+											Agenda
+										</a>
+									)}
+								/>
 								{!data.obligations.some((o) => o.remaining > 0) ? (
 									<p>
 										No hay visitas por cubrir en los contratos clasificados de
@@ -560,7 +702,16 @@ export function ManagementDashboard() {
 									className="production-line"
 									key={`${p.service_key}-${p.unit}`}
 								>
-									<span>{p.service}</span>
+									<div>
+										<span>{p.service}</span>
+										<div className="production-track">
+											<i
+												style={{
+													width: `${Math.max(2, (p.quantity / Math.max(1, ...data.production.filter((x) => x.unit === p.unit).map((x) => x.quantity))) * 100)}%`,
+												}}
+											/>
+										</div>
+									</div>
 									<strong>
 										{p.quantity} <small>{p.unit_label}</small>
 									</strong>
@@ -604,12 +755,107 @@ export function ManagementDashboard() {
 									</strong>
 								</p>
 							</div>
+							<div className="cost-breakdown">
+								{Object.entries({
+									labor: "Mano de obra",
+									materials: "Materiales",
+									equipment: "Equipos",
+									travel: "Traslados",
+									overhead: "Indirectos",
+								}).map(([key, label]) => (
+									<div key={key}>
+										<span>{label}</span>
+										<strong>{usd(data.costBreakdown[key] || 0)}</strong>
+										<div className="production-track">
+											<i
+												style={{
+													width: `${String(s.known_cost_cents ? Math.max(1, ((data.costBreakdown[key] || 0) / s.known_cost_cents) * 100) : 0)}%`,
+												}}
+											/>
+										</div>
+									</div>
+								))}
+							</div>
 							<p>
 								{s.known_cost_visits} visitas con costo completo ·{" "}
 								{s.cost_pending} pendientes de completar costos. Esta
 								contribución no representa utilidad neta ni dinero cobrado.
 							</p>
 						</article>
+					</section>
+					<section className="panel customer-results">
+						<div className="manage-actions">
+							<div>
+								<p className="eyebrow">RESULTADOS POR CLIENTE</p>
+								<h3>Cartera, servicio y saldo</h3>
+							</div>
+						</div>
+						<DataDirectory
+							label="Resultados por cliente"
+							rows={data.customers}
+							columns={[
+								{
+									key: "name",
+									label: "Cliente",
+									value: (r) => r.name,
+									render: (r) => (
+										<>
+											<strong>{r.name}</strong>
+											<small>
+												{r.properties} localidades · {r.services.length}{" "}
+												servicios en el período
+											</small>
+										</>
+									),
+								},
+								{
+									key: "work",
+									label: "Visitas",
+									value: (r) => String(r.completed),
+									render: (r) => (
+										<>
+											<strong>{r.completed} realizadas</strong>
+											<small>
+												{r.pending} pendientes · {r.cancelled} canceladas
+											</small>
+										</>
+									),
+								},
+								{
+									key: "billed",
+									label: "Facturado",
+									value: (r) => String(r.billed_cents),
+									render: (r) => usd(r.billed_cents),
+									secondary: true,
+								},
+								{
+									key: "paid",
+									label: "Cobrado",
+									value: (r) => String(r.collected_cents),
+									render: (r) => usd(r.collected_cents),
+									secondary: true,
+								},
+								{
+									key: "balance",
+									label: "Saldo",
+									value: (r) => String(r.balance_cents),
+									render: (r) => usd(r.balance_cents),
+									secondary: true,
+								},
+							]}
+							actions={(r) => (
+								<button
+									type="button"
+									className="quiet-button"
+									onClick={() => {
+										update("customer_id", r.id);
+										setDetails("visits");
+									}}
+								>
+									Ver detalle
+								</button>
+							)}
+						/>
 					</section>
 					<section className="panel">
 						<div className="manage-actions">
@@ -643,7 +889,11 @@ export function ManagementDashboard() {
 						</p>
 					</section>
 					{details ? (
-						<section className="panel dashboard-detail">
+						<section
+							ref={detailRef}
+							tabIndex={-1}
+							className="panel dashboard-detail"
+						>
 							<div className="manage-actions">
 								<h2>Detalle del filtro</h2>
 								<button
@@ -775,7 +1025,7 @@ export function ManagementDashboard() {
 												</tr>
 											</thead>
 											<tbody>
-												{data.productivity.map((p) => (
+												{data.productivity.slice(0, 6).map((p) => (
 													<tr key={p.employee_id}>
 														<td>{p.name}</td>
 														<td>{(p.minutes / 60).toFixed(2)}</td>

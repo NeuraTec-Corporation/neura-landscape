@@ -19,7 +19,14 @@ export async function sampleStatus(db) {
 			[SAMPLE_BATCH],
 		)
 	).rows;
+	const operations =
+		(
+			await db.query("SELECT manifest FROM sample_data_batches WHERE id=$1", [
+				"ops01-scenario-v1",
+			])
+		).rows[0]?.manifest || null;
 	return {
+		operations,
 		loaded: Boolean(batch),
 		batch: batch || null,
 		customers: counts.find((c) => c.entity === "customer")?.n || 0,

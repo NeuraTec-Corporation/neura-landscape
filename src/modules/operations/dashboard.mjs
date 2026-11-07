@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { parse, date, ManageError } from "./manage.mjs";
 const schema = z.object({
+	origin: z.enum(["all", "sample", "existing"]).default("all"),
 	from: date,
 	to: date,
 	customer_id: z.string().default(""),
@@ -27,6 +28,18 @@ export async function managementDashboard(db, input) {
 	)
 		throw new ManageError("Selecciona un período válido de hasta diez años.");
 	return db.transaction(async (tx) => {
+		const sampleCustomers = new Set(
+			(
+				await tx.query(
+					"SELECT entity_id FROM sample_data_records WHERE entity='customer'",
+				)
+			).rows.map((r) => r.entity_id),
+		);
+		const originMatch = (row) =>
+			f.origin === "all" ||
+			(f.origin === "sample"
+				? sampleCustomers.has(row.customer_id)
+				: !sampleCustomers.has(row.customer_id));
 		// These read models run in one transaction and never include photo bytes or credentials.
 		const all = (
 			await tx.query(
@@ -34,6 +47,7 @@ export async function managementDashboard(db, input) {
 			)
 		).rows;
 		const siteMatch = (row) =>
+			originMatch(row) &&
 			(!f.customer_id || row.customer_id === f.customer_id) &&
 			(!f.city || row.city === f.city) &&
 			(!f.region || row.region === f.region);
@@ -64,6 +78,13 @@ export async function managementDashboard(db, input) {
 			),
 		);
 		const byStatus = { scheduled: 0, started: 0, completed: 0, cancelled: 0 };
+		const costBreakdown = {
+			labor: 0,
+			materials: 0,
+			equipment: 0,
+			travel: 0,
+			overhead: 0,
+		};
 		const trend = {},
 			production = {},
 			people = {};
@@ -92,6 +113,8 @@ export async function managementDashboard(db, input) {
 						"travel_cents",
 						"overhead_cents",
 					].reduce((sum, k) => sum + Number(v[k] || 0), 0);
+					for (const key of Object.keys(costBreakdown))
+						costBreakdown[key] += Number(v[`${key}_cents`] || 0);
 					knownCosts++;
 					knownRevenue += Number(v.revenue_cents || 0);
 				} else costPending++;
@@ -175,7 +198,15 @@ export async function managementDashboard(db, input) {
 		const obligations = obligationsAvailable
 			? allContracts
 					.filter(
-						(c) => siteMatch(c) && (!f.service || c.service_key === f.service),
+						(c) =>
+							siteMatch(c) &&
+							(!f.service ||
+								c.service_key === f.service ||
+								all.some(
+									(v) =>
+										v.contract_id === c.id &&
+										v.tasks.some((t) => t.service_key === f.service),
+								)),
 					)
 					.map((c) => {
 						const related = all.filter(
@@ -200,8 +231,88 @@ export async function managementDashboard(db, input) {
 					})
 			: [];
 
+		const scopeSites = (
+			await tx.query(
+				"SELECT p.id,p.name,p.customer_id,p.city,p.region,p.status,c.name customer_name FROM properties p JOIN customers c ON c.id=p.customer_id WHERE p.deleted_at IS NULL",
+			)
+		).rows.filter(siteMatch);
+		const customerRows = new Map();
+		for (const p of scopeSites) {
+			if (!customerRows.has(p.customer_id))
+				customerRows.set(p.customer_id, {
+					id: p.customer_id,
+					name: p.customer_name,
+					properties: 0,
+					completed: 0,
+					pending: 0,
+					cancelled: 0,
+					services: new Set(),
+					billed_cents: 0,
+					collected_cents: 0,
+					balance_cents: 0,
+				});
+			customerRows.get(p.customer_id).properties++;
+		}
+		const account = (v) => {
+			if (!customerRows.has(v.customer_id))
+				customerRows.set(v.customer_id, {
+					id: v.customer_id,
+					name: v.customer_name || "Cliente",
+					properties: 0,
+					completed: 0,
+					pending: 0,
+					cancelled: 0,
+					services: new Set(),
+					billed_cents: 0,
+					collected_cents: 0,
+					balance_cents: 0,
+				});
+			return customerRows.get(v.customer_id);
+		};
+		for (const c of (await tx.query("SELECT id,name FROM customers")).rows) {
+			if (
+				(!f.customer_id || c.id === f.customer_id) &&
+				originMatch({ customer_id: c.id }) &&
+				(!(f.city || f.region) ||
+					scopeSites.some((p) => p.customer_id === c.id))
+			)
+				account({ customer_id: c.id, customer_name: c.name });
+		}
+		for (const v of visits) {
+			const a = account(v);
+			if (v.status === "completed") a.completed++;
+			if (["scheduled", "started"].includes(v.status)) a.pending++;
+			if (v.status === "cancelled") a.cancelled++;
+			for (const t of v.tasks) a.services.add(label("service", t.service_key));
+		}
+		for (const i of billed) account(i).billed_cents += i.total_cents;
+		for (const p of payments) account(p).collected_cents += p.amount_cents;
+		for (const i of receivable)
+			account(i).balance_cents += i.total_cents - i.paid_cents;
+		const scenario =
+			(
+				await tx.query(
+					"SELECT manifest FROM sample_data_batches WHERE id='ops01-scenario-v1'",
+				)
+			).rows[0]?.manifest || null;
+
 		return {
 			filters: f,
+			costBreakdown,
+			scenario,
+			customers: Array.from(customerRows.values(), (r) => ({
+				...r,
+				services: [...r.services],
+			})),
+			portfolio: {
+				customers: customerRows.size,
+				properties: scopeSites.length,
+				active_contracts: allContracts.filter(siteMatch).length,
+				crews: new Set(visits.map((v) => v.crew_id)).size,
+				sample_customers: [...customerRows.keys()].filter((id) =>
+					sampleCustomers.has(id),
+				).length,
+			},
 			obligations,
 			obligationsAvailable,
 			obligationsMonth: month,

@@ -1,3 +1,4 @@
+import { loadSampleOperations } from "@/modules/operations/sample-operations.mjs";
 import { database } from "@/modules/operations/index.mjs";
 import {
 	canLoadSamples,
@@ -8,6 +9,7 @@ import { ManageError, withActor } from "@/modules/operations/manage.mjs";
 import { principal } from "../_identity";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 export async function GET(request: Request) {
 	const actor = await principal(request);
 	if (!actor || !canLoadSamples(actor.role))
@@ -30,11 +32,13 @@ export async function POST(request: Request) {
 				{ status: 413 },
 			);
 		const v = JSON.parse(raw);
-		if (v.action !== "load")
+		if (!["load", "load_operations"].includes(v.action))
 			return Response.json({ error: "Acción no disponible." }, { status: 400 });
 		return Response.json(
 			await withActor(actor.email || "protected-evaluation", async () =>
-				loadSampleCustomers(await database(), {
+				(v.action === "load_operations"
+					? loadSampleOperations
+					: loadSampleCustomers)(await database(), {
 					confirmed: v.confirmed === true,
 					actor: actor.email || "protected-evaluation",
 					environment: process.env.VERCEL_ENV,
