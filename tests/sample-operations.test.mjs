@@ -60,6 +60,7 @@ test("operational scenario feeds dashboard from linked records, preserves prior 
 		assert.ok(d.summary.scheduled > 0);
 		assert.ok(d.summary.trees_pruned > 0);
 		assert.ok(d.summary.blocked_tasks > 0);
+ assert.equal((await db.query("SELECT count(*)::int n FROM visit_tasks WHERE status='blocked' AND service_key='pruning'")).rows[0].n,0);
 		assert.ok(d.production.length >= 7);
 		assert.ok(d.productivity.length === 18);
 		assert.ok(d.summary.billed_cents > 0);

@@ -479,13 +479,13 @@ export async function loadSampleOperations(
 							employee_id: m.employee_id,
 							actual_minutes: 30 + (i % 5) * 7 - n * 2,
 						})),
-						tasks: rows.map((t, n) => ({
+						tasks: rows.map((t) => ({
 							id: t.id,
 							completed_quantity:
-								i % 11 === 0 && n === 2 ? 0 : Number(t.quantity),
-							status: i % 11 === 0 && n === 2 ? "blocked" : "done",
+								i % 11 === 0 && t.description === "PRUEBA · Recolectar hojas y revisar acceso" ? 0 : Number(t.quantity),
+							status: i % 11 === 0 && t.description === "PRUEBA · Recolectar hojas y revisar acceso" ? "blocked" : "done",
 							notes:
-								i % 11 === 0 && n === 2
+								i % 11 === 0 && t.description === "PRUEBA · Recolectar hojas y revisar acceso"
 									? "SIMULACIÓN: acceso cerrado; requiere reprogramación."
 									: "",
 						})),
