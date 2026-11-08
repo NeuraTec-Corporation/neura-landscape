@@ -1761,3 +1761,22 @@ button:disabled {
 @layer management {.cost-breakdown{display:grid;gap:18px;margin-top:24px}.cost-breakdown>div{display:grid;grid-template-columns:1fr auto;gap:7px;font-size:12px}.cost-breakdown .production-track{grid-column:1/-1;margin-top:0}.cost-breakdown strong{font-size:13px}.cost-breakdown .production-track i{background:linear-gradient(90deg,#6e8fa0,#b8cbd1)}}
 
 @layer management {@media(max-width:900px){.manager-dashboard .dashboard-hero{padding:16px;gap:10px}.manager-dashboard .dashboard-hero h1{font-size:22px;margin:0;line-height:1.25}.manager-dashboard .dashboard-hero p{display:none}.manager-dashboard .dashboard-live{font-size:10px}.manager-dashboard .dashboard-filters .manage-actions h3{display:none}.manager-dashboard .dashboard-filters .dashboard-origin{gap:3px}.manager-dashboard .dashboard-filters{padding:12px 14px}.manager-dashboard .dashboard-filter-details summary{font-size:11px}.manager-dashboard .scenario-banner{gap:8px;padding:12px}.manager-dashboard .scenario-banner p{font-size:11px;margin-top:4px}.manager-dashboard .portfolio-kpis a{padding:13px}.dashboard-detail{scroll-margin-top:16px}}}
+
+@layer management {
+ :where(.paged-collection) { min-width:0; width:100%; }
+ :where(.paged-collection .directory-toolbar) { display:flex; flex-wrap:wrap; align-items:end; gap:1rem; margin-block:1rem; }
+ :where(.directory-search) { flex:1 1 16rem; min-width:0; }
+ :where(.directory-search .manage-actions) { display:flex; flex-wrap:nowrap; gap:.5rem; }
+ :where(.directory-search input) { min-width:0; flex:1; }
+ :where(.paged-collection select) { min-height:44px; min-width:6rem; }
+ :where(.paged-collection table) { width:100%; border-collapse:collapse; }
+ :where(.paged-collection td, .paged-collection th) { padding:.75rem; text-align:left; vertical-align:top; border-bottom:1px solid #dfe6d8; }
+ :where(.paged-collection td > span) { display:block; font-size:.85rem; color:#53685c; margin-top:.25rem; }
+ :where(.paged-collection .directory-actions button) { min-height:44px; padding:.45rem .65rem; font-size:.8rem; }
+ @media(max-width:640px) {
+  :where(.paged-collection) { overflow-x:auto; }
+  :where(.directory-toolbar > label, .directory-size) { width:100%; }
+  :where(.directory-toolbar select) { width:100%; }
+  :where(.paged-collection .directory-pagination) { flex-wrap:wrap; gap:.75rem; }
+ }
+}

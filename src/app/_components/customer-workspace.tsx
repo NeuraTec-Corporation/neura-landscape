@@ -1,4 +1,5 @@
 "use client";
+import { PagedTable } from "./paged-collection";
 import { SampleDataPanel } from "./sample-data-panel";
 import { useEffect, useId, useState } from "react";
 import { CatalogSelect, useCatalogs } from "./catalogs";
@@ -299,9 +300,7 @@ export function CustomerWorkspace() {
 	const [record, setRecord] = useState<CustomerRecord | null>(null);
 	const [draft, setDraft] = useState<CustomerDraft | null>(null);
 	const [tab, setTab] = useState("identidad");
-	const [query, setQuery] = useState("");
 	const [filter, setFilter] = useState("all");
-	const [page, setPage] = useState(1);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState("");
 	const [notice, setNotice] = useState("");
@@ -433,14 +432,7 @@ export function CustomerWorkspace() {
 			setBusy(false);
 		}
 	}
-	const visible = items.filter(
-		(x) =>
-			(filter === "all" || x.status === filter) &&
-			[x.name, x.email, x.phone].some((v) =>
-				(v ?? "").toLocaleLowerCase().includes(query.toLocaleLowerCase()),
-			),
-	);
-	const pages = Math.max(1, Math.ceil(visible.length / 10));
+	const visible = items.filter(x => filter === "all" || x.status === filter);
 	return (
 		<section className="crm-workspace" aria-label="Gestión de clientes">
 			{error ? (
@@ -519,20 +511,10 @@ export function CustomerWorkspace() {
 						</div>
 						<div className="crm-filters">
 							<Field
-								label="Buscar cliente"
-								value={query}
-								onChange={(v) => {
-									setQuery(v);
-									setPage(1);
-								}}
-								placeholder="Nombre, correo o teléfono"
-							/>
-							<Field
 								label="Estado"
 								value={filter}
 								onChange={(v) => {
 									setFilter(v);
-									setPage(1);
 								}}
 								options={[
 									["all", "Todos los estados"],
@@ -543,25 +525,21 @@ export function CustomerWorkspace() {
 							/>
 						</div>
 						<div className="crm-table-wrap">
-							<table className="crm-table">
-								<thead>
-									<tr>
-										<th>Cliente</th>
-										<th>Contacto</th>
-										<th>Estado</th>
-										<th>Locales</th>
-										<th>
-											<span className="sr-only">Acciones</span>
-										</th>
-									</tr>
-								</thead>
-								<tbody>
-									{visible
-										.slice(
-											(Math.min(page, pages) - 1) * 10,
-											Math.min(page, pages) * 10,
-										)
-										.map((row) => (
+							<PagedTable label="Clientes">
+								<table className="crm-table">
+									<thead>
+										<tr>
+											<th>Cliente</th>
+											<th>Contacto</th>
+											<th>Estado</th>
+											<th>Locales</th>
+											<th>
+												<span className="sr-only">Acciones</span>
+											</th>
+										</tr>
+									</thead>
+									<tbody>
+										{visible.map((row) => (
 											<tr key={row.id}>
 												<td>
 													<div className="customer-name">
@@ -574,7 +552,7 @@ export function CustomerWorkspace() {
 														<div>
 															<b>{row.name}</b>
 															{row.sample_batch_id ? (
-																<span className="sample-badge">PRUEBA</span>
+																<span className="sample-badge">Evaluación</span>
 															) : null}
 															<small>
 																{row.kind === "company"
@@ -624,12 +602,13 @@ export function CustomerWorkspace() {
 												</td>
 											</tr>
 										))}
-								</tbody>
-							</table>
+									</tbody>
+								</table>
+							</PagedTable>
 							{!visible.length ? (
 								<div className="crm-empty">
 									<h3>
-										{query ? "No hay coincidencias" : "Tu cartera empieza aquí"}
+										Tu cartera empieza aquí
 									</h3>
 									<p>
 										Crea el primer expediente con sus contactos, dirección y
@@ -637,30 +616,6 @@ export function CustomerWorkspace() {
 									</p>
 								</div>
 							) : null}
-						</div>
-						<div className="crm-pagination">
-							<span>
-								{visible.length} resultados · Página {Math.min(page, pages)} de{" "}
-								{pages}
-							</span>
-							<div>
-								<button
-									type="button"
-									className="quiet-button"
-									disabled={page <= 1}
-									onClick={() => setPage((p) => p - 1)}
-								>
-									Anterior
-								</button>
-								<button
-									type="button"
-									className="quiet-button"
-									disabled={page >= pages}
-									onClick={() => setPage((p) => p + 1)}
-								>
-									Siguiente
-								</button>
-							</div>
 						</div>
 					</div>
 				</>

@@ -1,4 +1,5 @@
 "use client";
+import { PagedTable } from "./paged-collection";
 import { CatalogField } from "./catalogs";
 import { EstimateLifecycle } from "./estimate-lifecycle";
 import { useEffect, useRef, useState } from "react";
@@ -862,86 +863,106 @@ export function EstimateWorkspace() {
 					</section>
 					<section>
 						<h2>Presupuestos guardados</h2>
-						<div className="manage-card-grid">
-							{data.estimates.map((e) => (
-								<article className="panel" key={e.id}>
-									<p className="eyebrow">
-										{e.number} · revisión {e.revision}
-									</p>
-									<h3>{e.title}</h3>
-									<p>
-										{e.customer_name} · {e.property_name}
-									</p>
-									<span className="pill">
-										{e.snapshot.calculation.status === "complete"
-											? "Borrador calculado"
-											: "Borrador con pendientes"}
-									</span>
-									<strong className="invoice-amount">
-										{money(e.snapshot.calculation.price_cents)}
-									</strong>
-									<div className="manage-actions">
-										<button type="button" onClick={() => setTab("agreements")}>
-											Ofertas y acuerdos
-										</button>
-										<button
-											type="button"
-											onClick={() => {
-												setDetail(e);
+						<PagedTable label="Presupuestos guardados">
+							<table className="management-table">
+								<thead>
+									<tr>
+										<th>Presupuesto</th>
+										<th>Cliente / localidad</th>
+										<th>Estado</th>
+										<th>Importe</th>
+										<th>Acciones</th>
+									</tr>
+								</thead>
+								<tbody>
+									{data.estimates.map((e) => (
+										<tr key={e.id}>
+											<td>
+												<strong>{e.number}</strong>
+												<span>
+													{e.title} · revisión {e.revision}
+												</span>
+											</td>
+											<td>
+												<strong>{e.customer_name}</strong>
+												<span>{e.property_name}</span>
+											</td>
+											<td>
+												{e.snapshot.calculation.status === "complete"
+													? "Borrador calculado"
+													: "Con pendientes"}
+											</td>
+											<td>{money(e.snapshot.calculation.price_cents)}</td>
+											<td className="directory-actions">
+												<div className="manage-actions">
+													<button
+														type="button"
+														onClick={() => setTab("agreements")}
+													>
+														Ofertas y acuerdos
+													</button>
+													<button
+														type="button"
+														onClick={() => {
+															setDetail(e);
 
-												setHistoryRevision(null);
-											}}
-										>
-											Ver detalle
-										</button>
-										{data.canEdit ? (
-											<>
-												<button
-													type="button"
-													onClick={() => {
-														setDraft({
-															...e.snapshot.input,
-															id: e.id,
-															revision: e.revision,
-															reason: "Revisión del presupuesto",
-														});
-														setDetail(null);
-														setError("");
-														requestAnimationFrame(() =>
-															editRef.current?.focus(),
-														);
-													}}
-												>
-													{data.offers.some(
-														(o) => o.estimate_id === e.id && o.contract_id,
-													)
-														? "Preparar cambio"
-														: "Editar borrador"}
-												</button>
-												<button
-													type="button"
-													disabled={busy}
-													onClick={async () => {
-														const reason = window.prompt(
-															"Motivo para retirar el borrador (se conserva su historial):",
-														);
-														if (reason)
-															await save({
-																action: "archive",
-																id: e.id,
-																revision: e.revision,
-																reason,
-															});
-													}}
-												>
-													Retirar
-												</button>
-											</>
-										) : null}
-									</div>
-								</article>
-							))}
-						</div>
+															setHistoryRevision(null);
+														}}
+													>
+														Ver detalle
+													</button>
+													{data.canEdit ? (
+														<>
+															<button
+																type="button"
+																onClick={() => {
+																	setDraft({
+																		...e.snapshot.input,
+																		id: e.id,
+																		revision: e.revision,
+																		reason: "Revisión del presupuesto",
+																	});
+																	setDetail(null);
+																	setError("");
+																	requestAnimationFrame(() =>
+																		editRef.current?.focus(),
+																	);
+																}}
+															>
+																{data.offers.some(
+																	(o) =>
+																		o.estimate_id === e.id && o.contract_id,
+																)
+																	? "Preparar cambio"
+																	: "Editar borrador"}
+															</button>
+															<button
+																type="button"
+																disabled={busy}
+																onClick={async () => {
+																	const reason = window.prompt(
+																		"Motivo para retirar el borrador (se conserva su historial):",
+																	);
+																	if (reason)
+																		await save({
+																			action: "archive",
+																			id: e.id,
+																			revision: e.revision,
+																			reason,
+																		});
+																}}
+															>
+																Retirar
+															</button>
+														</>
+													) : null}
+												</div>
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</PagedTable>
 						{!data.estimates.length ? (
 							<p>Aún no hay presupuestos guardados.</p>
 						) : null}

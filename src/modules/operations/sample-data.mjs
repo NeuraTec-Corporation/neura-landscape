@@ -1,3 +1,4 @@
+import { identities, companyNames, siteNames, fictionalEmail } from "./sample-identities.mjs";
 import { saveCustomer } from "../customers/index.mjs";
 import { saveProperty } from "./properties.mjs";
 import { saveSurveyItem } from "./survey.mjs";
@@ -41,7 +42,7 @@ export async function loadSampleCustomers(
 		throw new ManageError("Confirma la carga de datos sintéticos.");
 	if (environment === "production")
 		throw new ManageError(
-			"Los datos de prueba solo se cargan en Preview o desarrollo.",
+			"Los datos de evaluación solo se cargan en Preview o desarrollo.",
 			403,
 		);
 	return db.transaction(async (tx) => {
@@ -52,7 +53,7 @@ export async function loadSampleCustomers(
 					SAMPLE_BATCH,
 					actor,
 					JSON.stringify({
-						version: 1,
+						version: 1, identity_version: 2,
 						people: 28,
 						companies: 5,
 						properties: 78,
@@ -66,36 +67,6 @@ export async function loadSampleCustomers(
 			query: (s, p) => tx.query(s, p),
 			transaction: (fn) => fn(tx),
 		};
-		const words = [
-			"Uno",
-			"Dos",
-			"Tres",
-			"Cuatro",
-			"Cinco",
-			"Seis",
-			"Siete",
-			"Ocho",
-			"Nueve",
-			"Diez",
-			"Once",
-			"Doce",
-			"Trece",
-			"Catorce",
-			"Quince",
-			"Dieciséis",
-			"Diecisiete",
-			"Dieciocho",
-			"Diecinueve",
-			"Veinte",
-			"Veintiuno",
-			"Veintidós",
-			"Veintitrés",
-			"Veinticuatro",
-			"Veinticinco",
-			"Veintiséis",
-			"Veintisiete",
-			"Veintiocho",
-		];
 		const towns = [
 			["Lodi", "07644"],
 			["Garfield", "07026"],
@@ -107,12 +78,12 @@ export async function loadSampleCustomers(
 			const company = i >= 28,
 				[city, zip] = towns[i % towns.length],
 				label = company
-					? `Empresa de Prueba ${i - 27}`
-					: `Cliente Prueba ${words[i]}`;
+					? companyNames[i - 28]
+ : identities[i].join(" ");
 			const customer = await saveCustomer(scoped, {
 				kind: company ? "company" : "person",
-				first_name: company ? "" : "Cliente",
-				last_name: company ? "" : `Prueba ${words[i]}`,
+				first_name: company ? "" : identities[i][0],
+				last_name: company ? "" : identities[i][1],
 				company_name: company ? label : "",
 				status: i % 11 === 0 ? "prospect" : "active",
 				marital_status: "",
@@ -122,14 +93,14 @@ export async function loadSampleCustomers(
 					"DATOS SINTÉTICOS UX01. Sin relación con personas ni direcciones reales.",
 				contacts: [
 					{
-						first_name: "Contacto",
-						last_name: "Prueba",
+						first_name: identities[i][0],
+						last_name: identities[i][1],
 						relationship: company ? "representative" : "self",
 						roles: ["primary", "signer", "notifications"],
 						phone_mobile: "",
 						phone_home: "",
 						phone_office: "",
-						email: `ux01-cliente-${String(i + 1).padStart(2, "0")}@example.invalid`,
+						email: fictionalEmail(...identities[i]),
 						preferred_channel: "email",
 						preferred_phone: "mobile",
 						contact_from: "09:00",
@@ -164,9 +135,8 @@ export async function loadSampleCustomers(
 				const property = await saveProperty(scoped, {
 					customer_id: customer.id,
 					name:
-						(company ? "Sucursal de prueba " : "Residencia de prueba ") +
-						(p + 1),
-					code: `LOC-PRUEBA-${new Date().getUTCFullYear()}-${String(propertyNo).padStart(4, "0")}`,
+						company ? `${companyNames[i - 28]} · Sede ${p + 1}` : `Casa ${siteNames[(propertyNo - 1) % siteNames.length]}`,
+					code: `LOC-NL-${new Date().getUTCFullYear()}-${String(propertyNo).padStart(4, "0")}`,
 					kind: company ? "commercial" : "residential",
 					status: "active",
 					line1: `Ubicación sintética ${propertyNo} — no navegable`,
@@ -177,7 +147,7 @@ export async function loadSampleCustomers(
 					country: "US",
 					latitude: null,
 					longitude: null,
-					contact_name: "Contacto Prueba",
+					contact_name: identities[i].join(" "),
 					contact_phone: "",
 					lawn_sqft: 300 + i * 25 + p * 50,
 					garden_sqft: 50 + p * 10,
@@ -194,14 +164,14 @@ export async function loadSampleCustomers(
 				);
 				await saveSurveyItem(scoped, "zone", {
 					property_id: property.id,
-					name: "Césped de ejemplo",
+					name: "Jardín frontal",
 					kind: "lawn",
 					area: 300 + i * 25 + p * 50,
 					unit: "sqft",
 					measurement_status: "estimated",
 					latitude: null,
 					longitude: null,
-					notes: "Medida sintética de prueba, no verificada.",
+					notes: "Medida sintética de evaluación, no verificada.",
 				});
 			}
 		}

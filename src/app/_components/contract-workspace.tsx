@@ -1,4 +1,5 @@
 "use client";
+import { PagedTable } from "./paged-collection";
 import { CatalogField, CatalogSelect } from "./catalogs";
 import { useEffect, useState } from "react";
 type Row = {
@@ -355,99 +356,118 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 			) : !visible.length ? (
 				<p>No hay contratos para mostrar.</p>
 			) : null}
-			<div className="location-grid">
-				{visible.map((r) => (
-					<article key={r.id} className="panel">
-						<p className="eyebrow">{r.customer_name}</p>
-						<h2>{r.property_name}</h2>
-						{r.source_offer_id ? (
-							<p className="pill">
-								Acuerdo aceptado v{r.baseline_version} · Vigencia{" "}
-								{String(r.effective_from).slice(0, 10)} —{" "}
-								{r.effective_until
-									? String(r.effective_until).slice(0, 10)
-									: "Abierta"}
-							</p>
-						) : null}
-						<p>
-							{r.property_code} ·{" "}
-							<strong>
-								{r.deleted_at
-									? "Eliminado · historial conservado"
-									: (statuses[r.status] ?? r.status)}
-							</strong>
-						</p>
-						<p>
-							{r.service} · {r.frequency}
-						</p>
-						<p>
-							{money(r.monthly_cents)}/mes · {r.visits_per_month} visitas
-							acordadas · {r.estimated_minutes} min/visita
-						</p>
-						{control ? (
-							<dl>
-								<dt>Realizadas</dt>
-								<dd>{r.completed}</dd>
-								<dt>Programadas pendientes</dt>
-								<dd>{r.scheduled}</dd>
-								<dt>En ejecución</dt>
-								<dd>{r.started}</dd>
-								<dt>Canceladas</dt>
-								<dd>{r.cancelled}</dd>
-								<dt>Faltan para la meta actual</dt>
-								<dd>{r.remaining}</dd>
-								<dt>Mano de obra</dt>
-								<dd>{money(r.labor_cents)}</dd>
-								<dt>Materiales</dt>
-								<dd>{money(r.materials_cents)}</dd>
-								<dt>Maquinaria</dt>
-								<dd>{money(r.equipment_cents)}</dd>
-								<dt>Traslados</dt>
-								<dd>{money(r.travel_cents)}</dd>
-								<dt>Indirectos</dt>
-								<dd>{money(r.overhead_cents)}</dd>
-								<dt>Costo registrado total</dt>
-								<dd>{money(r.total_cost_cents)}</dd>
-								<dt>Ingreso asignado a visitas realizadas</dt>
-								<dd>{money(r.allocated_revenue_cents)}</dd>
-								<dt>Contribución sobre costos registrados</dt>
-								<dd>{money(r.contribution_cents)}</dd>
-							</dl>
-						) : (
-							<div>
-								<button
-									type="button"
-									disabled={busy}
-									onClick={() => {
-										setEdit(r);
-										window.scrollTo({ top: 0, behavior: "smooth" });
-									}}
-								>
-									Editar contrato
-								</button>
-								<button
-									type="button"
-									disabled={busy}
-									onClick={() => {
-										if (
-											window.confirm(
-												`¿Eliminar el contrato de ${r.customer_name} · ${r.property_name}? Se cancelarán sus visitas pendientes. Las completadas y sus costos se conservarán. Esta baja no borra el historial.`,
-											)
-										)
-											void submit({
-												action: "delete",
-												id: r.id,
-												revision: r.revision,
-											});
-									}}
-								>
-									Eliminar contrato
-								</button>
-							</div>
-						)}
-					</article>
-				))}
-			</div>
+			<PagedTable label="Contratos">
+				<table className="management-table">
+					<thead>
+						<tr>
+							<th>Cliente / localidad</th>
+							<th>Servicio</th>
+							<th>Estado</th>
+							<th>Plan mensual</th>
+							<th>{control ? "Cumplimiento" : "Acciones"}</th>
+						</tr>
+					</thead>
+					<tbody>
+						{visible.map((r) => (
+							<tr key={r.id}>
+								<td>
+									<strong>{r.customer_name}</strong>
+									<span>
+										{r.property_name} · {r.property_code}
+									</span>
+								</td>
+								<td>
+									{r.service}
+									<span>
+										{r.frequency} · {r.estimated_minutes} min/visita
+									</span>
+								</td>
+								<td>
+									{r.deleted_at
+										? "Eliminado · historial conservado"
+										: (statuses[r.status] ?? r.status)}
+									{r.source_offer_id ? (
+										<span>
+											Acuerdo aceptado v{r.baseline_version} ·{" "}
+											{String(r.effective_from).slice(0, 10)} —{" "}
+											{r.effective_until
+												? String(r.effective_until).slice(0, 10)
+												: "Abierta"}
+										</span>
+									) : null}
+								</td>
+								<td>
+									{money(r.monthly_cents)}/mes
+									<span>{r.visits_per_month} visitas</span>
+								</td>
+								<td className="directory-actions">
+									{control ? (
+										<dl>
+											<dt>Realizadas</dt>
+											<dd>{r.completed}</dd>
+											<dt>Programadas pendientes</dt>
+											<dd>{r.scheduled}</dd>
+											<dt>En ejecución</dt>
+											<dd>{r.started}</dd>
+											<dt>Canceladas</dt>
+											<dd>{r.cancelled}</dd>
+											<dt>Faltan para la meta actual</dt>
+											<dd>{r.remaining}</dd>
+											<dt>Mano de obra</dt>
+											<dd>{money(r.labor_cents)}</dd>
+											<dt>Materiales</dt>
+											<dd>{money(r.materials_cents)}</dd>
+											<dt>Maquinaria</dt>
+											<dd>{money(r.equipment_cents)}</dd>
+											<dt>Traslados</dt>
+											<dd>{money(r.travel_cents)}</dd>
+											<dt>Indirectos</dt>
+											<dd>{money(r.overhead_cents)}</dd>
+											<dt>Costo registrado total</dt>
+											<dd>{money(r.total_cost_cents)}</dd>
+											<dt>Ingreso asignado a visitas realizadas</dt>
+											<dd>{money(r.allocated_revenue_cents)}</dd>
+											<dt>Contribución sobre costos registrados</dt>
+											<dd>{money(r.contribution_cents)}</dd>
+										</dl>
+									) : (
+										<div>
+											<button
+												type="button"
+												disabled={busy}
+												onClick={() => {
+													setEdit(r);
+													window.scrollTo({ top: 0, behavior: "smooth" });
+												}}
+											>
+												Editar contrato
+											</button>
+											<button
+												type="button"
+												disabled={busy}
+												onClick={() => {
+													if (
+														window.confirm(
+															`¿Eliminar el contrato de ${r.customer_name} · ${r.property_name}? Se cancelarán sus visitas pendientes. Las completadas y sus costos se conservarán. Esta baja no borra el historial.`,
+														)
+													)
+														void submit({
+															action: "delete",
+															id: r.id,
+															revision: r.revision,
+														});
+												}}
+											>
+												Eliminar contrato
+											</button>
+										</div>
+									)}
+								</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</PagedTable>
 		</div>
 	);
 }

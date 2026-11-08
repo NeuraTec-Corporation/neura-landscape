@@ -1,4 +1,5 @@
 "use client";
+import { PagedCollection } from "./paged-collection";
 import { useEffect, useState } from "react";
 import { CatalogSelect, useCatalogs } from "./catalogs";
 import {
@@ -684,7 +685,7 @@ export function VisitsWorkspace() {
 					</select>
 				</label>
 			</div>
-			<div className="visit-grid">
+			<PagedCollection label="Visitas y ejecución" defaultSize={2} className="visit-grid">
 				{state.data
 					?.filter((v) => !filter || v.status === filter)
 					.map((v) => (
@@ -871,7 +872,7 @@ export function VisitsWorkspace() {
 							</div>
 						</article>
 					))}
-			</div>
+			</PagedCollection>
 			{state.data?.length === 0 ? (
 				<p>
 					No hay visitas registradas. Crea empleados, integra una cuadrilla y

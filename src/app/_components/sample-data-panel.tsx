@@ -36,7 +36,7 @@ export function SampleDataPanel({
 		const c = new AbortController();
 		fetch("/api/sample-data", { signal: c.signal, cache: "no-store" })
 			.then(async (r) => {
-				if (!r.ok) throw Error("No se pudo consultar el lote de prueba.");
+				if (!r.ok) throw Error("No se pudo consultar el lote de evaluación.");
 				setStatus(await r.json());
 			})
 			.catch((e) => {
@@ -50,11 +50,11 @@ export function SampleDataPanel({
 			<summary>
 				{loaded
 					? operational
-						? "Escenario operativo de prueba disponible"
-						: "Datos de prueba disponibles"
+						? "Escenario operativo de evaluación disponible"
+						: "Datos de evaluación disponibles"
 					: operational
 						? "Completar el escenario operativo de los 33 clientes"
-						: "Explorar con 33 clientes de prueba"}
+						: "Explorar con 33 clientes de evaluación"}
 				<span className="sample-badge">SINTÉTICOS</span>
 			</summary>
 			<p>
@@ -114,8 +114,8 @@ export function SampleDataPanel({
 						{busy
 							? "Cargando…"
 							: operational
-								? "Cargar escenario operativo de prueba"
-								: "Cargar clientes y localidades de prueba"}
+								? "Cargar escenario operativo de evaluación"
+								: "Cargar clientes y localidades de evaluación"}
 					</button>
 				</form>
 			)}

@@ -1,4 +1,5 @@
 "use client";
+import { PagedTable, PagedCollection } from "./paged-collection";
 import { DataDirectory } from "./data-directory";
 import { SampleDataPanel } from "./sample-data-panel";
 import { useEffect, useState, useRef } from "react";
@@ -218,7 +219,7 @@ export function ManagementDashboard() {
 							onChange={(e) => update("origin", e.target.value)}
 						>
 							<option value="all">Todos los registros</option>
-							<option value="sample">Solo escenario de prueba</option>
+							<option value="sample">Solo escenario de evaluación</option>
 							<option value="existing">Otros registros</option>
 						</select>
 					</div>
@@ -379,8 +380,8 @@ export function ManagementDashboard() {
 						<div>
 							<strong>DATOS SINTÉTICOS DE EVALUACIÓN</strong>
 							<p>
-								{data.portfolio.sample_customers} clientes de prueba. Servicios,
-								importes y pagos simulados; sin cobros reales.
+								{data.portfolio.sample_customers} clientes de evaluación.
+								Servicios, importes y pagos simulados; sin cobros reales.
 							</p>
 						</div>
 						{data.scenario && filters.origin !== "sample" ? (
@@ -396,7 +397,7 @@ export function ManagementDashboard() {
 									}))
 								}
 							>
-								Solo escenario de prueba
+								Solo escenario de evaluación
 							</button>
 						) : null}
 					</aside>
@@ -697,26 +698,28 @@ export function ManagementDashboard() {
 									Ver detalle
 								</button>
 							</div>
-							{data.production.map((p) => (
-								<div
-									className="production-line"
-									key={`${p.service_key}-${p.unit}`}
-								>
-									<div>
-										<span>{p.service}</span>
-										<div className="production-track">
-											<i
-												style={{
-													width: `${Math.max(2, (p.quantity / Math.max(1, ...data.production.filter((x) => x.unit === p.unit).map((x) => x.quantity))) * 100)}%`,
-												}}
-											/>
+							<PagedCollection label="Producción por servicio">
+								{data.production.map((p) => (
+									<div
+										className="production-line"
+										key={`${p.service_key}-${p.unit}`}
+									>
+										<div>
+											<span>{p.service}</span>
+											<div className="production-track">
+												<i
+													style={{
+														width: `${Math.max(2, (p.quantity / Math.max(1, ...data.production.filter((x) => x.unit === p.unit).map((x) => x.quantity))) * 100)}%`,
+													}}
+												/>
+											</div>
 										</div>
+										<strong>
+											{p.quantity} <small>{p.unit_label}</small>
+										</strong>
 									</div>
-									<strong>
-										{p.quantity} <small>{p.unit_label}</small>
-									</strong>
-								</div>
-							))}
+								))}
+							</PagedCollection>
 							{!data.production.length ? (
 								<p>
 									Aún no hay cantidades ejecutadas registradas para el filtro.
@@ -868,7 +871,7 @@ export function ManagementDashboard() {
 								Ver detalle por persona
 							</button>
 						</div>
-						<div className="people-bars">
+						<PagedCollection label="Personas y trabajo" className="people-bars">
 							{data.productivity
 								.filter((p) => p.minutes > 0)
 								.map((p) => (
@@ -881,7 +884,7 @@ export function ManagementDashboard() {
 										</span>
 									</div>
 								))}
-						</div>
+						</PagedCollection>
 						<p>
 							Compara tareas, dificultad, recursos y calidad equivalentes.
 							Participar en más visitas no demuestra por sí solo mayor
@@ -923,148 +926,151 @@ export function ManagementDashboard() {
 								))}
 							</div>
 							<div className="table-scroll">
-								<table className="management-table">
-									{details === "visits" ? (
-										<>
-											<thead>
-												<tr>
-													<th>Cliente / localidad</th>
-													<th>Fecha programada</th>
-													<th>Trabajo</th>
-													<th>Cuadrilla</th>
-													<th>Estado</th>
-												</tr>
-											</thead>
-											<tbody>
-												{data.visits.map((v) => (
-													<tr key={v.id}>
-														<td>
-															<strong>{v.customer_name}</strong>
-															<span>
-																{v.property_name} · {v.city}
-															</span>
-														</td>
-														<td>
-															{new Date(v.scheduled_at).toLocaleString("es", {
-																timeZone: "America/New_York",
-															})}
-														</td>
-														<td>
-															{v.title ||
-																v.service_key ||
-																"Histórico sin detalle"}
-														</td>
-														<td>{v.crew_name}</td>
-														<td>
-															{statuses[v.status as keyof typeof statuses]}
-															{v.deleted_at ? " · Archivada" : ""}
-														</td>
+								<PagedTable key={details} label="Detalle del panel">
+									<table className="management-table">
+										{details === "visits" ? (
+											<>
+												<thead>
+													<tr>
+														<th>Cliente / localidad</th>
+														<th>Fecha programada</th>
+														<th>Trabajo</th>
+														<th>Cuadrilla</th>
+														<th>Estado</th>
 													</tr>
-												))}
-											</tbody>
-										</>
-									) : details === "production" ? (
-										<>
-											<thead>
-												<tr>
-													<th>Cliente / localidad</th>
-													<th>Tarea</th>
-													<th>Servicio</th>
-													<th>Responsable</th>
-													<th>Realizado</th>
-													<th>Resultado</th>
-												</tr>
-											</thead>
-											<tbody>
-												{data.visits.flatMap((v) =>
-													v.tasks
-														.filter(
-															(t) =>
-																!filters.service ||
-																t.service_key === filters.service,
-														)
-														.map((t) => (
-															<tr key={`${v.id}-${t.id}`}>
-																<td>
-																	{v.customer_name}
-																	<span>{v.property_name}</span>
-																</td>
-																<td>{t.description}</td>
-																<td>{c.label("service", t.service_key)}</td>
-																<td>
-																	{t.employee_id
-																		? v.personnel.find(
-																				(p) => p.employee_id === t.employee_id,
-																			)?.name_snapshot
-																		: "Cuadrilla"}
-																</td>
-																<td>
-																	{t.completed_quantity ?? "Pendiente"}{" "}
-																	{c.label("element_unit", t.unit)}
-																</td>
-																<td>
-																	{t.status === "done"
-																		? "Realizada"
-																		: t.status === "blocked"
-																			? "Bloqueada"
-																			: "Pendiente"}
-																</td>
-															</tr>
-														)),
-												)}
-											</tbody>
-										</>
-									) : details === "people" ? (
-										<>
-											<thead>
-												<tr>
-													<th>Persona</th>
-													<th>Horas registradas</th>
-													<th>Participaciones</th>
-													<th>Tareas individuales realizadas</th>
-												</tr>
-											</thead>
-											<tbody>
-												{data.productivity.slice(0, 6).map((p) => (
-													<tr key={p.employee_id}>
-														<td>{p.name}</td>
-														<td>{(p.minutes / 60).toFixed(2)}</td>
-														<td>{p.visits}</td>
-														<td>{p.tasks}</td>
+												</thead>
+												<tbody>
+													{data.visits.map((v) => (
+														<tr key={v.id}>
+															<td>
+																<strong>{v.customer_name}</strong>
+																<span>
+																	{v.property_name} · {v.city}
+																</span>
+															</td>
+															<td>
+																{new Date(v.scheduled_at).toLocaleString("es", {
+																	timeZone: "America/New_York",
+																})}
+															</td>
+															<td>
+																{v.title ||
+																	v.service_key ||
+																	"Histórico sin detalle"}
+															</td>
+															<td>{v.crew_name}</td>
+															<td>
+																{statuses[v.status as keyof typeof statuses]}
+																{v.deleted_at ? " · Archivada" : ""}
+															</td>
+														</tr>
+													))}
+												</tbody>
+											</>
+										) : details === "production" ? (
+											<>
+												<thead>
+													<tr>
+														<th>Cliente / localidad</th>
+														<th>Tarea</th>
+														<th>Servicio</th>
+														<th>Responsable</th>
+														<th>Realizado</th>
+														<th>Resultado</th>
 													</tr>
-												))}
-											</tbody>
-										</>
-									) : (
-										<>
-											<thead>
-												<tr>
-													<th>Documento</th>
-													<th>Cliente</th>
-													<th>Total</th>
-													<th>Pagado</th>
-													<th>Saldo</th>
-													<th>Vencimiento</th>
-												</tr>
-											</thead>
-											<tbody>
-												{(details === "debt"
-													? data.receivables
-													: data.invoices
-												).map((i) => (
-													<tr key={i.id}>
-														<td>{i.number}</td>
-														<td>{i.customer_name}</td>
-														<td>{usd(i.total_cents)}</td>
-														<td>{usd(i.paid_cents)}</td>
-														<td>{usd(i.total_cents - i.paid_cents)}</td>
-														<td>{String(i.due_date).slice(0, 10)}</td>
+												</thead>
+												<tbody>
+													{data.visits.flatMap((v) =>
+														v.tasks
+															.filter(
+																(t) =>
+																	!filters.service ||
+																	t.service_key === filters.service,
+															)
+															.map((t) => (
+																<tr key={`${v.id}-${t.id}`}>
+																	<td>
+																		{v.customer_name}
+																		<span>{v.property_name}</span>
+																	</td>
+																	<td>{t.description}</td>
+																	<td>{c.label("service", t.service_key)}</td>
+																	<td>
+																		{t.employee_id
+																			? v.personnel.find(
+																					(p) =>
+																						p.employee_id === t.employee_id,
+																				)?.name_snapshot
+																			: "Cuadrilla"}
+																	</td>
+																	<td>
+																		{t.completed_quantity ?? "Pendiente"}{" "}
+																		{c.label("element_unit", t.unit)}
+																	</td>
+																	<td>
+																		{t.status === "done"
+																			? "Realizada"
+																			: t.status === "blocked"
+																				? "Bloqueada"
+																				: "Pendiente"}
+																	</td>
+																</tr>
+															)),
+													)}
+												</tbody>
+											</>
+										) : details === "people" ? (
+											<>
+												<thead>
+													<tr>
+														<th>Persona</th>
+														<th>Horas registradas</th>
+														<th>Participaciones</th>
+														<th>Tareas individuales realizadas</th>
 													</tr>
-												))}
-											</tbody>
-										</>
-									)}
-								</table>
+												</thead>
+												<tbody>
+													{data.productivity.map((p) => (
+														<tr key={p.employee_id}>
+															<td>{p.name}</td>
+															<td>{(p.minutes / 60).toFixed(2)}</td>
+															<td>{p.visits}</td>
+															<td>{p.tasks}</td>
+														</tr>
+													))}
+												</tbody>
+											</>
+										) : (
+											<>
+												<thead>
+													<tr>
+														<th>Documento</th>
+														<th>Cliente</th>
+														<th>Total</th>
+														<th>Pagado</th>
+														<th>Saldo</th>
+														<th>Vencimiento</th>
+													</tr>
+												</thead>
+												<tbody>
+													{(details === "debt"
+														? data.receivables
+														: data.invoices
+													).map((i) => (
+														<tr key={i.id}>
+															<td>{i.number}</td>
+															<td>{i.customer_name}</td>
+															<td>{usd(i.total_cents)}</td>
+															<td>{usd(i.paid_cents)}</td>
+															<td>{usd(i.total_cents - i.paid_cents)}</td>
+															<td>{String(i.due_date).slice(0, 10)}</td>
+														</tr>
+													))}
+												</tbody>
+											</>
+										)}
+									</table>
+								</PagedTable>
 							</div>
 						</section>
 					) : null}

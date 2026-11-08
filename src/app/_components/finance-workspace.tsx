@@ -1,4 +1,5 @@
 "use client";
+import { PagedCollection } from "./paged-collection";
 import { useState } from "react";
 import { CatalogSelect } from "./catalogs";
 import {
@@ -286,7 +287,7 @@ export function FinanceWorkspace() {
 							</select>
 						</label>
 					</div>
-					<div className="manage-card-grid">
+					<PagedCollection label="Facturas y cobros" defaultSize={2} className="manage-card-grid">
 						{data.invoices
 							.filter((i) => !filter || i.status === filter)
 							.map((i) => (
@@ -463,7 +464,7 @@ export function FinanceWorkspace() {
 									) : null}
 								</article>
 							))}
-					</div>
+					</PagedCollection>
 					{!data.invoices.length ? (
 						<p>
 							Aún no hay documentos registrados. El dashboard mostrará cero

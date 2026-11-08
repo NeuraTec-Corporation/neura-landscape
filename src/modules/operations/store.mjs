@@ -156,13 +156,13 @@ export async function mutate(db, input) {
 				await tx.query("INSERT INTO customers VALUES($1,$2)", [
 					id,
 
-					"Cliente de demostración",
+					"CAMILO SANTANA",
 				]);
 
 				await tx.query(
 					"INSERT INTO properties(id,customer_id,name,address,lawn_sqft) VALUES($1,$2,$3,$4,$5)",
 
-					[propertyId, id, "Jardín Alameda · Demo", "Dirección ficticia", 8400],
+					[propertyId, id, "Jardín Alameda", "Dirección ficticia", 8400],
 				);
 
 				await tx.query(
@@ -187,7 +187,7 @@ export async function mutate(db, input) {
 				await tx.query("INSERT INTO crews VALUES($1,$2,$3,$4)", [
 					crewId,
 
-					"Cuadrilla Norte · Demo",
+					"Cuadrilla Alameda",
 
 					2,
 

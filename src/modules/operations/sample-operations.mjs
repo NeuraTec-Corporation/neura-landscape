@@ -1,3 +1,4 @@
+import { employeeSurnames, fictionalEmail } from "./sample-identities.mjs";
 import { saveRate, saveEstimate } from "../estimates/index.ts";
 import { randomUUID } from "node:crypto";
 import { saveEmployee, saveCrew } from "./workforce.mjs";
@@ -50,7 +51,7 @@ export async function loadSampleOperations(
 		throw new ManageError("Confirma el escenario operativo sintético.");
 	if (environment === "production")
 		throw new ManageError(
-			"El escenario de prueba solo se carga en Preview o desarrollo.",
+			"El escenario de evaluación solo se carga en Preview o desarrollo.",
 			403,
 		);
 	return db.transaction(async (tx) => {
@@ -90,7 +91,7 @@ export async function loadSampleOperations(
 		};
 		const manifest = {
 			synthetic: true,
-			version: 1,
+			version: 1, identity_version: 2,
 			anchor_day: day(now),
 			from: `${day(now).slice(0, 7)}-01`,
 			to: "",
@@ -126,10 +127,10 @@ export async function loadSampleOperations(
 			"snow",
 		];
 		for (const [name, semantic] of [
-			["Retiro de hojas · PRUEBA", "maintenance"],
-			["Instalación de mulch · PRUEBA", "planting"],
-			["Fertilización · PRUEBA", "maintenance"],
-			["Revisión de riego · PRUEBA", "inspection"],
+			["Retiro de hojas", "maintenance"],
+			["Instalación de mulch", "planting"],
+			["Fertilización", "maintenance"],
+			["Revisión de riego", "inspection"],
 		]) {
 			const opt = await saveOption(scoped, {
 				category: "service",
@@ -143,7 +144,7 @@ export async function loadSampleOperations(
 		const rate = await saveRate(
 			scoped,
 			{
-				name: "PRUEBA · Referencia de corte de césped",
+				name: "Referencia de corte de césped",
 				unit: "sqft",
 				quantity_per_person_hour: 1000,
 				setup_person_minutes: 10,
@@ -184,8 +185,8 @@ export async function loadSampleOperations(
 					(
 						await saveEmployee(scoped, {
 							first_name: first[c * 3 + m],
-							last_name: "EJEMPLO",
-							email: `equipo-${c * 3 + m + 1}@example.invalid`,
+							last_name: employeeSurnames[c * 3 + m],
+							email: fictionalEmail(first[c * 3 + m], employeeSurnames[c * 3 + m]),
 							phone: "",
 							role_key: m === 0 ? "leader" : m === 1 ? "operator" : "gardener",
 							skills:
@@ -205,7 +206,7 @@ export async function loadSampleOperations(
 				"crew",
 				(
 					await saveCrew(scoped, {
-						name: `${["Norte", "Sur", "Centro", "Jardines", "Comercial", "Especialistas"][c]} · PRUEBA`,
+						name: `${["Norte", "Sur", "Centro", "Jardines", "Comercial", "Especialistas"][c]}`,
 						shift_start: "06:00",
 						shift_end: "18:00",
 						break_minutes: 60,
@@ -238,7 +239,7 @@ export async function loadSampleOperations(
 				(
 					await saveSurveyItem(scoped, "zone", {
 						property_id: p.id,
-						name: "Jardín posterior · PRUEBA",
+						name: "Jardín posterior",
 						kind: "garden",
 						area: 100 + (i % 8) * 35,
 						unit: "sqft",
@@ -256,7 +257,7 @@ export async function loadSampleOperations(
 				(
 					await saveSurveyItem(scoped, "zone", {
 						property_id: p.id,
-						name: "Driveway · PRUEBA",
+						name: "Driveway",
 						kind: "driveway",
 						area: 200 + (i % 5) * 80,
 						unit: "sqft",
@@ -271,14 +272,14 @@ export async function loadSampleOperations(
 			const elements = [];
 			for (const [name, kind, quantity, service, zoneId] of [
 				[
-					"Árboles ornamentales · PRUEBA",
+					"Árboles ornamentales",
 					"tree",
 					3 + (i % 3),
 					"pruning",
 					front.id,
 				],
-				["Árbol frutal · PRUEBA", "fruit_tree", 1, "preserve", rear],
-				["Jardineras · PRUEBA", "planter", 2 + (i % 4), "planting", rear],
+				["Árbol frutal", "fruit_tree", 1, "preserve", rear],
+				["Jardineras", "planter", 2 + (i % 4), "planting", rear],
 			]) {
 				const id = await mark(
 					"element",
@@ -313,7 +314,7 @@ export async function loadSampleOperations(
 						scoped,
 						{
 							property_id: p.id,
-							title: "PRUEBA · Propuesta de corte de césped frontal",
+							title: "Propuesta de corte de césped frontal",
 							rate_id: rate.id,
 							rate_revision: 1,
 							zone_ids: [front.id],
@@ -326,7 +327,7 @@ export async function loadSampleOperations(
 							lines: [
 								{
 									client_key: randomUUID(),
-									description: "PRUEBA · Combustible de cortadora",
+									description: "Combustible de cortadora",
 									category: "materials",
 									quantity: 1,
 									unit: "galón estimado",
@@ -334,7 +335,7 @@ export async function loadSampleOperations(
 								},
 								{
 									client_key: randomUUID(),
-									description: "PRUEBA · Uso de cortadora",
+									description: "Uso de cortadora",
 									category: "equipment",
 									quantity: 0.5,
 									unit: "hora",
@@ -343,7 +344,7 @@ export async function loadSampleOperations(
 							],
 							reason:
 								"ESCENARIO SINTÉTICO. Propuesta de corte únicamente; no incluye el resto del plan integral.",
-							notes: "Datos de prueba. Sin envío, aceptación ni cobro real.",
+							notes: "Datos de evaluación. Sin envío, aceptación ni cobro real.",
 						},
 						actor,
 					)
@@ -356,7 +357,7 @@ export async function loadSampleOperations(
 					await saveContract(scoped, {
 						property_id: p.id,
 						service:
-							"PRUEBA · Plan integral: césped, poda, limpieza y cuidados estacionales",
+							"Plan integral: césped, poda, limpieza y cuidados estacionales",
 						service_key: "maintenance",
 						frequency: "Semanal",
 						monthly,
@@ -409,7 +410,7 @@ export async function loadSampleOperations(
 				const tasks = [
 					{
 						service_key: main,
-						description: `PRUEBA · ${main.startsWith("custom_") ? "Servicio estacional contratado" : { mowing: "Cortar césped frontal y recoger residuos", pruning: "Poda de árboles ornamentales", planting: "Renovar jardineras", inspection: "Revisar estado de riego y accesos", preserve: "Revisar frutal y preservar frutos", maintenance: "Mantenimiento general del sitio", snow: "Limpiar nieve del driveway" }[main]}`,
+						description: `${main.startsWith("custom_") ? "Servicio estacional contratado" : { mowing: "Cortar césped frontal y recoger residuos", pruning: "Poda de árboles ornamentales", planting: "Renovar jardineras", inspection: "Revisar estado de riego y accesos", preserve: "Revisar frutal y preservar frutos", maintenance: "Mantenimiento general del sitio", snow: "Limpiar nieve del driveway" }[main]}`,
 						element_id:
 							main === "pruning"
 								? elements[0].id
@@ -426,8 +427,8 @@ export async function loadSampleOperations(
 						service_key: main === "pruning" ? "preserve" : "pruning",
 						description:
 							main === "pruning"
-								? "PRUEBA · Preservar frutos del árbol frutal"
-								: "PRUEBA · Poda mensual de árboles ornamentales",
+								? "Preservar frutos del árbol frutal"
+								: "Poda mensual de árboles ornamentales",
 						element_id: elements[main === "pruning" ? 1 : 0].id,
 						employee_id: crew.members[1].employee_id,
 						quantity: main === "pruning" ? 1 : elements[0].quantity,
@@ -436,7 +437,7 @@ export async function loadSampleOperations(
 					{
 						service_key:
 							main === serviceKeys[7] ? "inspection" : serviceKeys[7],
-						description: "PRUEBA · Recolectar hojas y revisar acceso",
+						description: "Recolectar hojas y revisar acceso",
 						employee_id: crew.members[2].employee_id,
 						quantity: 2 + (i % 4),
 						unit: "each",
@@ -449,7 +450,7 @@ export async function loadSampleOperations(
 							contract_id: contract,
 							crew_id: crew.id,
 							scheduled_at: scheduled,
-							title: `PRUEBA · Visita ${cycle + 1} · ${p.name}`,
+							title: `Visita ${cycle + 1} · ${p.name}`,
 							planned_minutes: 35 + (i % 4) * 10,
 							travel_minutes: 15,
 							tasks,
@@ -482,10 +483,10 @@ export async function loadSampleOperations(
 						tasks: rows.map((t) => ({
 							id: t.id,
 							completed_quantity:
-								i % 11 === 0 && t.description === "PRUEBA · Recolectar hojas y revisar acceso" ? 0 : Number(t.quantity),
-							status: i % 11 === 0 && t.description === "PRUEBA · Recolectar hojas y revisar acceso" ? "blocked" : "done",
+								i % 11 === 0 && t.description === "Recolectar hojas y revisar acceso" ? 0 : Number(t.quantity),
+							status: i % 11 === 0 && t.description === "Recolectar hojas y revisar acceso" ? "blocked" : "done",
 							notes:
-								i % 11 === 0 && t.description === "PRUEBA · Recolectar hojas y revisar acceso"
+								i % 11 === 0 && t.description === "Recolectar hojas y revisar acceso"
 									? "SIMULACIÓN: acceso cerrado; requiere reprogramación."
 									: "",
 						})),
@@ -498,31 +499,31 @@ export async function loadSampleOperations(
 						lines: [
 							{
 								category: "materials",
-								description: "PRUEBA · Bolsas para residuos vegetales",
+								description: "Bolsas para residuos vegetales",
 								quantity: 2 + (i % 3),
 								unit_price: 2.5,
 							},
 							{
 								category: "materials",
-								description: "PRUEBA · Mulch embolsado",
+								description: "Mulch embolsado",
 								quantity: i % 7 === 0 ? 12 : 2,
 								unit_price: 8,
 							},
 							{
 								category: "equipment",
-								description: "PRUEBA · Uso de cortadora/sopladora (hora)",
+								description: "Uso de cortadora/sopladora (hora)",
 								quantity: 0.5,
 								unit_price: 18,
 							},
 							{
 								category: "travel",
-								description: "PRUEBA · Combustible y traslado asignado",
+								description: "Combustible y traslado asignado",
 								quantity: 1,
 								unit_price: 8,
 							},
 							{
 								category: "overhead",
-								description: "PRUEBA · Indirectos asignados",
+								description: "Indirectos asignados",
 								quantity: 1,
 								unit_price: 5,
 							},
@@ -557,11 +558,11 @@ export async function loadSampleOperations(
 							property_id: p.id,
 							issue_date: issue,
 							due_date: due,
-							notes: `DOCUMENTO SINTÉTICO DE PRUEBA. Sin validez fiscal, sin entrega al cliente y sin cobro real. Plan ${contract}`,
+							notes: `DOCUMENTO DE EVALUACIÓN. Sin validez fiscal, sin entrega al cliente y sin cobro real. Plan ${contract}`,
 							lines: [
 								{
 									description:
-										"PRUEBA · Plan mensual integral de la localidad — 4 visitas",
+										"Plan mensual integral de la localidad — 4 visitas",
 									quantity: 1,
 									unit_price: monthly,
 								},
