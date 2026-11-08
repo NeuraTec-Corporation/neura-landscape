@@ -1,3 +1,4 @@
+import { identityReadiness } from "@/modules/identity/configuration.mjs";
 import { principal } from "../_identity";
 import { database } from "@/modules/operations/index.mjs";
 import { z } from "zod";
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
 		const crews = (await db.query("SELECT id,name FROM crews ORDER BY name"))
 			.rows;
 		return Response.json(
-			{ users, crews, enabled: process.env.APP_AUTH_ENABLED === "true" },
+			{ users, crews, enabled: process.env.APP_AUTH_ENABLED === "true", readiness:identityReadiness() },
 			{ headers: { "Cache-Control": "no-store" } },
 		);
 	} catch {

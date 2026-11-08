@@ -1,4 +1,5 @@
 "use client";
+import type { IdentityReadiness } from "@/modules/identity/configuration.mjs";
 import { CatalogField } from "./catalogs";
 import { useEffect, useState, useCallback } from "react";
 const roles = {
@@ -21,6 +22,7 @@ export function UsersWorkspace() {
 	const [users, setUsers] = useState<Member[]>([]),
 		[crews, setCrews] = useState<{ id: string; name: string }[]>([]),
 		[enabled, setEnabled] = useState(false),
+		[readiness, setReadiness] = useState<IdentityReadiness | null>(null),
 		[edit, setEdit] = useState<Member | null>(null),
 		[busy, setBusy] = useState(false),
 		[error, setError] = useState(""),
@@ -32,6 +34,7 @@ export function UsersWorkspace() {
 		setUsers(v.users);
 		setCrews(v.crews);
 		setEnabled(v.enabled);
+		setReadiness(v.readiness);
 	}, []);
 	useEffect(() => {
 		refresh().catch((e) => setError(e.message));
@@ -43,6 +46,55 @@ export function UsersWorkspace() {
 				<h2>Personas con acceso</h2>
 				<p>Ingreso con Google, rol operativo y cuadrillas asignadas.</p>
 			</header>
+			{readiness ? (
+				<section className="panel" aria-label="Configuración del ingreso">
+					<p className="eyebrow">INGRESO CON GOOGLE</p>
+					<h3>
+						{readiness.ready
+							? enabled
+								? "Acceso individual configurado"
+								: "Configuración preparada; activación pendiente"
+							: "Configuración pendiente"}
+					</h3>
+					<p>
+						Las cuentas autorizadas y sus roles se validan en el servidor.
+						Preparar las credenciales no activa automáticamente el ingreso.
+					</p>
+					{readiness.missing.length ? (
+						<div>
+							<strong>Falta configurar en Vercel</strong>
+							<ul>
+								{readiness.missing.map((key) => (
+									<li key={key}>
+										<code>{key}</code>
+									</li>
+								))}
+							</ul>
+						</div>
+					) : null}
+					{readiness.issues.map((issue) => (
+						<p key={issue} role="alert">
+							{issue}
+						</p>
+					))}
+					{readiness.callbackUrl ? (
+						<details>
+							<summary>Dirección de retorno para Google Cloud</summary>
+							<p style={{ overflowWrap: "anywhere" }}>
+								<code>{readiness.callbackUrl}</code>
+							</p>
+							<p>
+								Usa esta dirección exacta en el cliente OAuth de tipo aplicación
+								web.
+							</p>
+						</details>
+					) : null}
+					<p className="muted">
+						No introduzcas contraseñas ni claves en esta pantalla.
+					</p>
+				</section>
+			) : null}
+
 			{!enabled ? (
 				<p className="notice">
 					El acceso individual aún no está activado: falta configurar Google

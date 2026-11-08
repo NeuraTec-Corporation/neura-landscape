@@ -1,3 +1,4 @@
+import { identityMode } from "@/modules/identity/configuration.mjs";
 import { principal } from "../_identity";
 import { authConfigured } from "@/modules/identity/auth.mjs";
 import { allowedRequest } from "../_access";
@@ -9,8 +10,8 @@ export async function GET(request: Request) {
 	return Response.json(
 		{
 			member,
-			enabled: process.env.APP_AUTH_ENABLED === "true",
-			configured: authConfigured(),
+			enabled: identityMode() !== "evaluation",
+			configured: identityMode() === "google" && authConfigured(),
 		},
 		{ headers: { "Cache-Control": "no-store" } },
 	);

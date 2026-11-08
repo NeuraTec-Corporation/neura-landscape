@@ -1,17 +1,11 @@
+import { identityReadiness } from "./configuration.mjs";
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 import { getMigrations } from "better-auth/db/migration";
 import { Pool } from "pg";
 import { database } from "../operations/index.mjs";
-export function authConfigured() {
-	return Boolean(
-		process.env.GOOGLE_CLIENT_ID &&
-			process.env.GOOGLE_CLIENT_SECRET &&
-			process.env.BETTER_AUTH_SECRET &&
-			process.env.BETTER_AUTH_URL &&
-			process.env.DATABASE_URL,
-	);
-}
+export function authConfigured() { return identityReadiness().ready; }
+
 let instance;
 export async function authentication() {
 	if (!authConfigured()) throw new Error("Google OAuth no está configurado.");
@@ -25,6 +19,7 @@ export async function authentication() {
 			const auth = betterAuth({
 				database: pool,
 				baseURL: process.env.BETTER_AUTH_URL,
+ trustedOrigins: [identityReadiness().origin],
 				secret: process.env.BETTER_AUTH_SECRET,
 				emailAndPassword: { enabled: false },
 				socialProviders: {

@@ -1,3 +1,4 @@
+import { identityMode } from "@/modules/identity/configuration.mjs";
 import {assignedProperty} from "@/modules/identity/assignments.mjs";
 import { allowedRequest } from "./_access";
 import {
@@ -9,7 +10,9 @@ import {
 import { database } from "@/modules/operations/index.mjs";
 export async function principal(request: Request): Promise<Member | null> {
 	if (!allowedRequest(request)) return null;
-	if (process.env.APP_AUTH_ENABLED !== "true")
+	const mode = identityMode();
+ if (mode === "blocked") return null;
+ if (mode === "evaluation")
 		return {
 			email: "",
 			name: "Evaluación protegida",

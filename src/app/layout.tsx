@@ -1,3 +1,4 @@
+import { identityMode } from "@/modules/identity/configuration.mjs";
 import type { Metadata } from "next";
 import "./globals.css";
 import { CatalogProvider } from "./_components/catalogs";
@@ -16,7 +17,7 @@ export default function RootLayout({
 			<body>
 				<CatalogProvider>
 					<IdentityGate
-						initialEnabled={process.env.APP_AUTH_ENABLED === "true"}
+						initialEnabled={identityMode() !== "evaluation"}
 					>
 						{children}
 					</IdentityGate>

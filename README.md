@@ -181,6 +181,23 @@ Vercel environment variables without putting credentials in chat or source:
 - Then APP_AUTH_ENABLED=true, redeploy and verify the first Google login.
 
 Register exactly BETTER_AUTH_URL + /api/auth/callback/google in Google Cloud OAuth.
+
+The **Usuarios y niveles** screen now reports configuration readiness without exposing secret values.
+Only a stable HTTPS origin is accepted on hosted environments, and session secrets require at least
+32 characters. Hosted evaluation must be explicitly selected with APP_AUTH_ENABLED=false on Preview.
+Missing/invalid mode settings fail closed; production never grants the evaluation administrator.
+Local development retains evaluation access. Keep Preview protected while preparing OAuth.
+
+For the existing Landscape branch, the approved callback is:
+https://neura-landscape-git-feat-bootstrap-0ef63a-neuratec-corporation.vercel.app/api/auth/callback/google
+
+Use one Google Cloud project for Landscape and a Web application OAuth client. Only identity
+scopes (openid, email, profile) are needed; do not add Gmail, Drive or Maps permissions.
+Enter GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET directly as Preview secrets in Vercel.
+Reuse the existing session secret and database. The initial IT administrator is configured
+by LANDSCAPE_IT_ADMIN_EMAIL; real sign-in and allowlist behavior must be checked before activation.
+Creating credentials and configuring variables is not proof that a Google login was executed.
+
 Use a stable approved branch alias, not an expiring individual deployment hostname.
 Better Auth creates/updates its own auth tables on first configured access under a
 separate advisory lock; migrations 005/006 version the survey and role tables.
