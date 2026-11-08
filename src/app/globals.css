@@ -1789,3 +1789,7 @@ button:disabled {
 @layer management {
  :where(.manage-workspace > *, .crm-directory, .data-directory, .directory-table-wrap, .dashboard-data > *) { min-width:0; max-width:100%; }
 }
+
+@layer management {
+ .directory-search .manage-actions button { flex:0 0 auto; width:auto; }
+}
