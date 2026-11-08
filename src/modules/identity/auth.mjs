@@ -17,23 +17,38 @@ export async function authentication() {
 			const pool = new Pool({
 				connectionString: process.env.DATABASE_URL,
 				max: 3,
+				connectionTimeoutMillis: 10000,
+				query_timeout: 20000,
 			});
 			const auth = betterAuth({
 				...authenticationOptions(pool),
 				plugins: [nextCookies()],
 			});
-			const client = await pool.connect();
-			try {
-				await client.query("SELECT pg_advisory_lock(703920)");
-				const migration = await getMigrations(auth.options);
-				await migration.runMigrations();
-			} finally {
-				await client.query("SELECT pg_advisory_unlock(703920)");
-				client.release();
-			}
+			await prepareIdentitySchema(pool, auth.options);
 			return auth;
 		})();
 	return instance;
+}
+export async function prepareIdentitySchema(
+	pool,
+	options,
+	migrations = getMigrations,
+) {
+	const client = await pool.connect();
+	try {
+		await client.query("BEGIN");
+		// Transaction-poolers cannot safely pair session-level lock/unlock calls.
+		// A dedicated transaction pins this coordinator until commit/rollback.
+		await client.query("SET LOCAL lock_timeout='15s'");
+		await client.query("SELECT pg_advisory_xact_lock(703922)");
+		await (await migrations(options)).runMigrations();
+		await client.query("COMMIT");
+	} catch (error) {
+		await client.query("ROLLBACK");
+		throw error;
+	} finally {
+		client.release();
+	}
 }
 export async function memberForSession(db, session, bootstrapEmail = "") {
 	if (!session?.user?.email) return null;

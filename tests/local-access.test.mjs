@@ -5,6 +5,7 @@ import { betterAuth } from "better-auth";
 import { getMigrations } from "better-auth/db/migration";
 import {
 	authenticationOptions,
+	prepareIdentitySchema,
 	memberForSession,
 } from "../src/modules/identity/auth.mjs";
 import { localAccessService } from "../src/modules/identity/local-access.mjs";
@@ -269,4 +270,57 @@ test("adding a local credential preserves an existing Google identity and accoun
 	}
 });
 
-test("concurrent redemption consumes a bearer link only once",async()=>{const {db,service}=await setup();try{const link=await service.issue(ctx,email);const result=await Promise.allSettled([service.redeem(link.token,secret),service.redeem(link.token,secret)]);assert.equal(result.filter(r=>r.status==="fulfilled").length,1);assert.equal(result.filter(r=>r.status==="rejected").length,1);assert.equal((await db.query('SELECT * FROM account WHERE "providerId"=\'credential\'')).rows.length,1);}finally{await db.close();}});
+test("concurrent redemption consumes a bearer link only once", async () => {
+	const { db, service } = await setup();
+	try {
+		const link = await service.issue(ctx, email);
+		const result = await Promise.allSettled([
+			service.redeem(link.token, secret),
+			service.redeem(link.token, secret),
+		]);
+		assert.equal(result.filter((r) => r.status === "fulfilled").length, 1);
+		assert.equal(result.filter((r) => r.status === "rejected").length, 1);
+		assert.equal(
+			(
+				await db.query(
+					"SELECT * FROM account WHERE \"providerId\"='credential'",
+				)
+			).rows.length,
+			1,
+		);
+	} finally {
+		await db.close();
+	}
+});
+
+test("identity initialization coordinates migrations with a transaction-scoped lock and releases on failure", async () => {
+	for (const failure of [false, true]) {
+		const events = [];
+		const pool = {
+			connect: async () => ({
+				query: async (sql) => {
+					events.push(sql);
+				},
+				release: () => events.push("release"),
+			}),
+		};
+		const fn = prepareIdentitySchema(pool, {}, async () => ({
+			runMigrations: async () => {
+				events.push("migrate");
+				if (failure) throw Error("fixture");
+			},
+		}));
+		if (failure) await assert.rejects(fn, /fixture/);
+		else await fn;
+		assert.equal(events[0], "BEGIN");
+		assert.ok(events.some((v) => v.includes("pg_advisory_xact_lock")));
+		assert.equal(
+			events.some((v) => v.includes("pg_advisory_unlock(")),
+			false,
+		);
+		assert.deepEqual(events.slice(-2), [
+			failure ? "ROLLBACK" : "COMMIT",
+			"release",
+		]);
+	}
+});
