@@ -1793,3 +1793,7 @@ button:disabled {
 @layer management {
  .directory-search .manage-actions button { flex:0 0 auto; width:auto; }
 }
+
+@layer management {
+ .manager-dashboard .notice { white-space:normal; overflow-wrap:anywhere; }
+}
