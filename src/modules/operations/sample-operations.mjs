@@ -91,7 +91,8 @@ export async function loadSampleOperations(
 		};
 		const manifest = {
 			synthetic: true,
-			version: 1, identity_version: 2,
+			version: 1,
+			identity_version: 2,
 			anchor_day: day(now),
 			from: `${day(now).slice(0, 7)}-01`,
 			to: "",
@@ -186,7 +187,10 @@ export async function loadSampleOperations(
 						await saveEmployee(scoped, {
 							first_name: first[c * 3 + m],
 							last_name: employeeSurnames[c * 3 + m],
-							email: fictionalEmail(first[c * 3 + m], employeeSurnames[c * 3 + m]),
+							email: fictionalEmail(
+								first[c * 3 + m],
+								employeeSurnames[c * 3 + m],
+							),
 							phone: "",
 							role_key: m === 0 ? "leader" : m === 1 ? "operator" : "gardener",
 							skills:
@@ -271,13 +275,7 @@ export async function loadSampleOperations(
 			manifest.zones++;
 			const elements = [];
 			for (const [name, kind, quantity, service, zoneId] of [
-				[
-					"Árboles ornamentales",
-					"tree",
-					3 + (i % 3),
-					"pruning",
-					front.id,
-				],
+				["Árboles ornamentales", "tree", 3 + (i % 3), "pruning", front.id],
 				["Árbol frutal", "fruit_tree", 1, "preserve", rear],
 				["Jardineras", "planter", 2 + (i % 4), "planting", rear],
 			]) {
@@ -344,7 +342,8 @@ export async function loadSampleOperations(
 							],
 							reason:
 								"ESCENARIO SINTÉTICO. Propuesta de corte únicamente; no incluye el resto del plan integral.",
-							notes: "Datos de evaluación. Sin envío, aceptación ni cobro real.",
+							notes:
+								"Datos de evaluación. Sin envío, aceptación ni cobro real.",
 						},
 						actor,
 					)
@@ -385,19 +384,17 @@ export async function loadSampleOperations(
 							? "completed"
 							: "scheduled";
 				if (cycle === 2 && i % 13 === 0) state = "cancelled";
-				const localHour = Number(
-					new Date(now).toLocaleTimeString("en-GB", {
-						timeZone: "America/New_York",
-						hour: "2-digit",
-						hourCycle: "h23",
-					}),
-				);
-				if (cycle === 2 && i < 6 && localHour >= 7 && localHour < 17) {
-					scheduled = new Date(
-						new Date(now).getTime() - 20 * 60000,
-					).toISOString();
+				// Keep the valid schedule: moving a visit to "now" can overlap another stop.
+				const plannedMinutes = 35 + (i % 4) * 10;
+				if (
+					state === "scheduled" &&
+					cycle === 2 &&
+					new Date(now).getTime() >= Date.parse(scheduled) &&
+					new Date(now).getTime() <
+						Date.parse(scheduled) + plannedMinutes * 60000
+				)
 					state = "started";
-				}
+
 				const main = serviceKeys[(i + cycle) % serviceKeys.length],
 					quantity =
 						main === "mowing"
@@ -451,7 +448,7 @@ export async function loadSampleOperations(
 							crew_id: crew.id,
 							scheduled_at: scheduled,
 							title: `Visita ${cycle + 1} · ${p.name}`,
-							planned_minutes: 35 + (i % 4) * 10,
+							planned_minutes: plannedMinutes,
 							travel_minutes: 15,
 							tasks,
 						})
@@ -483,10 +480,18 @@ export async function loadSampleOperations(
 						tasks: rows.map((t) => ({
 							id: t.id,
 							completed_quantity:
-								i % 11 === 0 && t.description === "Recolectar hojas y revisar acceso" ? 0 : Number(t.quantity),
-							status: i % 11 === 0 && t.description === "Recolectar hojas y revisar acceso" ? "blocked" : "done",
+								i % 11 === 0 &&
+								t.description === "Recolectar hojas y revisar acceso"
+									? 0
+									: Number(t.quantity),
+							status:
+								i % 11 === 0 &&
+								t.description === "Recolectar hojas y revisar acceso"
+									? "blocked"
+									: "done",
 							notes:
-								i % 11 === 0 && t.description === "Recolectar hojas y revisar acceso"
+								i % 11 === 0 &&
+								t.description === "Recolectar hojas y revisar acceso"
 									? "SIMULACIÓN: acceso cerrado; requiere reprogramación."
 									: "",
 						})),

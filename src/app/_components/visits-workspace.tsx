@@ -1,4 +1,5 @@
 "use client";
+import { useSessionAccess } from "./user-account";
 import { PagedCollection } from "./paged-collection";
 import { useEffect, useState } from "react";
 import { CatalogSelect, useCatalogs } from "./catalogs";
@@ -270,6 +271,13 @@ function ExecutionForm({
 	);
 }
 export function VisitsWorkspace() {
+	const access = useSessionAccess();
+	const canCreate = access.can("visits.create"),
+		canUpdate = access.can("visits.update"),
+		canExecute = access.can("visits.execute"),
+		canDelete = access.can("visits.delete"),
+		canCosts = access.can("costs.read"),
+		canPlan = canCreate || canUpdate;
 	const state = useManagement<Visit[]>("visits"),
 		c = useCatalogs(),
 		[workforce, setWorkforce] = useState<Workforce | null>(null),
@@ -294,6 +302,7 @@ export function VisitsWorkspace() {
 		[filter, setFilter] = useState(""),
 		[title, setTitle] = useState("");
 	useEffect(() => {
+		if (!canPlan) return;
 		Promise.all([
 			readManagement<Workforce>("workforce"),
 			fetch("/api/contracts").then(async (r) => {
@@ -307,7 +316,7 @@ export function VisitsWorkspace() {
 				setContracts(ct);
 			})
 			.catch((e) => state.setError(e.message));
-	}, [state.setError]);
+	}, [state.setError, canPlan]);
 	const contract = contracts.find((ct) => ct.id === contractId),
 		crew = workforce?.crews.find((ct) => ct.id === crewId);
 	useEffect(() => {
@@ -356,7 +365,7 @@ export function VisitsWorkspace() {
 					onSubmit={state.save}
 					onClose={() => setExecution(null)}
 				/>
-			) : (
+			) : (editing ? canUpdate : canCreate) ? (
 				<section className="panel">
 					<h2>
 						{editing ? "Editar y reprogramar visita" : "Programar visita"}
@@ -670,7 +679,7 @@ export function VisitsWorkspace() {
 						</fieldset>
 					</form>
 				</section>
-			)}
+			) : null}
 			<div className="manage-actions">
 				<h2>Visitas y ejecución</h2>
 				<label>
@@ -685,7 +694,11 @@ export function VisitsWorkspace() {
 					</select>
 				</label>
 			</div>
-			<PagedCollection label="Visitas y ejecución" defaultSize={2} className="visit-grid">
+			<PagedCollection
+				label="Visitas y ejecución"
+				defaultSize={2}
+				className="visit-grid"
+			>
 				{state.data
 					?.filter((v) => !filter || v.status === filter)
 					.map((v) => (
@@ -761,12 +774,13 @@ export function VisitsWorkspace() {
 														: [freshTask()],
 												);
 											}}
+											disabled={state.busy || !canUpdate}
 										>
 											Editar visita
 										</button>
 										<button
 											type="button"
-											disabled={state.busy}
+											disabled={state.busy || !canExecute}
 											onClick={() =>
 												void state.save({
 													action: "start",
@@ -800,6 +814,7 @@ export function VisitsWorkspace() {
 													reason,
 												});
 										}}
+										disabled={state.busy || !canExecute}
 									>
 										Editar registro
 									</button>
@@ -808,6 +823,7 @@ export function VisitsWorkspace() {
 									<button
 										type="button"
 										onClick={() => setExecution({ visit: v, cancel: false })}
+										disabled={state.busy || !canExecute}
 									>
 										Finalizar ejecución
 									</button>
@@ -816,7 +832,7 @@ export function VisitsWorkspace() {
 									<button
 										type="button"
 										className="quiet-button"
-										disabled={state.busy}
+										disabled={state.busy || !canExecute}
 										onClick={() => {
 											const reason = window.prompt(
 												"Motivo de cancelación (mínimo 5 caracteres):",
@@ -837,17 +853,20 @@ export function VisitsWorkspace() {
 										type="button"
 										className="quiet-button"
 										onClick={() => setExecution({ visit: v, cancel: true })}
+										disabled={state.busy || !canExecute}
 									>
 										Cancelar visita
 									</button>
 								) : null}
-								<a className="button-link" href={`/costos?visit_id=${v.id}`}>
-									Detalle de costos
-								</a>
+								{canCosts ? (
+									<a className="button-link" href={`/costos?visit_id=${v.id}`}>
+										Detalle de costos
+									</a>
+								) : null}
 								<button
 									type="button"
 									className="quiet-button"
-									disabled={state.busy}
+									disabled={state.busy || !canDelete}
 									onClick={() => {
 										if (
 											!window.confirm(

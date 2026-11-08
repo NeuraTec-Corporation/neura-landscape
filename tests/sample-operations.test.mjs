@@ -26,6 +26,7 @@ test("operational scenario feeds dashboard from linked records, preserves prior 
 			confirmed: true,
 			actor: "qa",
 			environment: "preview",
+			now: new Date("2026-11-08T16:20:00Z"),
 		});
 		assert.equal(r.customers, 33);
 		assert.equal(r.operations.properties, 78);
@@ -35,6 +36,22 @@ test("operational scenario feeds dashboard from linked records, preserves prior 
 		assert.equal(r.operations.employees, 18);
 		assert.equal(r.operations.crews, 6);
 		assert.equal(r.operations.visits, 296);
+		assert.ok(
+			Number(
+				(await db.query("SELECT count(*) n FROM visits WHERE status='started'"))
+					.rows[0].n,
+			) > 0,
+		);
+		assert.equal(
+			Number(
+				(
+					await db.query(
+						"SELECT count(*) n FROM visits a JOIN visits b ON a.id<b.id AND a.crew_id=b.crew_id WHERE a.status IN ('scheduled','started') AND b.status IN ('scheduled','started') AND a.scheduled_at-a.travel_minutes*interval '1 minute'<b.scheduled_at+b.planned_minutes*interval '1 minute' AND b.scheduled_at-b.travel_minutes*interval '1 minute'<a.scheduled_at+a.planned_minutes*interval '1 minute'",
+					)
+				).rows[0].n,
+			),
+			0,
+		);
 		assert.equal(r.operations.invoices, 148);
 		const d = await managementDashboard(db, {
 			from: r.operations.history_from,
@@ -60,7 +77,14 @@ test("operational scenario feeds dashboard from linked records, preserves prior 
 		assert.ok(d.summary.scheduled > 0);
 		assert.ok(d.summary.trees_pruned > 0);
 		assert.ok(d.summary.blocked_tasks > 0);
- assert.equal((await db.query("SELECT count(*)::int n FROM visit_tasks WHERE status='blocked' AND service_key='pruning'")).rows[0].n,0);
+		assert.equal(
+			(
+				await db.query(
+					"SELECT count(*)::int n FROM visit_tasks WHERE status='blocked' AND service_key='pruning'",
+				)
+			).rows[0].n,
+			0,
+		);
 		assert.ok(d.production.length >= 7);
 		assert.ok(d.productivity.length === 18);
 		assert.ok(d.summary.billed_cents > 0);
@@ -104,36 +128,119 @@ test("operational scenario feeds dashboard from linked records, preserves prior 
 			(await db.query("SELECT name FROM crews WHERE id=$1", [id])).rows[0].name,
 			"EDICIÓN CONSERVADA",
 		);
- // Emulate the previous labels in the existing tagged scenario, then upgrade in place.
- const customer=(await db.query("SELECT c.* FROM customers c JOIN sample_data_records r ON r.entity='customer' AND r.entity_id=c.id WHERE c.name='ADRIANA MENDOZA'")).rows[0];
- await db.query("UPDATE customers SET name='CLIENTE PRUEBA UNO' WHERE id=$1",[customer.id]);
- await db.query("UPDATE customer_profiles SET first_name='CLIENTE',last_name='PRUEBA UNO' WHERE customer_id=$1",[customer.id]);
- await db.query("UPDATE customer_contacts SET first_name='CONTACTO',last_name='PRUEBA',email='ux01-cliente-01@example.invalid' WHERE customer_id=$1",[customer.id]);
- const site=(await db.query("SELECT * FROM properties WHERE code LIKE 'LOC-NL-%-0001'")).rows[0];
- await db.query("UPDATE properties SET name='RESIDENCIA DE PRUEBA 1',code=replace(code,'LOC-NL-','LOC-PRUEBA-') WHERE id=$1",[site.id]);
- const staff=(await db.query("SELECT * FROM employees WHERE first_name='ELENA'")).rows[0];
- await db.query("UPDATE employees SET last_name='EJEMPLO',email='equipo-1@example.invalid' WHERE id=$1",[staff.id]);
- await db.query("UPDATE visit_personnel SET name_snapshot='ELENA EJEMPLO' WHERE employee_id=$1",[staff.id]);
- const estimate=(await db.query("SELECT e.*,r.snapshot FROM estimate_drafts e JOIN estimate_revisions r ON r.estimate_id=e.id AND r.revision=e.revision LIMIT 1")).rows[0];
- await db.query("UPDATE estimate_drafts SET title='PRUEBA · '||title WHERE id=$1",[estimate.id]);
- const before=(await managementDashboard(db,{from:r.operations.history_from,to:r.operations.to,origin:"sample"})).summary;
- await db.exec("DELETE FROM schema_migrations WHERE version=12");
- await migrate(db);
- assert.equal((await db.query("SELECT name FROM customers WHERE id=$1",[customer.id])).rows[0].name,"ADRIANA MENDOZA");
- assert.equal((await db.query("SELECT name FROM properties WHERE id=$1",[site.id])).rows[0].name,"CASA LOS OLMOS");
- assert.equal((await db.query("SELECT last_name FROM employees WHERE id=$1",[staff.id])).rows[0].last_name,"MORALES");
- assert.equal((await db.query("SELECT name FROM crews WHERE id=$1",[id])).rows[0].name,"EDICIÓN CONSERVADA");
- assert.equal((await db.query("SELECT name FROM customers WHERE id=$1",[prior])).rows[0].name,"REGISTRO PREVIO QA");
- const revised=(await db.query("SELECT * FROM estimate_drafts WHERE id=$1",[estimate.id])).rows[0];
- assert.equal(revised.revision,2);
- const revisions=(await db.query("SELECT * FROM estimate_revisions WHERE estimate_id=$1 ORDER BY revision",[estimate.id])).rows;
- assert.deepEqual(revisions[0].snapshot,estimate.snapshot);
- assert.deepEqual(revisions[1].snapshot.calculation,estimate.snapshot.calculation);
- const after=(await managementDashboard(db,{from:r.operations.history_from,to:r.operations.to,origin:"sample"})).summary;
- assert.deepEqual(after,before);
- await migrate(db);
- assert.equal((await db.query("SELECT revision FROM estimate_drafts WHERE id=$1",[estimate.id])).rows[0].revision,2);
-
+		// Emulate the previous labels in the existing tagged scenario, then upgrade in place.
+		const customer = (
+			await db.query(
+				"SELECT c.* FROM customers c JOIN sample_data_records r ON r.entity='customer' AND r.entity_id=c.id WHERE c.name='ADRIANA MENDOZA'",
+			)
+		).rows[0];
+		await db.query(
+			"UPDATE customers SET name='CLIENTE PRUEBA UNO' WHERE id=$1",
+			[customer.id],
+		);
+		await db.query(
+			"UPDATE customer_profiles SET first_name='CLIENTE',last_name='PRUEBA UNO' WHERE customer_id=$1",
+			[customer.id],
+		);
+		await db.query(
+			"UPDATE customer_contacts SET first_name='CONTACTO',last_name='PRUEBA',email='ux01-cliente-01@example.invalid' WHERE customer_id=$1",
+			[customer.id],
+		);
+		const site = (
+			await db.query("SELECT * FROM properties WHERE code LIKE 'LOC-NL-%-0001'")
+		).rows[0];
+		await db.query(
+			"UPDATE properties SET name='RESIDENCIA DE PRUEBA 1',code=replace(code,'LOC-NL-','LOC-PRUEBA-') WHERE id=$1",
+			[site.id],
+		);
+		const staff = (
+			await db.query("SELECT * FROM employees WHERE first_name='ELENA'")
+		).rows[0];
+		await db.query(
+			"UPDATE employees SET last_name='EJEMPLO',email='equipo-1@example.invalid' WHERE id=$1",
+			[staff.id],
+		);
+		await db.query(
+			"UPDATE visit_personnel SET name_snapshot='ELENA EJEMPLO' WHERE employee_id=$1",
+			[staff.id],
+		);
+		const estimate = (
+			await db.query(
+				"SELECT e.*,r.snapshot FROM estimate_drafts e JOIN estimate_revisions r ON r.estimate_id=e.id AND r.revision=e.revision LIMIT 1",
+			)
+		).rows[0];
+		await db.query(
+			"UPDATE estimate_drafts SET title='PRUEBA · '||title WHERE id=$1",
+			[estimate.id],
+		);
+		const before = (
+			await managementDashboard(db, {
+				from: r.operations.history_from,
+				to: r.operations.to,
+				origin: "sample",
+			})
+		).summary;
+		await db.exec("DELETE FROM schema_migrations WHERE version=12");
+		await migrate(db);
+		assert.equal(
+			(await db.query("SELECT name FROM customers WHERE id=$1", [customer.id]))
+				.rows[0].name,
+			"ADRIANA MENDOZA",
+		);
+		assert.equal(
+			(await db.query("SELECT name FROM properties WHERE id=$1", [site.id]))
+				.rows[0].name,
+			"CASA LOS OLMOS",
+		);
+		assert.equal(
+			(
+				await db.query("SELECT last_name FROM employees WHERE id=$1", [
+					staff.id,
+				])
+			).rows[0].last_name,
+			"MORALES",
+		);
+		assert.equal(
+			(await db.query("SELECT name FROM crews WHERE id=$1", [id])).rows[0].name,
+			"EDICIÓN CONSERVADA",
+		);
+		assert.equal(
+			(await db.query("SELECT name FROM customers WHERE id=$1", [prior]))
+				.rows[0].name,
+			"REGISTRO PREVIO QA",
+		);
+		const revised = (
+			await db.query("SELECT * FROM estimate_drafts WHERE id=$1", [estimate.id])
+		).rows[0];
+		assert.equal(revised.revision, 2);
+		const revisions = (
+			await db.query(
+				"SELECT * FROM estimate_revisions WHERE estimate_id=$1 ORDER BY revision",
+				[estimate.id],
+			)
+		).rows;
+		assert.deepEqual(revisions[0].snapshot, estimate.snapshot);
+		assert.deepEqual(
+			revisions[1].snapshot.calculation,
+			estimate.snapshot.calculation,
+		);
+		const after = (
+			await managementDashboard(db, {
+				from: r.operations.history_from,
+				to: r.operations.to,
+				origin: "sample",
+			})
+		).summary;
+		assert.deepEqual(after, before);
+		await migrate(db);
+		assert.equal(
+			(
+				await db.query("SELECT revision FROM estimate_drafts WHERE id=$1", [
+					estimate.id,
+				])
+			).rows[0].revision,
+			2,
+		);
 	} finally {
 		await db.close();
 	}

@@ -1,234 +1,365 @@
 "use client";
+import type { SecuritySnapshot } from "@/modules/security/index.mjs";
 import type { IdentityReadiness } from "@/modules/identity/configuration.mjs";
-import { CatalogField } from "./catalogs";
-import { useEffect, useState, useCallback } from "react";
-const roles = {
-	it_admin: "Administrador de TI",
-	owner: "Dueño",
-	manager: "Manager",
-	crew_lead: "Jefe de cuadrilla",
-	worker: "Trabajador",
-	finance: "Administración financiera",
-};
-type Member = {
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useCatalogs } from "./catalogs";
+import { SecurityProfiles } from "./security-profiles";
+import { PagedTable } from "./paged-collection";
+import { Notices } from "./management-shared";
+type User = {
 	email: string;
 	name: string;
 	role: string;
 	status: string;
 	revision: number;
 	crew_ids: string[];
+	profile_ids: string[];
+};
+type Data = SecuritySnapshot & {
+	users: User[];
+	crews: { id: string; name: string }[];
+	canEdit: boolean;
+	enabled: boolean;
+	readiness: IdentityReadiness;
 };
 export function UsersWorkspace() {
-	const [users, setUsers] = useState<Member[]>([]),
-		[crews, setCrews] = useState<{ id: string; name: string }[]>([]),
-		[enabled, setEnabled] = useState(false),
-		[readiness, setReadiness] = useState<IdentityReadiness | null>(null),
-		[edit, setEdit] = useState<Member | null>(null),
-		[busy, setBusy] = useState(false),
+	const [data, setData] = useState<Data | null>(null),
+		[tab, setTab] = useState("users"),
+		[edit, setEdit] = useState<User | null | undefined>(undefined),
 		[error, setError] = useState(""),
-		[notice, setNotice] = useState("");
+		[notice, setNotice] = useState(""),
+		[busy, setBusy] = useState(false),
+		[profileIds, setProfileIds] = useState<string[]>([]);
+	const formRef = useRef<HTMLElement>(null),
+		catalogs = useCatalogs();
 	const refresh = useCallback(async () => {
 		const r = await fetch("/api/users", { cache: "no-store" }),
 			v = await r.json();
 		if (!r.ok) throw new Error(v.error);
-		setUsers(v.users);
-		setCrews(v.crews);
-		setEnabled(v.enabled);
-		setReadiness(v.readiness);
+		setData(v);
 	}, []);
 	useEffect(() => {
 		refresh().catch((e) => setError(e.message));
 	}, [refresh]);
+	const changed = async () => {
+		await refresh();
+		await catalogs.reload();
+		window.dispatchEvent(new Event("security-changed"));
+	};
+	const open = (user?: User) => {
+		setEdit(user || null);
+		setProfileIds(user?.profile_ids || []);
+		setError("");
+		requestAnimationFrame(() => {
+			formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+			formRef.current?.focus();
+		});
+	};
+	if (!data)
+		return (
+			<section className="panel">
+				<Notices error={error} />
+				<p role="status">Consultando seguridad…</p>
+			</section>
+		);
 	return (
 		<section className="survey-workspace">
 			<header className="survey-hero">
-				<p className="eyebrow">IDENTIDAD Y RESPONSABILIDADES</p>
-				<h2>Personas con acceso</h2>
-				<p>Ingreso con Google, rol operativo y cuadrillas asignadas.</p>
+				<p className="eyebrow">SEGURIDAD DE LA EMPRESA</p>
+				<h2>Personas, perfiles y permisos</h2>
+				<p>
+					{data.company.name} · Los usuarios reciben permisos mediante perfiles.
+				</p>
 			</header>
-			{readiness ? (
-				<section className="panel" aria-label="Configuración del ingreso">
-					<p className="eyebrow">INGRESO CON GOOGLE</p>
-					<h3>
-						{readiness.ready
-							? enabled
-								? "Acceso individual configurado"
-								: "Configuración preparada; activación pendiente"
-							: "Configuración pendiente"}
-					</h3>
-					<p>
-						Las cuentas autorizadas y sus roles se validan en el servidor.
-						Preparar las credenciales no activa automáticamente el ingreso.
-					</p>
-					{readiness.missing.length ? (
-						<div>
-							<strong>Falta configurar en Vercel</strong>
-							<ul>
-								{readiness.missing.map((key) => (
-									<li key={key}>
-										<code>{key}</code>
-									</li>
-								))}
-							</ul>
-						</div>
-					) : null}
-					{readiness.issues.map((issue) => (
-						<p key={issue} role="alert">
-							{issue}
-						</p>
-					))}
-					{readiness.callbackUrl ? (
-						<details>
-							<summary>Dirección de retorno para Google Cloud</summary>
-							<p style={{ overflowWrap: "anywhere" }}>
-								<code>{readiness.callbackUrl}</code>
-							</p>
-							<p>
-								Usa esta dirección exacta en el cliente OAuth de tipo aplicación
-								web.
-							</p>
-						</details>
-					) : null}
-					<p className="muted">
-						No introduzcas contraseñas ni claves en esta pantalla.
-					</p>
-				</section>
-			) : null}
-
-			{!enabled ? (
-				<p className="notice">
-					El acceso individual aún no está activado: falta configurar Google
-					OAuth. La protección actual sigue siendo la del despliegue Vercel;
-					estos roles solo se aplican al activar el acceso individual.
-				</p>
-			) : null}
-			{error ? (
-				<p role="alert" className="notice error">
-					{error}
-				</p>
-			) : null}
-			{notice ? <p role="status">{notice}</p> : null}
-			<form
-				className="panel survey-form"
-				key={edit?.email ?? "new"}
-				onSubmit={async (e) => {
-					e.preventDefault();
-					const form = e.currentTarget,
-						fd = new FormData(form);
-					setBusy(true);
-					setError("");
-					try {
-						const response = await fetch("/api/users", {
-							method: "POST",
-							headers: { "Content-Type": "application/json" },
-							body: JSON.stringify({
-								email: edit?.email ?? fd.get("email"),
-								name: fd.get("name"),
-								role: fd.get("role"),
-								status: fd.get("status"),
-								crew_ids: fd.getAll("crew_ids"),
-								...(edit ? { revision: edit.revision } : {}),
-							}),
-						});
-						const v = await response.json();
-						if (!response.ok) throw new Error(v.error);
-						setEdit(null);
-						form.reset();
-						setNotice(
-							"Usuario autorizado guardado. No se ha enviado un correo de invitación.",
-						);
-						await refresh();
-					} catch (e) {
-						setError(e instanceof Error ? e.message : "No se pudo guardar.");
-					} finally {
-						setBusy(false);
-					}
-				}}
-			>
-				<fieldset disabled={busy}>
-					<legend>{edit ? "Editar acceso" : "Autorizar usuario"}</legend>
-					<div className="survey-fields">
-						<label>
-							Nombre
-							<input
-								name="name"
-								required
-								maxLength={150}
-								defaultValue={edit?.name ?? ""}
-							/>
-						</label>
-						<label>
-							Correo de Google
-							<input
-								name="email"
-								type="email"
-								required
-								maxLength={254}
-								defaultValue={edit?.email ?? ""}
-								disabled={!!edit}
-							/>
-						</label>
-						<CatalogField
-							label="Rol"
-							category="app_role"
-							name="role"
-							defaultValue={edit?.role ?? "worker"}
-						/>
-						<CatalogField
-							label="Estado"
-							category="member_status"
-							name="status"
-							defaultValue={edit?.status ?? "active"}
-						/>
-					</div>
-					<fieldset className="survey-assignments">
-						<legend>Cuadrillas asignadas</legend>
-						{crews.map((crew) => (
-							<label key={crew.id}>
-								<input
-									type="checkbox"
-									name="crew_ids"
-									value={crew.id}
-									defaultChecked={edit?.crew_ids.includes(crew.id) ?? false}
-								/>
-								{crew.name}
-							</label>
-						))}
-					</fieldset>
-					<p>
-						Trabajadores y jefes de cuadrilla solo consultarán visitas
-						pendientes o en ejecución de sus cuadrillas, sin tarifas ni reportes
-						financieros.
-					</p>
-					<button type="submit">Guardar acceso</button>
-					{edit ? (
-						<button type="button" onClick={() => setEdit(null)}>
-							Cancelar
-						</button>
-					) : null}
-				</fieldset>
-			</form>
-			<div className="survey-zone-grid">
-				{users.map((user) => (
-					<article className="panel" key={user.email}>
-						<h3>{user.name}</h3>
-						<p>{user.email}</p>
-						<span className="pill">
-							{roles[user.role as keyof typeof roles]} ·{" "}
-							{user.status === "active" ? "Activo" : "Deshabilitado"}
-						</span>
-						<p>
-							{user.crew_ids
-								.map((id) => crews.find((c) => c.id === id)?.name)
-								.filter(Boolean)
-								.join(" · ") || "Sin cuadrillas asignadas"}
-						</p>
-						<button type="button" onClick={() => setEdit(user)}>
-							Editar acceso
-						</button>
-					</article>
+			<Notices
+				error={edit !== undefined && tab === "users" ? "" : error}
+				notice={notice}
+			/>
+			<section className="survey-tabs" aria-label="Opciones de seguridad">
+				{[
+					["users", "Usuarios y accesos"],
+					["profiles", "Perfiles y permisos"],
+					["company", "Empresa y auditoría"],
+				].map(([id, label]) => (
+					<button
+						type="button"
+						key={id}
+						aria-pressed={tab === id}
+						onClick={() => {
+							setTab(id);
+							setError("");
+							setNotice("");
+						}}
+					>
+						{label}
+					</button>
 				))}
-			</div>
+			</section>
+			{tab === "profiles" ? (
+				<SecurityProfiles
+					data={data}
+					canEdit={data.canEdit}
+					onChange={changed}
+				/>
+			) : tab === "company" ? (
+				<section className="panel">
+					<h3>{data.company.name}</h3>
+					<p>
+						Empresa operativa actual. El modelo de seguridad separa las
+						membresías y los perfiles por empresa. La creación de otra empresa
+						operativa no está habilitada mientras se verifica el aislamiento de
+						los módulos de negocio.
+					</p>
+					<h3>Ingreso</h3>
+					<p>
+						{data.enabled && data.readiness.ready
+							? "Google configurado y activo"
+							: "Configuración de ingreso pendiente"}{" "}
+						· El ingreso con contraseña y la recuperación se incorporarán en
+						otro incremento.
+					</p>
+					<h3>Últimos cambios de seguridad</h3>
+					{data.history.length ? (
+						<ul>
+							{data.history.map((h) => (
+								<li key={h.id}>
+									{new Date(h.created_at).toLocaleString("es")} · {h.actor} ·{" "}
+									{h.entity}: {h.entity_id}
+								</li>
+							))}
+						</ul>
+					) : (
+						<p>No hay cambios registrados todavía.</p>
+					)}
+				</section>
+			) : (
+				<div className="manage-workspace">
+					<div className="manage-actions">
+						<h3>Usuarios de la empresa</h3>
+						{data.canEdit ? (
+							<button type="button" onClick={() => open()}>
+								＋ Autorizar usuario
+							</button>
+						) : null}
+					</div>
+					{edit !== undefined ? (
+						<section
+							ref={formRef}
+							tabIndex={-1}
+							className="panel security-editor"
+						>
+							<h3>
+								{edit ? `Editar acceso · ${edit.name}` : "Autorizar usuario"}
+							</h3>
+							<form
+								key={edit?.email || "new"}
+								onSubmit={async (e) => {
+									e.preventDefault();
+									const fd = new FormData(e.currentTarget);
+									setBusy(true);
+									setError("");
+									setNotice("");
+									try {
+										if (
+											!window.confirm(
+												"Se guardarán " +
+													profileIds.length +
+													" perfiles para este usuario en " +
+													data.company.name +
+													". ¿Continuar?",
+											)
+										)
+											return;
+										const r = await fetch("/api/users", {
+											method: "POST",
+											headers: { "Content-Type": "application/json" },
+											body: JSON.stringify({
+												email: edit?.email || fd.get("email"),
+												name: fd.get("name"),
+												status: fd.get("status"),
+												profile_ids: profileIds,
+												crew_ids: fd.getAll("crew_ids"),
+												version: data.company.version,
+												...(edit ? { revision: edit.revision } : {}),
+											}),
+										});
+										const v = await r.json();
+										if (!r.ok) throw new Error(v.error);
+										setEdit(undefined);
+										await changed();
+										setNotice(
+											"Acceso guardado. No se creó una cuenta de Google ni se envió una invitación.",
+										);
+									} catch (x) {
+										setError(
+											x instanceof Error ? x.message : "No se pudo guardar.",
+										);
+									} finally {
+										setBusy(false);
+									}
+								}}
+							>
+								<fieldset disabled={busy || !data.canEdit}>
+									<div className="manage-grid">
+										<label>
+											Nombre *
+											<input
+												name="name"
+												required
+												maxLength={150}
+												defaultValue={edit?.name || ""}
+											/>
+										</label>
+										<label>
+											Correo de ingreso *
+											<input
+												name="email"
+												type="email"
+												required
+												maxLength={254}
+												disabled={!!edit}
+												defaultValue={edit?.email || ""}
+											/>
+										</label>
+										<label>
+											Estado
+											<select
+												name="status"
+												defaultValue={edit?.status || "active"}
+											>
+												<option value="active">Activo</option>
+												<option value="disabled">Deshabilitado</option>
+											</select>
+										</label>
+									</div>
+									<fieldset className="security-choices">
+										<legend>
+											Perfiles asignados · {profileIds.length} seleccionados
+										</legend>
+										{data.profiles
+											.filter(
+												(p) =>
+													p.status === "active" || profileIds.includes(p.id),
+											)
+											.map((p) => (
+												<label key={p.id}>
+													<input
+														type="checkbox"
+														checked={profileIds.includes(p.id)}
+														disabled={
+															p.status !== "active" &&
+															!profileIds.includes(p.id)
+														}
+														onChange={(e) =>
+															setProfileIds((old) =>
+																e.target.checked
+																	? [...old, p.id]
+																	: old.filter((id) => id !== p.id),
+															)
+														}
+													/>
+													<span>
+														<strong>{p.name}</strong>
+														<small>
+															{p.scope === "assigned"
+																? "Solo sus asignaciones"
+																: "Empresa actual"}
+															{p.status !== "active" ? " · Retirado" : ""}
+														</small>
+													</span>
+												</label>
+											))}
+									</fieldset>
+									<p>
+										Los permisos de los perfiles activos se combinan. No mezcles
+										perfiles de empresa y de asignaciones en el mismo acceso.
+									</p>
+									<fieldset className="security-choices">
+										<legend>Cuadrillas asignadas</legend>
+										{data.crews.map((c) => (
+											<label key={c.id}>
+												<input
+													type="checkbox"
+													name="crew_ids"
+													value={c.id}
+													defaultChecked={
+														edit?.crew_ids.includes(c.id) || false
+													}
+												/>
+												{c.name}
+											</label>
+										))}
+									</fieldset>
+									<p>
+										Los perfiles de cuadrilla solo acceden a localidades con
+										trabajos vigentes asignados. El empleado y su cuenta de
+										acceso son registros distintos.
+									</p>
+									<button type="submit">Guardar acceso</button>
+								</fieldset>
+								<button
+									type="button"
+									className="quiet-button"
+									onClick={() => setEdit(undefined)}
+								>
+									Cancelar
+								</button>
+							</form>
+						</section>
+					) : null}
+					<PagedTable label="Usuarios y accesos">
+						<table className="data-directory">
+							<thead>
+								<tr>
+									<th>Usuario</th>
+									<th>Perfiles</th>
+									<th>Estado</th>
+									<th>Cuadrillas</th>
+									<th>Acciones</th>
+								</tr>
+							</thead>
+							<tbody>
+								{data.users.map((u) => (
+									<tr key={u.email}>
+										<td>
+											<strong>{u.name}</strong>
+											<span className="table-subline">{u.email}</span>
+										</td>
+										<td>
+											{u.profile_ids
+												.map(
+													(id) =>
+														data.profiles.find((p) => p.id === id)?.name || id,
+												)
+												.join(" · ") || "Sin perfil"}
+										</td>
+										<td>
+											{u.status === "active" ? "Activo" : "Deshabilitado"}
+										</td>
+										<td>
+											{u.crew_ids
+												.map((id) => data.crews.find((c) => c.id === id)?.name)
+												.filter(Boolean)
+												.join(" · ") || "Sin asignación"}
+										</td>
+										<td>
+											{data.canEdit ? (
+												<button
+													type="button"
+													className="quiet-button"
+													onClick={() => open(u)}
+												>
+													Editar acceso
+												</button>
+											) : null}
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</PagedTable>
+				</div>
+			)}
 		</section>
 	);
 }

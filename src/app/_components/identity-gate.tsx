@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { authClient } from "@/modules/identity/client";
 import { SurveyWorkspace } from "./survey-workspace";
-import { ManagementDashboard } from "./management-dashboard";
+import { WorkspaceAccess } from "./workspace-access";
 import {
 	SessionContext,
 	UserAccount,
@@ -109,17 +109,27 @@ export function IdentityGate({
 		[error, setError] = useState("");
 	useEffect(() => {
 		const controller = new AbortController();
-		fetch("/api/me", { signal: controller.signal, cache: "no-store" })
-			.then(async (r) => {
-				const v = await r.json();
-				if (!r.ok) throw new Error(v.error);
-				setAccess(v);
-			})
-			.catch((e) => {
-				if (e.name !== "AbortError") setError(e.message);
-			});
-		return () => controller.abort();
+		const reload = () => {
+			fetch("/api/me", { signal: controller.signal, cache: "no-store" })
+				.then(async (r) => {
+					const v = await r.json();
+					if (!r.ok) throw new Error(v.error);
+					setAccess(v);
+				})
+				.catch((e) => {
+					if (e.name !== "AbortError") setError(e.message);
+				});
+		};
+		reload();
+		window.addEventListener("security-changed", reload);
+		window.addEventListener("focus", reload);
+		return () => {
+			controller.abort();
+			window.removeEventListener("security-changed", reload);
+			window.removeEventListener("focus", reload);
+		};
 	}, []);
+
 	if (!access)
 		return (
 			<div>
@@ -178,23 +188,11 @@ export function IdentityGate({
 				<CrewPortal name={access.member.name} />
 			</SessionContext.Provider>
 		);
-	if (access.enabled && access.member?.role === "finance")
-		return (
-			<SessionContext.Provider value={access}>
-				<main className="crew-portal">
-					<header className="survey-hero">
-						<p className="eyebrow">ADMINISTRACIÓN FINANCIERA</p>
-						<h1>Control de servicio</h1>
-						<p>{access.member.name} · consulta de resultados operativos</p>
-						<UserAccount />
-					</header>
-					<ManagementDashboard />
-				</main>
-			</SessionContext.Provider>
-		);
 	return (
 		<SessionContext.Provider value={access}>
-			<div data-app-role={access.member?.role ?? "none"}>{children}</div>
+			<div data-app-role={access.member?.role ?? "none"}>
+				<WorkspaceAccess>{children}</WorkspaceAccess>
+			</div>
 		</SessionContext.Provider>
 	);
 }

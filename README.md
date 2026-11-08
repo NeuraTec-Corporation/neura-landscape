@@ -2,6 +2,12 @@
 
 Next.js + TypeScript application for customer relationships and landscaping operations.
 
+Current security scope: Google sign-in plus company-scoped, configurable access profiles,
+module/action checkboxes, transactional membership assignment and audited changes.
+See [security contracts and limits](docs/security.md). The sole operational company
+remains pinned until business-data tenant isolation is verified; password login is off.
+Earlier increment descriptions below retain their historical scope.
+
 ## Customer workspace
 
 The customer directory includes search, commercial-status filtering and pagination.
@@ -64,7 +70,7 @@ Local/CI tests use isolated PGlite PostgreSQL instances and never hosted credent
 The old .data/landscape data is not uploaded or synchronized to Neon.
 
 Vercel Authentication remains enabled for all deployments. This is a protected
-single-workspace evaluation release, not an implemented multi-tenant/RBAC platform.
+single operational workspace with profile-based authorization, not an accepted multi-tenant platform.
 Keep deployment protection enabled. Real multi-company operation still needs governed
 application identity, tenant isolation and operational acceptance.
 
@@ -244,8 +250,7 @@ before new scheduling. Legacy service prose is not guessed into production stati
   visits are flagged instead of inventing production. Comparisons require equivalent
   tasks, conditions and quality; visit count alone is not employee performance.
 - API mutations enforce role permissions, optimistic revisions and relational guards;
-  audit actors and before/after planning/cost snapshots are retained. Individual role
-  login still requires completing the Google OAuth configuration described above.
+  audit actors and before/after planning/cost snapshots are retained. Google identity is configured; separate real-user role acceptance remains pending.
 
 Verify with `npm run lint`, `npm run typecheck`, `npm run build`, `npm test` and
 `npm audit --audit-level=low`. The HTTP suite uses an isolated in-memory database,
@@ -272,7 +277,7 @@ a diagnostic HTTP run is available with LANDSCAPE_TEST_DEV=true. It tests an
 isolated development server; it does not substitute for the default CI production
 build/start verification. Never report a failed production build as passed.
 
-Google/Places remain disconnected; individual login activation, restoration tests,
+Historical B04 scope: Google identity was subsequently activated; Places, restoration tests,
 multi-company isolation and later approved-estimate/work-order flows are pending.
 
 ## Accepted offers and contract baselines (B05 / migration 009)

@@ -1,3 +1,4 @@
+import { authorizedMutation } from "../_identity";
 import { database } from "@/modules/operations/index.mjs";
 import { savePhoto, readPhoto } from "@/modules/operations/photos.mjs";
 import { SurveyError } from "@/modules/operations/survey.mjs";
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
 		).rows[0];
 		if (!row || !(await propertyAllowed(request, row.property_id)))
 			return new Response(null, { status: 404 });
-		const body = await readPhoto(await database(),row);
+		const body = await readPhoto(await database(), row);
 		if (!body) return new Response(null, { status: 404 });
 		return new Response(body as BodyInit, {
 			headers: {
@@ -34,7 +35,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
 	const url = new URL(request.url),
 		input = Object.fromEntries(url.searchParams);
-	if (!(await propertyAllowed(request, input.property_id)))
+	if (
+		!(await propertyAllowed(request, input.property_id)) ||
+		!(await authorizedMutation(request, "survey", input))
+	)
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 	try {
 		if (request.headers.get("content-type") !== "application/octet-stream")
@@ -72,4 +76,37 @@ export async function POST(request: Request) {
 	}
 }
 
-export async function DELETE(request:Request){try{const id=new URL(request.url).searchParams.get('id');const db=await database();const row=(await db.query<{property_id:string}>('SELECT property_id FROM property_photos WHERE id=$1 AND deleted_at IS NULL',[id])).rows[0];if(!row||!await propertyAllowed(request,row.property_id))return new Response(null,{status:404});await db.transaction(async tx=>{await tx.query('UPDATE property_photos SET deleted_at=now() WHERE id=$1',[id]);await tx.query("INSERT INTO service_audit(entity,entity_id,event) VALUES('photo',$1,'archived')",[id]);});return Response.json({ok:true});}catch{return Response.json({error:'No se pudo retirar la fotografía.'},{status:500});}}
+export async function DELETE(request: Request) {
+	try {
+		const id = new URL(request.url).searchParams.get("id");
+		const db = await database();
+		const row = (
+			await db.query<{ property_id: string }>(
+				"SELECT property_id FROM property_photos WHERE id=$1 AND deleted_at IS NULL",
+				[id],
+			)
+		).rows[0];
+		if (
+			!row ||
+			!(await propertyAllowed(request, row.property_id)) ||
+			!(await authorizedMutation(request, "survey", { action: "delete" }))
+		)
+			return new Response(null, { status: 404 });
+		await db.transaction(async (tx) => {
+			await tx.query(
+				"UPDATE property_photos SET deleted_at=now() WHERE id=$1",
+				[id],
+			);
+			await tx.query(
+				"INSERT INTO service_audit(entity,entity_id,event) VALUES('photo',$1,'archived')",
+				[id],
+			);
+		});
+		return Response.json({ ok: true });
+	} catch {
+		return Response.json(
+			{ error: "No se pudo retirar la fotografía." },
+			{ status: 500 },
+		);
+	}
+}

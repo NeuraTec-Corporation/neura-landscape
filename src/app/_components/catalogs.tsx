@@ -18,6 +18,8 @@ type Option = {
 };
 type CatalogData = {
 	role?: string;
+	grants?: string[];
+	allowedSections?: string[];
 	options: Option[];
 	categories: Record<string, string>;
 	canEdit: boolean;

@@ -1,3 +1,5 @@
+import { capability } from "../_security";
+import { sectionPermission } from "../../_security-manifest.mjs";
 import { database } from "@/modules/operations/index.mjs";
 import { principal } from "../_identity";
 import { ManageError, withActor } from "@/modules/operations/manage.mjs";
@@ -21,9 +23,18 @@ export async function GET(request: Request) {
 				options: await catalogOptions(db),
 				...metadata,
 				role: actor.role,
-				canEdit: ["it_admin", "owner", "manager"].includes(actor.role),
-				manageableCategories: Object.keys(metadata.categories).filter((c) =>
-					canManageCatalog(actor.role, c),
+				grants: actor.security?.grants || [],
+				allowedSections: Object.entries(sectionPermission)
+					.filter(([, resource]) => capability(actor, `${resource}.read`))
+					.map(([section]) => section),
+				canEdit: capability(actor, "catalogs.update"),
+				manageableCategories: Object.keys(metadata.categories).filter(
+					(c) =>
+						capability(actor, "catalogs.update") &&
+						canManageCatalog(
+							capability(actor, "security.update") ? "owner" : "manager",
+							c,
+						),
 				),
 			},
 			{ headers: { "Cache-Control": "no-store" } },
@@ -37,7 +48,7 @@ export async function GET(request: Request) {
 }
 export async function POST(request: Request) {
 	const actor = await principal(request);
-	if (!actor || !["it_admin", "owner", "manager"].includes(actor.role))
+	if (!actor || !capability(actor, "catalogs.update"))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 	if (!request.headers.get("content-type")?.startsWith("application/json"))
 		return Response.json({ error: "Se requiere JSON." }, { status: 415 });
@@ -49,7 +60,12 @@ export async function POST(request: Request) {
 				{ status: 413 },
 			);
 		const input = JSON.parse(raw);
-		if (!canManageCatalog(actor.role, input.category))
+		if (
+			!canManageCatalog(
+				capability(actor, "security.update") ? "owner" : "manager",
+				input.category,
+			)
+		)
 			return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 		return Response.json(
 			await withActor(actor.email || "protected-evaluation", async () =>

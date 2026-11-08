@@ -1,3 +1,4 @@
+import { authorizedMutation } from "../_identity";
 import { database } from "@/modules/operations/index.mjs";
 import { authorizedRequest as allowedRequest } from "../_identity";
 export const runtime = "nodejs";
@@ -31,6 +32,8 @@ export async function POST(request: Request) {
 		const raw = await request.text();
 		if (raw.length > 1000) throw new Error();
 		const { code } = JSON.parse(raw);
+		if (!(await authorizedMutation(request, "settings", {})))
+			return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 		if (
 			typeof code !== "string" ||
 			code.length > 40 ||

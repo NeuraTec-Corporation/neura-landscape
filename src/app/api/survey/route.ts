@@ -1,3 +1,4 @@
+import { authorizedMutation } from "../_identity";
 import { database } from "@/modules/operations/index.mjs";
 import {
 	survey,
@@ -54,6 +55,11 @@ export async function POST(request: Request) {
 				{ status: 413 },
 			);
 		const input = JSON.parse(raw);
+		if (!(await authorizedMutation(request, "survey", input)))
+			return Response.json(
+				{ error: "Acceso no permitido para esta acción." },
+				{ status: 403 },
+			);
 		if (!(await propertyAllowed(request, input.property_id)))
 			return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 		return Response.json(

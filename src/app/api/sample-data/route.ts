@@ -1,3 +1,4 @@
+import { capability } from "../_security";
 import { loadSampleOperations } from "@/modules/operations/sample-operations.mjs";
 import { database } from "@/modules/operations/index.mjs";
 import {
@@ -12,7 +13,20 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 export async function GET(request: Request) {
 	const actor = await principal(request);
-	if (!actor || !canLoadSamples(actor.role))
+	if (
+		!actor ||
+		!canLoadSamples(actor.role) ||
+		!capability(actor, "security.update") ||
+		![
+			"customers.create",
+			"properties.create",
+			"contracts.create",
+			"workforce.create",
+			"visits.create",
+			"finance.create",
+			"costs.update",
+		].every((key) => capability(actor, key))
+	)
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 	return Response.json(await sampleStatus(await database()), {
 		headers: { "Cache-Control": "no-store" },
@@ -20,7 +34,20 @@ export async function GET(request: Request) {
 }
 export async function POST(request: Request) {
 	const actor = await principal(request);
-	if (!actor || !canLoadSamples(actor.role))
+	if (
+		!actor ||
+		!canLoadSamples(actor.role) ||
+		!capability(actor, "security.update") ||
+		![
+			"customers.create",
+			"properties.create",
+			"contracts.create",
+			"workforce.create",
+			"visits.create",
+			"finance.create",
+			"costs.update",
+		].every((key) => capability(actor, key))
+	)
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 	if (!request.headers.get("content-type")?.startsWith("application/json"))
 		return Response.json({ error: "Se requiere JSON." }, { status: 415 });

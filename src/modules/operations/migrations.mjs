@@ -11,8 +11,9 @@ const files = [
 	"008_estimate_drafts.sql",
 	"009_estimate_acceptance.sql",
 	"010_ux_catalogs_samples.sql",
- "011_sample_operations.sql",
- "012_sample_identities.sql",
+	"011_sample_operations.sql",
+	"012_sample_identities.sql",
+	"013_security_profiles.sql",
 ];
 export async function migrate(db, advisory = false) {
 	await db.transaction(async (tx) => {

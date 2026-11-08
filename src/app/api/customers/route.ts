@@ -1,3 +1,4 @@
+import { authorizedMutation } from "../_identity";
 import {
 	database,
 	customerPropertyCounts,
@@ -53,6 +54,11 @@ export async function POST(request: Request) {
 				{ status: 413 },
 			);
 		const input = JSON.parse(raw);
+		if (!(await authorizedMutation(request, "customers", input)))
+			return Response.json(
+				{ error: "Acceso no permitido para esta acción." },
+				{ status: 403 },
+			);
 		return Response.json(
 			input.action === "reminder"
 				? await customerReminder(await database(), input)

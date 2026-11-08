@@ -1,6 +1,6 @@
 import { database } from "@/modules/operations/index.mjs";
 import { principal } from "../_identity";
-import { canManage } from "@/modules/identity/auth.mjs";
+import { manageAllowed as canManage, mutationAllowed } from "../_security";
 import {
 	issueOffer,
 	acceptOffer,
@@ -29,13 +29,13 @@ function failure(e: unknown) {
 }
 export async function GET(request: Request) {
 	const actor = await principal(request);
-	if (!actor || !canManage(actor.role, "estimates", "GET"))
+	if (!actor || !canManage(actor, "estimates", "GET"))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 	try {
 		return Response.json(
 			{
 				...(await estimateWorkspace(await database())),
-				canEdit: canManage(actor.role, "estimates", "POST"),
+				canEdit: canManage(actor, "estimates", "POST"),
 			},
 			{ headers: { "Cache-Control": "no-store" } },
 		);
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
 }
 export async function POST(request: Request) {
 	const actor = await principal(request);
-	if (!actor || !canManage(actor.role, "estimates", "POST"))
+	if (!actor || !canManage(actor, "estimates", "POST"))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 	if (!request.headers.get("content-type")?.startsWith("application/json"))
 		return Response.json({ error: "Se requiere JSON." }, { status: 415 });
@@ -65,6 +65,11 @@ export async function POST(request: Request) {
 		if (!parsed || typeof parsed !== "object")
 			return Response.json({ error: "Solicitud inválida." }, { status: 400 });
 		const v = parsed as Record<string, unknown>;
+		if (!mutationAllowed(actor, "estimates", v))
+			return Response.json(
+				{ error: "Acceso no permitido para esta acción." },
+				{ status: 403 },
+			);
 		const db = await database(),
 			who = actor.email || "protected-evaluation";
 		if (v.action === "issue")

@@ -7,6 +7,7 @@ export function memberForSession(
 ): Promise<Member | null>;
 export function canUse(role: string, path: string, method?: string): boolean;
 export type Member = {
+ security?: import("../security/index.mjs").SecurityAccess;
 	email: string;
 	name: string;
 	role: string;

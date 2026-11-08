@@ -33,7 +33,7 @@ function Icon({ name }: { name: string }) {
 export function WorkspaceNavigation({ section }: { section: string }) {
 	const { data } = useCatalogs(),
 		dialog = useRef<HTMLDialogElement>(null);
-	const groups = navigationFor(data.role),
+	const groups = navigationFor(data.role, data.allowedSections),
 		items = groups.flatMap((g) => g.items);
 	const links = (mobile: boolean) => (
 		<nav

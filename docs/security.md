@@ -1,0 +1,151 @@
+# Security kernel — 0.1 candidate
+
+This is the first functional SEC01 increment in the existing Landscape application,
+not a certified corporate Core package or a completed multi-tenant product.
+Canonical decision: https://app.notion.com/p/40b839ef360281d0af28ff7278f0d908 (SEC01).
+
+## Ownership and composition
+
+| Piece | Responsibility |
+| --- | --- |
+| `src/modules/security` | Generic membership/profile resolution, grant validation, authorization, transactions and security audit. |
+| `src/app/_security-manifest.mjs` | Landscape resource/action registry, allowed scopes, dependencies and initial profile definitions. |
+| `src/app/_permission-policy.mjs` | Adapter from HTTP/business operations to declared capabilities. |
+| `src/app/api/_security.ts` | Trusted compatibility enrollment and current operational-company selection. |
+| `src/modules/identity` | Existing Google/Better Auth sessions and legacy assignment scope; not a dependency of the kernel. |
+| `src/app/api/security`, `src/app/api/users` | HTTP transport and composition with existing identities/crews. |
+| `security-profiles.tsx`, `users-workspace.tsx` | Profile matrix and user-to-profile checkbox administration. |
+
+The kernel imports only its own policy and Node's UUID generator. It does not import
+Next.js, React, Google, Better Auth, a database driver, employees or Landscape business
+services. Biome boundaries and executable boundary probes reject those imports.
+Authentication remains an external identity-provider adapter; permission labels are
+not conditions such as `if profile.name === 'Supervisor'`.
+
+## Public contracts
+
+- `resolveSecurity(db, companyId, subjectId, registry)` returns effective scope,
+  active profiles and known grants, or null. No credentials are returned.
+- `permits(access, capability, companyId)` denies inactive or foreign-company access.
+- `validateGrants(registry, grants, scope)` rejects unknown keys, incompatible scopes,
+  missing read permission and declared dependencies.
+- `securityService(db, registry).snapshot(context)` exposes company-scoped profiles,
+  memberships and the latest audit metadata to an authorized administrator.
+- `.saveProfile(context, input)` creates, revises or retires a profile; `.assign`
+  replaces a membership's profile assignments. Both require the observed company
+  version and re-read the actor inside a transaction.
+- `enrollMembership` and the optional `.assign` preparation callback are trusted
+  integration ports, not public signup operations. The callback shares the same
+  transaction, so identity/crew updates roll back when authorization fails.
+
+Database port: `query(sql, parameters)` returning `{ rows }`, and
+`transaction(callback)` with a transaction-local query port. PostgreSQL JSONB and
+composite foreign keys are required. PGlite is the isolated test adapter; no driver
+is imported by the kernel. Declaration files describe the interface; runtime
+validation and tests remain necessary for the JavaScript implementation.
+
+## Data and transition
+
+Migration 013 adds `security_companies`, `security_profiles`,
+`security_memberships`, `security_assignments` and `security_audit`. Company-qualified
+foreign keys prevent assigning a profile from another company. Applied migrations
+are not edited. The generic schema precedes the explicitly marked Landscape seed
+section and is tested independently without Landscape tables.
+
+The migration adopts the existing company and maps existing accounts to initial
+TI, Dueños, Supervisor, Finanzas, Jefe de cuadrilla and Cuadrillas profiles. It does
+not create Google accounts, duplicate business records or reload the synthetic
+portfolio. A trusted bridge enrolls subsequently authenticated legacy identities
+once; an existing disabled membership is never silently re-enrolled.
+
+`app_members.role` remains a compatibility hint for the existing crew portal and
+assignment SQL, not the source of module/action authorization. Application API
+guards use effective grants. The old string-based `canUse`/`canManage` exports are
+legacy domain-test compatibility and must not be used to authorize new routes.
+
+## Rules enforced now
+
+- Deny by default; capabilities must exist in the application manifest.
+- Several active profiles may combine grants within one company. Company-wide and
+  assignment-only scopes cannot be mixed in this first version.
+- Assigned crews retain the existing active-assignment/property/photo checks and
+  cannot receive financial/company-wide capabilities.
+- Read is required before managing a resource. Planning creation/updates also
+  require the contract and workforce lookup capabilities.
+- Offer binding additionally checks contract creation/update capabilities.
+- Profile administrators cannot delegate capabilities they do not hold or alter
+  higher-privilege profiles/memberships. Only protected TI can assign protected TI.
+- The immutable TI continuity profile, last active protected administrator and
+  acting administrator's own security access are protected against lockout.
+  The configured bootstrap IT identity also retains its protected membership.
+- Company version locks reject concurrent/stale security writes. Identity fields,
+  crew assignments and profile assignment updates share one transaction.
+- Profile, membership and user/crew changes are audited without passwords/tokens.
+- Disabled company/membership or retired profiles revoke authorization on the next
+  request; there is no role-cookie cache. Revocation does not retroactively abort
+  an operation already authorized and executing in another transaction.
+- Menus reflect grants. The server independently checks reads and action-specific
+  mutations; a hidden button is not the authorization mechanism.
+- Operational visit responses omit financial fields without `costs.read`.
+  Dashboard access deliberately includes financial aggregates, and workforce
+  access includes employment/rate records; the profile editor makes that clear.
+- Photos, contracts and other current business records still belong to the sole
+  operational workspace. They are not yet tenant-keyed resources.
+
+## Current application experience
+
+Sistema → Usuarios y permisos has Users, Profiles and Company/audit views.
+Users receive profiles through checkboxes rather than a role dropdown. Profiles
+have a searchable module/action matrix; unsupported actions are unavailable.
+Selection helpers affect only visible modules; hidden selections remain intact.
+Save reviews additions/removals; stale writes retain the editor and are rejected.
+Lists use the existing seven-row search/pagination controls. Assigned profiles have
+limited scope; protected TI can be inspected but its grants cannot be changed.
+
+The account menu shows effective profile names and company. Finance now uses the
+shared authorized workspace rather than being forced into a dashboard-only portal.
+Users landing on an unauthorized page see links to their permitted modules.
+The server refreshes effective permissions per request; the browser refreshes its
+session view after a security change and on focus. Some existing module editors
+may still show an action the server denies; per-action UI treatment is not claimed
+complete outside the security editor and the updated agenda controls.
+
+## Acceptance and pending gates
+
+Executed test coverage is recorded in CI/release evidence, not inferred from this
+document. The suite exercises a standalone generic schema; A/B company membership
+and profile boundaries; foreign assignment keys; grant changes and retirement;
+disabled memberships/companies; delegated escalation; administrative lockout and
+rollback; manifest/request policy; legacy migration replay; and the actual protected
+HTTP profile/user lifecycle using an isolated evaluation database.
+
+The following remain separate, unimplemented or unaccepted gates:
+
+- Operational multi-company isolation across customers, contracts, visits, files,
+  financial records, caches and all relationships. The runtime pins the current
+  company; **there is no second-company selector or activation API**. The schema's
+  company rows do not establish business-data isolation or PostgreSQL RLS.
+- A platform-global administrator and cross-company company provisioning.
+- Email/password signup, secure recovery delivery, MFA and account linking. Google
+  remains the configured identity provider; password authentication stays off.
+- A direct employee-to-membership link. Existing employee and login records remain
+  distinct; crew assignments continue through the trusted Landscape adapter.
+- Separate real-browser sessions for all profiles, real PostgreSQL contention,
+  backup/restore acceptance and production operational use. PGlite tests do not
+  certify these properties.
+- Full per-action hiding/disable behavior in every older business editor.
+
+## Reuse and versioning
+
+This original project-owned implementation is a reusable candidate. Adoption by
+another project requires registry review, provenance/IP/confidentiality assessment,
+versioned interfaces and migrations, project-specific acceptance and a maintenance
+owner. A consumer registers its own resources and supplies ports; its identities,
+secrets and configuration remain independent. No other repository was changed and
+no package, central Core release or automatic cross-project propagation was created.
+
+New manifest keys require an explicit reviewed profile migration; a label or new
+screen does not automatically grant access. Before rollout, back up the database,
+validate legacy-account mapping and keep the existing protected Google/Preview
+access. Roll back application code only with a compatible schema; retain additive
+security tables and audit history rather than deleting them to repair access.

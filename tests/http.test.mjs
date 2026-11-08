@@ -684,3 +684,130 @@ test("operational sample API populates the dashboard and isolates synthetic reco
 	assert.ok(d.summary.billed_cents > 0);
 	assert.ok(d.summary.receivable_cents > 0);
 });
+
+test("security HTTP workflow stores profile grants and memberships atomically without changing company scope", async () => {
+	const get = async () => {
+		const r = await fetch(`${base}/api/users`);
+		assert.equal(r.status, 200);
+		return r.json();
+	};
+	const post = async (path, input, status = 200, origin = base) => {
+		const r = await fetch(base + path, {
+			method: "POST",
+			headers: { "Content-Type": "application/json", Origin: origin },
+			body: JSON.stringify(input),
+		});
+		const v = await r.json();
+		assert.equal(r.status, status, JSON.stringify(v));
+		return v;
+	};
+	let data = await get();
+	assert.equal(data.company.id, "landscape");
+	assert.equal(data.profiles.length, 6);
+	const profile = await post("/api/security", {
+		action: "profile",
+		name: "Consulta comercial",
+		description: "Acceso de consulta",
+		scope: "company",
+		status: "active",
+		grants: ["customers.read"],
+		version: data.company.version,
+	});
+	data = await get();
+	await post("/api/users", {
+		email: "elena.navarro@example.invalid",
+		name: "Elena Navarro",
+		status: "active",
+		profile_ids: [profile.id],
+		crew_ids: [],
+		version: data.company.version,
+	});
+	data = await get();
+	const user = data.users.find(
+		(u) => u.email === "elena.navarro@example.invalid",
+	);
+	assert.ok(user);
+	assert.deepEqual(user.profile_ids, [profile.id]);
+	await post(
+		"/api/security",
+		{
+			action: "profile",
+			id: profile.id,
+			name: profile.name,
+			description: "",
+			scope: "company",
+			status: "active",
+			grants: ["customers.read"],
+			version: 1,
+		},
+		409,
+	);
+	await post(
+		"/api/security",
+		{
+			action: "profile",
+			company_id: "another-company",
+			version: data.company.version,
+		},
+		403,
+	);
+	await post(
+		"/api/security",
+		{
+			action: "profile",
+			id: "default-it_admin",
+			name: "Otro",
+			description: "",
+			scope: "company",
+			status: "active",
+			grants: [],
+			version: data.company.version,
+		},
+		409,
+	);
+	await post(
+		"/api/security",
+		{
+			action: "profile",
+			name: "No guardar",
+			description: "",
+			scope: "company",
+			status: "active",
+			grants: [],
+			version: data.company.version,
+		},
+		403,
+		"https://external.invalid",
+	);
+	await post(
+		"/api/users",
+		{
+			email: user.email,
+			name: user.name,
+			status: "active",
+			revision: user.revision,
+			profile_ids: [],
+			crew_ids: [],
+			version: data.company.version,
+		},
+		422,
+	);
+	const unchanged = (await get()).users.find((u) => u.email === user.email);
+	assert.equal(unchanged.revision, user.revision);
+	await post("/api/security", {
+		action: "profile",
+		id: profile.id,
+		name: profile.name,
+		description: "Retirado",
+		scope: "company",
+		status: "retired",
+		grants: ["customers.read"],
+		version: data.company.version,
+	});
+	data = await get();
+	assert.equal(
+		data.profiles.find((p) => p.id === profile.id).status,
+		"retired",
+	);
+	assert.ok(data.history.length >= 3);
+});

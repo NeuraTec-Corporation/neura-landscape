@@ -29,10 +29,11 @@ worker/crew-lead membership, a current crew link, undeleted pending/in-progress 
 undeleted active contract/locality and undeleted crew. An archived assignment alone
 cannot authorize property or photo reads.
 
-Google individual authentication remains unconfigured/off in the hosted evaluation;
-Vercel Authentication protects it externally. Enabled app-auth fails closed when not
-configured. Per-role integration/tenant acceptance, real Google sessions, backup
-restore, offline execution and multi-company isolation remain separate gates.
+Google identity is configured in the protected branch Preview. The IT account
+login/logout/re-entry was verified before SEC01. SEC01 adds company-scoped
+profiles and server-enforced capabilities; see docs/security.md for contracts
+and limits. Other real-role sessions, operational tenant isolation, restore
+and offline execution remain separate acceptance gates.
 
 The existing operations module is still broad and identity still uses its database
 entry point. These known boundaries will be extracted incrementally against public
@@ -41,3 +42,5 @@ Landscape Intelligence, routing, telematics, stock, voice agents and automated o
 are not implemented by the estimate increment.
 
 B05 transport dispatches issue/accept/withdraw/decline/bind through the existing protected estimates API. Every mutation requires the managing role server-side. Finance can read; workers cannot read estimate costs. Acceptance does not infer a real client login. Commercial offer details omit internal cost breakdown; internal managers retain snapshot visibility. Same checkout, feature branch, database and Preview project.
+
+SEC01 supersedes earlier role/login scope statements: see [security.md](security.md). The current delivery remains a single operational company; profile/membership isolation is not operational multi-tenancy.

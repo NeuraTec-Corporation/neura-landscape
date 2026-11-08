@@ -88,6 +88,46 @@
           }
         }
       }
+    },
+    {
+      "includes": [
+        "src/modules/security/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/app",
+                      "@/app/**",
+                      "@/modules",
+                      "@/modules/**",
+                      "@/integrations/**",
+                      "@/shared/**",
+                      "..",
+                      "../**",
+                      "next",
+                      "next/**",
+                      "react",
+                      "react/**",
+                      "better-auth",
+                      "better-auth/**",
+                      "pg",
+                      "@electric-sql/**",
+                      "@vercel/**"
+                    ],
+                    "message": "The reusable security kernel depends on contracts, not frameworks, providers or vertical modules."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   ]
 }

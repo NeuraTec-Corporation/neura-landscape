@@ -55,3 +55,7 @@ The accepted per-visit price is multiplied by the explicit visits/month to produ
 New revisions of a bound estimate propose amendments to the same contract/current baseline. Applying an accepted amendment checks contract revision and baseline under transaction locks, appends contract_baselines, and preserves earlier offer/estimate snapshots. Future amendments remain pending until their start date; application is manual. Direct material edits of linked contracts are blocked; status edits remain supported. Scheduled and actual visit start dates must respect contract validity. Existing visit allocation snapshots remain unchanged; historical monthly quotas/proration are not reconstructed.
 
 Application services preserve history; privileged SQL can still alter rows. PGlite tests do not certify multi-connection PostgreSQL contention.
+
+## SEC01 / migration 013
+
+Adds a generic company/profile/membership/assignment/audit schema and adopts existing access records without duplicating operational data. Profile assignments have company-qualified foreign keys; security writes serialize on a versioned company row. Operational business tables do not yet have tenant keys or RLS. See [security.md](security.md) for the complete current contract and pending acceptance gates.

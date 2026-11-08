@@ -59,11 +59,15 @@ export const navigationGroups = [
 		],
 	},
 ] as const;
-export function navigationFor(role: string | undefined) {
+export function navigationFor(
+	role: string | undefined,
+	allowedSections?: string[],
+) {
 	return navigationGroups
 		.map((g) => ({
 			...g,
 			items: g.items.filter((i) => {
+				if (allowedSections) return allowedSections.includes(i.id);
 				if (!role) return i.id === "resumen";
 				if (["owner", "it_admin"].includes(role)) return true;
 				if (role === "manager")

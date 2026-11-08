@@ -1834,3 +1834,22 @@ button:disabled {
   .account-summary-text > span { font-size:10px; }
  }
 }
+
+@layer management {
+ .security-editor { outline-offset:4px; }
+ .security-editor fieldset { border:0; padding:0; min-width:0; }
+ .security-editor input:not([type="checkbox"]),.security-editor select,.security-editor textarea { width:100%; min-width:0; }
+ .permission-matrix { display:grid; gap:14px; margin:20px 0; }
+ .permission-matrix .permission-module { padding:16px; border:1px solid #d5dfcc; border-radius:12px; background:#f8faf4; }
+ .permission-module legend { font-weight:700; padding:0 8px; }
+ .permission-actions { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+ .permission-actions label,.security-choices label { display:flex; align-items:center; gap:10px; min-height:44px; font-size:13px; }
+ .permission-actions input,.security-choices input { width:20px; height:20px; flex-shrink:0; accent-color:#214d3a; }
+ .permission-actions .unavailable { color:#7a8274; }
+ .permission-actions .unavailable .muted { display:none; }
+ .security-choices { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:22px 0; }
+ .security-choices legend { font-weight:700; margin-bottom:14px; }
+ .security-choices label { border:1px solid #d5dfcc; padding:12px; border-radius:10px; background:#fff; cursor:pointer; }
+ .security-choices small { display:block; margin-top:5px; color:#64735e; }
+ @media(max-width:720px){.permission-actions,.security-choices {grid-template-columns:repeat(2,minmax(0,1fr));}.permission-matrix .permission-module {padding:12px;}.permission-actions label {font-size:12px;}.security-editor .manage-actions {flex-wrap:wrap;}}
+}

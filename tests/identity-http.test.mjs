@@ -64,6 +64,7 @@ test("Google mode renders an access gate and denies anonymous operational reques
 			"/api/customers",
 			"/api/contracts",
 			"/api/users",
+			"/api/security",
 			"/api/management?area=visits",
 		]) {
 			assert.equal((await fetch(base + path)).status, 403, path);

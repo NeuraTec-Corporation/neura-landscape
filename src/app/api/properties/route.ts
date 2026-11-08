@@ -1,3 +1,4 @@
+import { authorizedMutation } from "../_identity";
 import { removeEntity } from "@/modules/operations/contracts.mjs";
 
 import {
@@ -71,6 +72,11 @@ export async function POST(request: Request) {
 			);
 
 		const input = JSON.parse(raw);
+		if (!(await authorizedMutation(request, "properties", input)))
+			return Response.json(
+				{ error: "Acceso no permitido para esta acción." },
+				{ status: 403 },
+			);
 
 		return Response.json(
 			input.action === "delete"

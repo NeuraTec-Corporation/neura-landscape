@@ -1,3 +1,4 @@
+import { redactFinancials } from "../_security-data";
 import { database } from "@/modules/operations/index.mjs";
 import { principal } from "../_identity";
 import { ManageError, withActor } from "@/modules/operations/manage.mjs";
@@ -22,7 +23,12 @@ import {
 	reversePayment,
 } from "@/modules/operations/finance.mjs";
 import { managementDashboard } from "@/modules/operations/dashboard.mjs";
-import { authConfigured, canManage } from "@/modules/identity/auth.mjs";
+import {
+	manageAllowed as canManage,
+	mutationAllowed,
+	capability,
+} from "../_security";
+import { authConfigured } from "@/modules/identity/auth.mjs";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 function failure(error: unknown) {
@@ -45,17 +51,20 @@ export async function GET(request: Request) {
 	const url = new URL(request.url),
 		area = url.searchParams.get("area") || "",
 		actor = await principal(request);
-	if (!actor || !canManage(actor.role, area, "GET"))
+	if (!actor || !canManage(actor, area, "GET"))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 	try {
 		const db = await database();
 		let data: unknown;
 		if (area === "workforce") data = await workforce(db);
-		else if (area === "visits" || area === "costs") data = await visitList(db);
-		else if (area === "finance")
+		else if (area === "visits" || area === "costs") {
+			data = await visitList(db);
+			if (area === "visits" && !capability(actor, "costs.read"))
+				data = redactFinancials(data);
+		} else if (area === "finance")
 			data = {
 				...((await financeList(db)) as object),
-				canEdit: canManage(actor.role, area, "POST"),
+				canEdit: canManage(actor, area, "POST"),
 			};
 		else if (area === "dashboard")
 			data = await managementDashboard(
@@ -84,7 +93,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
 	const area = new URL(request.url).searchParams.get("area") || "",
 		actor = await principal(request);
-	if (!actor || !canManage(actor.role, area, "POST"))
+	if (!actor || !canManage(actor, area, "POST"))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 	if (!request.headers.get("content-type")?.startsWith("application/json"))
 		return Response.json({ error: "Se requiere JSON." }, { status: 415 });
@@ -96,6 +105,11 @@ export async function POST(request: Request) {
 				{ status: 413 },
 			);
 		const input = JSON.parse(raw);
+		if (!mutationAllowed(actor, area, input))
+			return Response.json(
+				{ error: "Acceso no permitido para esta acción." },
+				{ status: 403 },
+			);
 		const result = await withActor(
 			actor.email || "protected-evaluation",
 			async () => {

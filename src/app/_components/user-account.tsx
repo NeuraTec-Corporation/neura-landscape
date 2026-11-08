@@ -3,7 +3,12 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { authClient } from "@/modules/identity/client";
 import { useCatalogs } from "./catalogs";
 
-export type SessionMember = { name: string; email?: string; role: string };
+export type SessionMember = {
+	name: string;
+	email?: string;
+	role: string;
+	security?: import("@/modules/security/index.mjs").SecurityAccess;
+};
 export const SessionContext = createContext<{
 	enabled: boolean;
 	member: SessionMember | null;
@@ -48,8 +53,9 @@ export function UserAccount() {
 	}, []);
 	if (!enabled || !member) return null;
 	const catalogRole = label("app_role", member.role);
-	const role =
-		catalogRole === member.role
+	const role = member.security?.profiles.length
+		? member.security.profiles.map((p) => p.name).join(" · ")
+		: catalogRole === member.role
 			? roleLabels[member.role] || "Perfil autorizado"
 			: catalogRole;
 	const initials =
@@ -81,8 +87,14 @@ export function UserAccount() {
 					{member.email || "Correo no disponible"}
 				</p>
 				<dl>
+					{member.security ? (
+						<div>
+							<dt>Empresa</dt>
+							<dd>{member.security.company_name}</dd>
+						</div>
+					) : null}
 					<div>
-						<dt>Perfil</dt>
+						<dt>Perfiles</dt>
 						<dd>{role}</dd>
 					</div>
 					<div>
@@ -115,4 +127,12 @@ export function UserAccount() {
 			</div>
 		</details>
 	);
+}
+
+export function useSessionAccess() {
+	const { enabled, member } = useContext(SessionContext);
+	return {
+		can: (key: string) =>
+			!enabled || Boolean(member?.security?.grants.includes(key)),
+	};
 }
