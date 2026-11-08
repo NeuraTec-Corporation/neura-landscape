@@ -1780,3 +1780,12 @@ button:disabled {
   :where(.paged-collection .directory-pagination) { flex-wrap:wrap; gap:.75rem; }
  }
 }
+
+@layer management {
+ :where(.paged-collection .amount-cell) { white-space:nowrap; font-variant-numeric:tabular-nums; }
+ :where(.directory-size label) { display:block; margin-bottom:.45rem; }
+}
+
+@layer management {
+ :where(.manage-workspace > *, .crm-directory, .data-directory, .directory-table-wrap, .dashboard-data > *) { min-width:0; max-width:100%; }
+}

@@ -892,7 +892,7 @@ export function EstimateWorkspace() {
 													? "Borrador calculado"
 													: "Con pendientes"}
 											</td>
-											<td>{money(e.snapshot.calculation.price_cents)}</td>
+											<td className="amount-cell">{money(e.snapshot.calculation.price_cents)}</td>
 											<td className="directory-actions">
 												<div className="manage-actions">
 													<button

@@ -396,7 +396,7 @@ export function ContractWorkspace({ control = false }: { control?: boolean }) {
 										</span>
 									) : null}
 								</td>
-								<td>
+								<td className="amount-cell">
 									{money(r.monthly_cents)}/mes
 									<span>{r.visits_per_month} visitas</span>
 								</td>
