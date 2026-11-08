@@ -33,6 +33,7 @@ before(async () => {
 				LANDSCAPE_DATA_DIR: "memory://",
 				DATABASE_URL: "",
 				VERCEL: "",
+				VERCEL_ENV: "",
 				MIGRATE_ON_START: "",
 				APP_AUTH_ENABLED: "false",
 				BLOB_STORE_ID: "",

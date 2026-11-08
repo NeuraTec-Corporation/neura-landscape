@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { CatalogProvider } from "./_components/catalogs";
 import { IdentityGate } from "./_components/identity-gate";
+// Access mode must follow runtime configuration, never a cached build-time screen.
+export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
 	title: "Neura Landscape | Operaciones",
 	description:
@@ -16,9 +18,7 @@ export default function RootLayout({
 		<html lang="es">
 			<body>
 				<CatalogProvider>
-					<IdentityGate
-						initialEnabled={identityMode() !== "evaluation"}
-					>
+					<IdentityGate initialEnabled={identityMode() !== "evaluation"}>
 						{children}
 					</IdentityGate>
 				</CatalogProvider>
