@@ -1,3 +1,4 @@
+import { UserAccount } from "./user-account";
 import { WorkspaceNavigation } from "./workspace-navigation";
 import Link from "next/link";
 import { EstimateWorkspace } from "./estimate-workspace";
@@ -54,7 +55,10 @@ export function CommandCenter({ section }: { section: string }) {
 			<div className="main-area">
 				<header className="topbar">
 					<span>Command Center / {current.label}</span>
-					<ExperimentalNotice />
+					<div className="topbar-account">
+						<ExperimentalNotice />
+						<UserAccount />
+					</div>
 				</header>
 				<main id="content">
 					<div

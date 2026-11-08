@@ -3,10 +3,15 @@ import { useEffect, useState } from "react";
 import { authClient } from "@/modules/identity/client";
 import { SurveyWorkspace } from "./survey-workspace";
 import { ManagementDashboard } from "./management-dashboard";
+import {
+	SessionContext,
+	UserAccount,
+	type SessionMember,
+} from "./user-account";
 type Access = {
 	enabled: boolean;
 	configured: boolean;
-	member: { name: string; role: string } | null;
+	member: SessionMember | null;
 };
 type Work = {
 	id: string;
@@ -43,15 +48,7 @@ function CrewPortal({ name }: { name: string }) {
 				<p className="eyebrow">NEURA CREW</p>
 				<h1>Tu trabajo, en un lugar.</h1>
 				<p>{name} · asignaciones de tus cuadrillas</p>
-				<button
-					type="button"
-					onClick={async () => {
-						await authClient.signOut();
-						window.location.reload();
-					}}
-				>
-					Cerrar sesión
-				</button>
+				<UserAccount />
 			</header>
 			{error ? <p role="alert">{error}</p> : null}
 			{site ? (
@@ -176,42 +173,28 @@ export function IdentityGate({
 		access.member &&
 		["worker", "crew_lead"].includes(access.member.role)
 	)
-		return <CrewPortal name={access.member.name} />;
+		return (
+			<SessionContext.Provider value={access}>
+				<CrewPortal name={access.member.name} />
+			</SessionContext.Provider>
+		);
 	if (access.enabled && access.member?.role === "finance")
 		return (
-			<main className="crew-portal">
-				<header className="survey-hero">
-					<p className="eyebrow">ADMINISTRACIÓN FINANCIERA</p>
-					<h1>Control de servicio</h1>
-					<p>{access.member.name} · consulta de resultados operativos</p>
-					<button
-						type="button"
-						onClick={async () => {
-							await authClient.signOut();
-							window.location.reload();
-						}}
-					>
-						Cerrar sesión
-					</button>
-				</header>
-				<ManagementDashboard />
-			</main>
+			<SessionContext.Provider value={access}>
+				<main className="crew-portal">
+					<header className="survey-hero">
+						<p className="eyebrow">ADMINISTRACIÓN FINANCIERA</p>
+						<h1>Control de servicio</h1>
+						<p>{access.member.name} · consulta de resultados operativos</p>
+						<UserAccount />
+					</header>
+					<ManagementDashboard />
+				</main>
+			</SessionContext.Provider>
 		);
 	return (
-		<div data-app-role={access.member?.role ?? "none"}>
-			{children}
-			{access.enabled ? (
-				<button
-					className="session-signout"
-					type="button"
-					onClick={async () => {
-						await authClient.signOut();
-						window.location.reload();
-					}}
-				>
-					Cerrar sesión
-				</button>
-			) : null}
-		</div>
+		<SessionContext.Provider value={access}>
+			<div data-app-role={access.member?.role ?? "none"}>{children}</div>
+		</SessionContext.Provider>
 	);
 }
