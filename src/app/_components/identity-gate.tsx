@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { authClient } from "@/modules/identity/client";
+import { usePathname } from "next/navigation";
+import { LocalSignIn } from "./local-sign-in";
 import { SurveyWorkspace } from "./survey-workspace";
 import { WorkspaceAccess } from "./workspace-access";
 import {
@@ -11,6 +12,7 @@ import {
 type Access = {
 	enabled: boolean;
 	configured: boolean;
+	googleConfigured?: boolean;
 	member: SessionMember | null;
 };
 type Work = {
@@ -97,6 +99,7 @@ export function IdentityGate({
 	children: React.ReactNode;
 	initialEnabled: boolean;
 }) {
+	const path = usePathname();
 	const [access, setAccess] = useState<Access | null>(
 			initialEnabled
 				? null
@@ -130,6 +133,7 @@ export function IdentityGate({
 		};
 	}, []);
 
+	if (path === "/activar") return children;
 	if (!access)
 		return (
 			<div>
@@ -144,39 +148,10 @@ export function IdentityGate({
 		);
 	if (access.enabled && !access.member)
 		return (
-			<main className="sign-in">
-				<div className="survey-hero">
-					<p className="eyebrow">NEURA LANDSCAPE</p>
-					<h1>Tu equipo. Tu operación.</h1>
-					<p>
-						Ingresa con la cuenta de Google autorizada por tu administrador.
-					</p>
-					<button
-						type="button"
-						disabled={!access.configured}
-						onClick={async () => {
-							try {
-								const r = await authClient.signIn.social({
-									provider: "google",
-									callbackURL: "/",
-								});
-								if (r.error)
-									setError(r.error.message || "No se pudo iniciar sesión.");
-							} catch {
-								setError("No se pudo conectar con Google.");
-							}
-						}}
-					>
-						Continuar con Google
-					</button>
-					{!access.configured ? (
-						<p>
-							El administrador debe completar la configuración de Google OAuth.
-						</p>
-					) : null}
-					{error ? <p role="alert">{error}</p> : null}
-				</div>
-			</main>
+			<LocalSignIn
+				configured={access.configured}
+				googleConfigured={Boolean(access.googleConfigured)}
+			/>
 		);
 	if (
 		access.enabled &&

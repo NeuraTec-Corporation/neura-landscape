@@ -8,10 +8,22 @@ async function handler(request: Request) {
 		return Response.json({ error: "Origen no permitido." }, { status: 403 });
 	if (identityMode() === "blocked" || !authConfigured())
 		return Response.json(
-			{ error: "Google OAuth está pendiente de configuración." },
+			{ error: "El ingreso está pendiente de configuración." },
 			{ status: 503 },
 		);
 	try {
+		const path = new URL(request.url).pathname.replace(/^\/api\/auth\//, "");
+		const allowed =
+			request.method === "GET"
+				? ["get-session", "callback/google", "error", "ok"]
+				: ["sign-in/email", "sign-in/social", "sign-out"];
+		// No public registration, email mutation, linking or password recovery endpoint.
+		// Local identities are provisioned only by an authorized administrator.
+		if (!allowed.includes(path))
+			return Response.json(
+				{ error: "Operación de acceso no disponible." },
+				{ status: 403 },
+			);
 		return await (await authentication()).handler(request);
 	} catch {
 		return Response.json(

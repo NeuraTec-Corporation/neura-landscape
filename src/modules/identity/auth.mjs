@@ -4,11 +4,13 @@ import { nextCookies } from "better-auth/next-js";
 import { getMigrations } from "better-auth/db/migration";
 import { Pool } from "pg";
 import { database } from "../operations/index.mjs";
-export function authConfigured() { return identityReadiness().ready; }
+export function authConfigured() {
+	return identityReadiness().ready;
+}
 
 let instance;
 export async function authentication() {
-	if (!authConfigured()) throw new Error("Google OAuth no está configurado.");
+	if (!authConfigured()) throw new Error("El ingreso no está configurado.");
 	if (!instance)
 		instance = (async () => {
 			await database();
@@ -17,21 +19,7 @@ export async function authentication() {
 				max: 3,
 			});
 			const auth = betterAuth({
-				database: pool,
-				baseURL: process.env.BETTER_AUTH_URL,
- trustedOrigins: [identityReadiness().origin],
-				secret: process.env.BETTER_AUTH_SECRET,
-				emailAndPassword: { enabled: false },
-				socialProviders: {
-					google: {
-						clientId: process.env.GOOGLE_CLIENT_ID,
-						clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-						prompt: "select_account",
-					},
-				},
-				account: { accountLinking: { enabled: false } },
-				session: { expiresIn: 60 * 60 * 12, cookieCache: { enabled: false } },
-				rateLimit: { enabled: true, storage: "database" },
+				...authenticationOptions(pool),
 				plugins: [nextCookies()],
 			});
 			const client = await pool.connect();
@@ -48,9 +36,23 @@ export async function authentication() {
 	return instance;
 }
 export async function memberForSession(db, session, bootstrapEmail = "") {
-	if (!session?.user?.emailVerified || !session.user.email) return null;
+	if (!session?.user?.email) return null;
 	const email = session.user.email.toLowerCase();
-	if (bootstrapEmail && email === bootstrapEmail.toLowerCase())
+	if (
+		!session.user.emailVerified &&
+		!(
+			await db.query(
+				"SELECT user_id FROM security_local_identities WHERE email=$1 AND user_id=$2",
+				[email, session.user.id || ""],
+			)
+		).rows.length
+	)
+		return null;
+	if (
+		session.user.emailVerified &&
+		bootstrapEmail &&
+		email === bootstrapEmail.toLowerCase()
+	)
 		await db.query(
 			"INSERT INTO app_members(email,name,role,status) VALUES($1,$2,'it_admin','active') ON CONFLICT(email) DO NOTHING",
 			[email, session.user.name || email],
@@ -104,4 +106,32 @@ export function canManage(role, area, method) {
 			(["dashboard", "estimates"].includes(area) && method === "GET")
 		);
 	return false;
+}
+
+export function authenticationOptions(storage, env = process.env) {
+	return {
+		database: storage,
+		baseURL: env.BETTER_AUTH_URL,
+		trustedOrigins: [identityReadiness(env).origin],
+		secret: env.BETTER_AUTH_SECRET,
+		emailAndPassword: {
+			enabled: true,
+			disableSignUp: true,
+			minPasswordLength: 12,
+			maxPasswordLength: 128,
+			revokeSessionsOnPasswordReset: true,
+		},
+		socialProviders: identityReadiness(env).googleReady
+			? {
+					google: {
+						clientId: env.GOOGLE_CLIENT_ID,
+						clientSecret: env.GOOGLE_CLIENT_SECRET,
+						prompt: "select_account",
+					},
+				}
+			: {},
+		account: { accountLinking: { enabled: false } },
+		session: { expiresIn: 60 * 60 * 12, cookieCache: { enabled: false } },
+		rateLimit: { enabled: true, storage: "database" },
+	};
 }

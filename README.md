@@ -2,10 +2,10 @@
 
 Next.js + TypeScript application for customer relationships and landscaping operations.
 
-Current security scope: Google sign-in plus company-scoped, configurable access profiles,
+Current security scope: native email/password access with optional Google sign-in, plus company-scoped, configurable access profiles,
 module/action checkboxes, transactional membership assignment and audited changes.
 See [security contracts and limits](docs/security.md). The sole operational company
-remains pinned until business-data tenant isolation is verified; password login is off.
+remains pinned until business-data tenant isolation is verified. Administrators create users, assign profiles and generate a private activation/recovery link; no Gmail account is required.
 Earlier increment descriptions below retain their historical scope.
 
 ## Customer workspace
@@ -166,7 +166,7 @@ plus external Maps/Earth links. It is not satellite imagery hosted by Landscape,
 GPS captures device position with its reported accuracy; it does not identify the
 element remotely. Coordinates can be entered manually. Google Places remains off.
 
-Usuarios y niveles manages Google-account allowlist, roles, active status and crew
+Historical Google-only increment (superseded by native access below): Usuarios y niveles managed Google-account allowlist, roles, active status and crew
 assignments. User identities belong in private storage/configuration, never public
 source. Google authentication uses pinned Better Auth 1.7 with email/password off,
 account linking off, database rate-limit storage, no session cookie-cache of roles,
@@ -313,3 +313,12 @@ Scheduling, task validation, estimates, labor/resource costing, invoice issuing 
 Dashboard origin filters separate sample customers from other records. A visible banner identifies simulation; no synthetic amount is presented as a real bank transaction. Portfolio counts respect customer/geography/origin; operational dates/service/crew/status filter work, while invoices and receipts retain their own date basis. Open balances include earlier issued unpaid documents. Per-customer results reconcile with the underlying invoices/payments. Cost graphics sum the same categories as the execution cost, and production quantities retain their units. No total across incompatible physical units is displayed.
 
 Use the sample-period button if reviewing these fixed fixtures in a later month. The fixture is not a continuously generated live business. Maps, live GPS, external messaging, authenticated customer portal and production inventory/procurement remain separate work; this scenario does not simulate their connection.
+
+## Native access: no Google account required
+
+1. Enter with the existing TI account, open Sistema → Usuarios y permisos → Autorizar usuario. Save name, email identifier, active status, profiles and any assigned crews.
+2. Open Editar acceso for that user and generate a one-use activation link. Deliver it privately to the intended person. It expires in 30 minutes; issuing another invalidates pending links. No email is sent automatically.
+3. The person opens the link, sets a 12–128 character password and uses Correo de ingreso / Contraseña. Their email identifier does not need to be Gmail or have a Google account. Synthetic example.invalid identifiers are suitable only for isolated demonstrations, not verified inbox ownership.
+4. For recovery, the administrator verifies the requester outside the app and issues another link. Completing recovery revokes prior sessions. Disabled users and retired profiles remain denied by the same server authorization.
+
+Better Auth owns hashing, session cookies and persistent login rate limits. Public registration, arbitrary account linking and public recovery endpoints remain disabled. Migration 014 adds only hashed activation links and explicitly provisioned local identity references, with no password or raw activation token in audit/source. Google credentials are optional; DATABASE_URL, BETTER_AUTH_URL, BETTER_AUTH_SECRET and APP_AUTH_ENABLED=true are required for authenticated hosted access. The historical identityMode label google now means authenticated mode for either provider. Cross-company identity recovery is rejected pending a platform identity administrator. MFA and automatic recovery delivery are not implemented. Vercel Preview protection is a separate gate and is preserved.

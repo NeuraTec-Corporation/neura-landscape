@@ -12,7 +12,7 @@ Canonical decision: https://app.notion.com/p/40b839ef360281d0af28ff7278f0d908 (S
 | `src/app/_security-manifest.mjs` | Landscape resource/action registry, allowed scopes, dependencies and initial profile definitions. |
 | `src/app/_permission-policy.mjs` | Adapter from HTTP/business operations to declared capabilities. |
 | `src/app/api/_security.ts` | Trusted compatibility enrollment and current operational-company selection. |
-| `src/modules/identity` | Existing Google/Better Auth sessions and legacy assignment scope; not a dependency of the kernel. |
+| `src/modules/identity` | Native credentials and optional Google/Better Auth sessions; activation and legacy assignment scope; not a dependency of the kernel. |
 | `src/app/api/security`, `src/app/api/users` | HTTP transport and composition with existing identities/crews. |
 | `security-profiles.tsx`, `users-workspace.tsx` | Profile matrix and user-to-profile checkbox administration. |
 
@@ -126,8 +126,8 @@ The following remain separate, unimplemented or unaccepted gates:
   company; **there is no second-company selector or activation API**. The schema's
   company rows do not establish business-data isolation or PostgreSQL RLS.
 - A platform-global administrator and cross-company company provisioning.
-- Email/password signup, secure recovery delivery, MFA and account linking. Google
-  remains the configured identity provider; password authentication stays off.
+- Automatic recovery email delivery, MFA, public signup and account linking. Native
+  password access and administrator-assisted recovery are implemented below.
 - A direct employee-to-membership link. Existing employee and login records remain
   distinct; crew assignments continue through the trusted Landscape adapter.
 - Separate real-browser sessions for all profiles, real PostgreSQL contention,
@@ -149,3 +149,15 @@ screen does not automatically grant access. Before rollout, back up the database
 validate legacy-account mapping and keep the existing protected Google/Preview
 access. Roll back application code only with a compatible schema; retain additive
 security tables and audit history rather than deleting them to repair access.
+
+## SEC02 — Native credentials and controlled activation
+
+The identity adapter now enables Better Auth email/password (12–128 characters), with public signup disabled and optional Google. Existing Google identity/account rows are preserved when the same person establishes a local credential. A separate local-identity reference allows administrator-provisioned identities without falsely asserting verified ownership of an email inbox. Verified Google identities retain existing checks and bootstrap behavior.
+
+`localAccessService(db, registry, passwordPort)` is outside the permission kernel. It re-resolves security.update, active membership/profile scope and delegation rules inside a company lock before issuance and redemption. It rejects managing identities shared with another company, pending a platform-global recovery authority. Only hashes of 256-bit random one-use tokens are stored. Links expire after 30 minutes, bind the member revision and current issuer authority, and replace older links. Issuance is limited to 10 per administrator per minute in persistent storage. Redemption hashes through Better Auth, then atomically consumes links, writes the provider credential, records an administrative local-identity reference, revokes every prior session for that identity and writes credential-event metadata without secrets. Google accounts and business records are not replaced.
+
+The small pinned Better Auth SQL adapter in local-access.mjs targets library-generated user/account/session tables. It must be acceptance-tested on library upgrades; tests generate the real provider schema and execute real sign-in, cookie-session lookup and recovery against PGlite through a pg-compatible test transport. These tests do not certify hosted PostgreSQL contention or email delivery.
+
+The browser receives the activation token once, in a URL fragment (never a query string), captures it in component memory, removes it from the address bar and uses a same-origin JSON POST. No token is stored in browser storage. Referrer-Policy is no-referrer. Reloading requires reopening the original link. No public registration, email changes, account linking or native provider recovery endpoints are exposed through the HTTP catch-all. A new credential never grants profiles. The reusable authorization kernel still has no dependency on Better Auth, Next.js or business tables.
+
+Recovery is administrator assisted: verify the person through an independent private channel, generate a link and deliver it privately. Automatic email recovery, MFA, global recovery of multi-company identities and end-user password management remain future increments. Production acceptance and separate live sessions for every profile remain pending.

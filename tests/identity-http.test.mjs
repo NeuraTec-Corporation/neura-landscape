@@ -59,7 +59,7 @@ test("Google mode renders an access gate and denies anonymous operational reques
 		assert.match(html, /Comprobando acceso/);
 		assert.doesNotMatch(html, /aria-current="page"/);
 		const me = await (await fetch(`${base}/api/me`)).json();
-		assert.deepEqual(me, { enabled: true, configured: false, member: null });
+		assert.deepEqual(me, { enabled: true, configured: false, googleConfigured:false, member: null });
 		for (const path of [
 			"/api/customers",
 			"/api/contracts",

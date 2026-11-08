@@ -1,4 +1,5 @@
 export type IdentityReadiness = {
+	googleReady: boolean;
 	mode: "google" | "evaluation" | "blocked";
 	ready: boolean;
 	missing: string[];

@@ -1,4 +1,4 @@
-import { identityMode } from "@/modules/identity/configuration.mjs";
+import { identityMode, identityReadiness } from "@/modules/identity/configuration.mjs";
 import { principal } from "../_identity";
 import { authConfigured } from "@/modules/identity/auth.mjs";
 import { allowedRequest } from "../_access";
@@ -12,6 +12,7 @@ export async function GET(request: Request) {
 			member,
 			enabled: identityMode() !== "evaluation",
 			configured: identityMode() === "google" && authConfigured(),
+			googleConfigured: identityReadiness().googleReady,
 		},
 		{ headers: { "Cache-Control": "no-store" } },
 	);

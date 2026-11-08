@@ -6,6 +6,7 @@ import { IdentityGate } from "./_components/identity-gate";
 // Access mode must follow runtime configuration, never a cached build-time screen.
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
+	referrer: "no-referrer",
 	title: "Neura Landscape | Operaciones",
 	description:
 		"Gestión de clientes, propiedades, equipos y operaciones de paisajismo.",

@@ -4,9 +4,11 @@ import type { IdentityReadiness } from "@/modules/identity/configuration.mjs";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCatalogs } from "./catalogs";
 import { SecurityProfiles } from "./security-profiles";
+import { AccessLink } from "./access-link";
 import { PagedTable } from "./paged-collection";
 import { Notices } from "./management-shared";
 type User = {
+	has_password: boolean;
 	email: string;
 	name: string;
 	role: string;
@@ -113,10 +115,12 @@ export function UsersWorkspace() {
 					<h3>Ingreso</h3>
 					<p>
 						{data.enabled && data.readiness.ready
-							? "Google configurado y activo"
+							? "Correo y contraseña configurados y activos"
 							: "Configuración de ingreso pendiente"}{" "}
-						· El ingreso con contraseña y la recuperación se incorporarán en
-						otro incremento.
+						· Google es una alternativa si está configurado. La activación y
+						recuperación se realizan mediante enlaces privados de un solo uso
+						generados por un administrador. No hay registro público ni envío
+						automático de correo.
 					</p>
 					<h3>Últimos cambios de seguridad</h3>
 					{data.history.length ? (
@@ -188,7 +192,7 @@ export function UsersWorkspace() {
 										setEdit(undefined);
 										await changed();
 										setNotice(
-											"Acceso guardado. No se creó una cuenta de Google ni se envió una invitación.",
+											"Usuario y perfiles guardados. Abre Editar acceso para generar su enlace de activación; no necesita Google.",
 										);
 									} catch (x) {
 										setError(
@@ -305,6 +309,13 @@ export function UsersWorkspace() {
 									Cancelar
 								</button>
 							</form>
+							{edit && data.canEdit && edit.status === "active" ? (
+								<AccessLink
+									key={edit.email}
+									email={edit.email}
+									name={edit.name}
+								/>
+							) : null}
 						</section>
 					) : null}
 					<PagedTable label="Usuarios y accesos">
@@ -314,6 +325,7 @@ export function UsersWorkspace() {
 									<th>Usuario</th>
 									<th>Perfiles</th>
 									<th>Estado</th>
+									<th>Acceso propio</th>
 									<th>Cuadrillas</th>
 									<th>Acciones</th>
 								</tr>
@@ -335,6 +347,11 @@ export function UsersWorkspace() {
 										</td>
 										<td>
 											{u.status === "active" ? "Activo" : "Deshabilitado"}
+										</td>
+										<td>
+											{u.has_password
+												? "Contraseña establecida"
+												: "Pendiente de activación"}
 										</td>
 										<td>
 											{u.crew_ids

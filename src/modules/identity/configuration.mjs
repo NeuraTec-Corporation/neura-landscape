@@ -12,8 +12,6 @@ export function identityMode(env = process.env) {
 }
 export function identityReadiness(env = process.env) {
 	const missing = [
-		"GOOGLE_CLIENT_ID",
-		"GOOGLE_CLIENT_SECRET",
 		"BETTER_AUTH_SECRET",
 		"BETTER_AUTH_URL",
 		"DATABASE_URL",
@@ -45,6 +43,7 @@ export function identityReadiness(env = process.env) {
 	if (env.DATABASE_URL && !/^postgres(ql)?:\/\//.test(env.DATABASE_URL))
 		issues.push("El acceso requiere PostgreSQL compartido.");
 	return {
+		googleReady: Boolean(env.GOOGLE_CLIENT_ID?.trim() && env.GOOGLE_CLIENT_SECRET?.trim()),
 		mode: identityMode(env),
 		ready: missing.length === 0 && issues.length === 0,
 		missing,

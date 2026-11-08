@@ -57,8 +57,9 @@ test("readiness reports missing configuration without disclosing secrets", () =>
 	])
 		assert.equal(JSON.stringify(status).includes(complete[key]), false);
 	const missing = identityReadiness({ ...complete, GOOGLE_CLIENT_SECRET: "" });
-	assert.equal(missing.ready, false);
-	assert.deepEqual(missing.missing, ["GOOGLE_CLIENT_SECRET"]);
+	assert.equal(missing.ready, true);
+	assert.equal(missing.googleReady, false);
+	assert.deepEqual(missing.missing, []);
 });
 test("readiness rejects insecure hosted callbacks and malformed storage/session configuration", () => {
 	for (const origin of [

@@ -41,7 +41,7 @@ export async function GET(request: Request) {
 		});
 		const users = (
 			await db.query<Record<string, unknown> & { email: string }>(
-				"SELECT m.*,coalesce((SELECT json_agg(crew_id) FROM app_crew_members c WHERE c.email=m.email),'[]'::json) crew_ids FROM app_members m JOIN security_memberships s ON s.subject_id=m.email AND s.company_id=$1 ORDER BY m.name",
+				"SELECT m.*,EXISTS(SELECT 1 FROM security_local_identities l WHERE l.email=m.email) has_password,coalesce((SELECT json_agg(crew_id) FROM app_crew_members c WHERE c.email=m.email),'[]'::json) crew_ids FROM app_members m JOIN security_memberships s ON s.subject_id=m.email AND s.company_id=$1 ORDER BY m.name",
 				[CURRENT_COMPANY],
 			)
 		).rows;
