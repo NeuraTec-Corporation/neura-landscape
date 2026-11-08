@@ -1811,7 +1811,7 @@ button:disabled {
  .account-summary-text > span { color:#526648; font-size:11px; }
  .account-chevron { font-size:17px; }
  .account-panel { position:absolute; right:0; top:calc(100% + 8px); width:310px; max-width:calc(100vw - 32px); padding:22px; background:#fff; border:1px solid #d4dfcc; box-shadow:0 16px 45px #153b2d24; border-radius:16px; z-index:80; overflow-wrap:anywhere; }
- .account-panel .eyebrow { font-size:9px; margin-bottom:14px; }
+ .account-panel .eyebrow { color:#526648; font-size:9px; margin-bottom:14px; }
  .account-name { display:block; font-size:17px; }
  .account-email { color:#526648; font-size:13px; margin:6px 0 18px; }
  .account-panel dl { margin:0 0 18px; display:grid; gap:12px; }
@@ -1819,7 +1819,8 @@ button:disabled {
  .account-panel dt { color:#64735e; }
  .account-panel dd { margin:0; text-align:right; font-weight:600; }
  .account-panel button { width:100%; min-height:44px; }
- .crew-portal > .survey-hero .user-account { margin-top:16px; width:fit-content; }
+ .crew-portal > .survey-hero { overflow:visible; }
+ .crew-portal > .survey-hero .user-account { margin-top:16px; width:fit-content; background:#fff; border-radius:12px; }
  .crew-portal > .survey-hero .account-panel { left:0; right:auto; }
  @media(max-width:900px) {
   .topbar { flex-wrap:wrap; }
