@@ -15,6 +15,7 @@ const files = [
 	"012_sample_identities.sql",
 	"013_security_profiles.sql",
 	"014_local_access.sql",
+	"015_user_codes.sql",
 ];
 export async function migrate(db, advisory = false) {
 	await db.transaction(async (tx) => {

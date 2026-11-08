@@ -2,8 +2,8 @@ import { runtimeMember, routeAllowed, mutationAllowed } from "./_security";
 import { identityMode } from "@/modules/identity/configuration.mjs";
 import { assignedProperty } from "@/modules/identity/assignments.mjs";
 import { allowedRequest } from "./_access";
+import { nativeAuthentication } from "./_native-auth";
 import {
-	authentication,
 	memberForSession,
 	type Member,
 } from "@/modules/identity/auth.mjs";
@@ -21,7 +21,7 @@ export async function principal(request: Request): Promise<Member | null> {
 				status: "active",
 				revision: 1,
 			});
-		const auth = await authentication();
+		const auth = await nativeAuthentication();
 		const session = await auth.api.getSession({ headers: request.headers });
 		const member = await memberForSession(
 			await database(),

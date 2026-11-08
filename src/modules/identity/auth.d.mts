@@ -4,9 +4,11 @@ export function memberForSession(
 	db: unknown,
 	session: unknown,
 	bootstrapEmail?: string,
+	env?: Record<string,string|undefined>,
 ): Promise<Member | null>;
 export function canUse(role: string, path: string, method?: string): boolean;
 export type Member = {
+	login_code?: string;
  security?: import("../security/index.mjs").SecurityAccess;
 	email: string;
 	name: string;

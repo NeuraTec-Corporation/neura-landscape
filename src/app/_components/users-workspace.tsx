@@ -8,6 +8,8 @@ import { AccessLink } from "./access-link";
 import { PagedTable } from "./paged-collection";
 import { Notices } from "./management-shared";
 type User = {
+	login_code: string;
+	evaluation_only: boolean;
 	has_password: boolean;
 	email: string;
 	name: string;
@@ -215,14 +217,24 @@ export function UsersWorkspace() {
 											/>
 										</label>
 										<label>
-											Correo de ingreso *
+											Código de usuario
+											<input
+												readOnly
+												value={edit?.login_code || "Se asigna al guardar"}
+											/>
+										</label>
+										<label>
+											Correo para Google (opcional)
 											<input
 												name="email"
 												type="email"
-												required
 												maxLength={254}
 												disabled={!!edit}
-												defaultValue={edit?.email || ""}
+												defaultValue={
+													edit?.email.endsWith("@access.neuratec.invalid")
+														? ""
+														: edit?.email || ""
+												}
 											/>
 										</label>
 										<label>
@@ -314,6 +326,7 @@ export function UsersWorkspace() {
 									key={edit.email}
 									email={edit.email}
 									name={edit.name}
+									code={edit.login_code}
 								/>
 							) : null}
 						</section>
@@ -334,8 +347,12 @@ export function UsersWorkspace() {
 								{data.users.map((u) => (
 									<tr key={u.email}>
 										<td>
-											<strong>{u.name}</strong>
-											<span className="table-subline">{u.email}</span>
+											<strong>
+												{u.login_code || "Pendiente"} · {u.name}
+											</strong>
+											{!u.email.endsWith("@access.neuratec.invalid") ? (
+												<span className="table-subline">{u.email}</span>
+											) : null}
 										</td>
 										<td>
 											{u.profile_ids

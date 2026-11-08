@@ -13,14 +13,18 @@ import {
 } from "../../_security-manifest.mjs";
 import { z } from "zod";
 import type { PGlite } from "@electric-sql/pglite";
+import { randomUUID } from "node:crypto";
+import { assignUserCode } from "@/modules/identity/user-codes.mjs";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 const schema = z
 	.object({
 		email: z
-			.email()
-			.max(254)
-			.transform((v) => v.toLowerCase()),
+			.union([z.email().max(254), z.literal("")])
+			.optional()
+			.transform(
+				(v) => v?.toLowerCase() || `${randomUUID()}@access.neuratec.invalid`,
+			),
 		name: z.string().trim().min(1).max(150),
 		status: z.enum(["active", "disabled"]),
 		profile_ids: z.array(z.string().min(1)).max(30),
@@ -41,7 +45,7 @@ export async function GET(request: Request) {
 		});
 		const users = (
 			await db.query<Record<string, unknown> & { email: string }>(
-				"SELECT m.*,EXISTS(SELECT 1 FROM security_local_identities l WHERE l.email=m.email) has_password,coalesce((SELECT json_agg(crew_id) FROM app_crew_members c WHERE c.email=m.email),'[]'::json) crew_ids FROM app_members m JOIN security_memberships s ON s.subject_id=m.email AND s.company_id=$1 ORDER BY m.name",
+				"SELECT m.*,l.code login_code,l.evaluation_only,EXISTS(SELECT 1 FROM security_local_identities i WHERE i.email=m.email) has_password,coalesce((SELECT json_agg(crew_id) FROM app_crew_members c WHERE c.email=m.email),'[]'::json) crew_ids FROM app_members m JOIN security_memberships s ON s.subject_id=m.email AND s.company_id=$1 LEFT JOIN security_login_codes l ON l.subject_id=m.email AND l.company_id=s.company_id ORDER BY m.name",
 				[CURRENT_COMPANY],
 			)
 		).rows;
@@ -154,6 +158,7 @@ export async function POST(request: Request) {
 						[v.email, v.name, legacy, v.status],
 					);
 				await enrollMembership(tx, CURRENT_COMPANY, v.email, [], v.status);
+				await assignUserCode(tx, CURRENT_COMPANY, v.email);
 				const previousCrews = (
 					await tx.query<{ crew_id: string }>(
 						"SELECT crew_id FROM app_crew_members WHERE email=$1",

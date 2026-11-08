@@ -5,6 +5,7 @@ import {
 } from "@/modules/security/index.mjs";
 import type { Member } from "@/modules/identity/auth.mjs";
 import type { PGlite } from "@electric-sql/pglite";
+import { ensureMemberCode } from "@/modules/identity/user-codes.mjs";
 
 export async function runtimeMember(
 	db: PGlite,
@@ -58,7 +59,8 @@ export async function runtimeMember(
 					: member.role === "finance"
 						? "finance"
 						: "manager";
-	return { ...member, role, security };
+	const login_code=member.email?await ensureMemberCode(db,CURRENT_COMPANY,member.email):undefined;
+	return { ...member, role, security, login_code };
 }
 export {
 	capability,

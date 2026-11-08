@@ -4,6 +4,7 @@ import { nextCookies } from "better-auth/next-js";
 import { getMigrations } from "better-auth/db/migration";
 import { Pool } from "pg";
 import { database } from "../operations/index.mjs";
+import { evaluationAccountsAllowed } from "./user-codes.mjs";
 export function authConfigured() {
 	return identityReadiness().ready;
 }
@@ -50,9 +51,24 @@ export async function prepareIdentitySchema(
 		client.release();
 	}
 }
-export async function memberForSession(db, session, bootstrapEmail = "") {
+export async function memberForSession(
+	db,
+	session,
+	bootstrapEmail = "",
+	env = process.env,
+) {
 	if (!session?.user?.email) return null;
 	const email = session.user.email.toLowerCase();
+	if (
+		!evaluationAccountsAllowed(env) &&
+		(
+			await db.query(
+				"SELECT code FROM security_login_codes WHERE subject_id=$1 AND evaluation_only=true",
+				[email],
+			)
+		).rows.length
+	)
+		return null;
 	if (
 		!session.user.emailVerified &&
 		!(

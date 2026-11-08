@@ -16,7 +16,7 @@ export function LocalSignIn({
 			<section className="survey-hero">
 				<p className="eyebrow">NEURA LANDSCAPE</p>
 				<h1>Tu equipo. Tu operación.</h1>
-				<p>Ingresa con el correo y la contraseña de tu acceso NeuraTec.</p>
+				<p>Ingresa con tu código de usuario y clave de acceso NeuraTec.</p>
 				<form
 					onSubmit={async (e) => {
 						e.preventDefault();
@@ -24,12 +24,15 @@ export function LocalSignIn({
 						setError("");
 						const fd = new FormData(e.currentTarget);
 						try {
-							const r = await authClient.signIn.email({
-								email: String(fd.get("email")).trim().toLowerCase(),
-								password: String(fd.get("password")),
-								rememberMe: false,
+							const r = await fetch("/api/user-sign-in", {
+								method: "POST",
+								headers: { "Content-Type": "application/json" },
+								body: JSON.stringify({
+									code: String(fd.get("code")).trim().toUpperCase(),
+									password: String(fd.get("password")),
+								}),
 							});
-							if (r.error) {
+							if (!r.ok) {
 								setError(
 									"No se pudo ingresar. Revisa tus credenciales o solicita ayuda al administrador.",
 								);
@@ -45,17 +48,20 @@ export function LocalSignIn({
 				>
 					<fieldset disabled={!configured || busy}>
 						<label>
-							Correo de ingreso
+							Usuario
 							<input
-								name="email"
-								type="email"
+								name="code"
+								type="text"
+								placeholder="Ej. ROJ001"
+								autoCapitalize="characters"
+								spellCheck={false}
 								autoComplete="username"
 								required
-								maxLength={254}
+								maxLength={13}
 							/>
 						</label>
 						<label>
-							Contraseña
+							Clave
 							<input
 								name="password"
 								type="password"

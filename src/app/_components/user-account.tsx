@@ -4,6 +4,7 @@ import { authClient } from "@/modules/identity/client";
 import { useCatalogs } from "./catalogs";
 
 export type SessionMember = {
+	login_code?: string;
 	name: string;
 	email?: string;
 	role: string;
@@ -84,7 +85,7 @@ export function UserAccount() {
 				<p className="eyebrow">SESIÓN ACTUAL</p>
 				<strong className="account-name">{member.name}</strong>
 				<p className="account-email">
-					{member.email || "Correo no disponible"}
+					{member.login_code || member.email || "Usuario autorizado"}
 				</p>
 				<dl>
 					{member.security ? (

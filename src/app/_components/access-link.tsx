@@ -1,6 +1,14 @@
 "use client";
 import { useState } from "react";
-export function AccessLink({ email, name }: { email: string; name: string }) {
+export function AccessLink({
+	email,
+	name,
+	code,
+}: {
+	email: string;
+	name: string;
+	code?: string;
+}) {
 	const [url, setUrl] = useState(""),
 		[expires, setExpires] = useState(""),
 		[error, setError] = useState(""),
@@ -10,7 +18,7 @@ export function AccessLink({ email, name }: { email: string; name: string }) {
 		<section className="panel" aria-label={`Acceso propio de ${name}`}>
 			<h3>Activar o recuperar acceso propio</h3>
 			<p>
-				{name} · {email}
+				{name} · {code || email}
 			</p>
 			<p>
 				Genera un enlace para que esta persona establezca su contraseña. También
@@ -23,7 +31,7 @@ export function AccessLink({ email, name }: { email: string; name: string }) {
 				onClick={async () => {
 					if (
 						!window.confirm(
-							`Se generará un enlace de acceso para ${email}. Entrégalo solo a esa persona por un medio privado. Sustituye cualquier enlace pendiente. ¿Continuar?`,
+							`Se generará un enlace de acceso para ${code || email}. Entrégalo solo a esa persona por un medio privado. Sustituye cualquier enlace pendiente. ¿Continuar?`,
 						)
 					)
 						return;

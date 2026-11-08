@@ -24,7 +24,7 @@ export function LocalActivation() {
 				{done ? (
 					<>
 						<p>
-							Ingresa con el correo que autorizó tu administrador y tu nueva
+							Ingresa con el código de usuario que te entregó tu administrador y tu nueva
 							contraseña.
 						</p>
 						<button
