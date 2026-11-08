@@ -99,7 +99,7 @@ export function UserAccount() {
 					</div>
 					<div>
 						<dt>Ingreso</dt>
-						<dd>Cuenta de Google</dd>
+						<dd>Acceso NeuraTec</dd>
 					</div>
 				</dl>
 				{error ? <p role="alert">{error}</p> : null}
