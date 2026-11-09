@@ -49,3 +49,39 @@ jobs:
         run: npm test
       - name: Audit dependencies
         run: npm audit --audit-level=low
+
+  postgres-drill:
+    name: PostgreSQL recovery and concurrency
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: disposable-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Select PostgreSQL 16 client tools
+        run: echo /usr/lib/postgresql/16/bin >> "$GITHUB_PATH"
+      - name: Restore synthetic backup and exercise concurrent company operations
+        env:
+          LANDSCAPE_POSTGRES_DRILL: local-disposable-only
+          LANDSCAPE_DRILL_PASSWORD: disposable-ci-only
+        run: node scripts/postgres-drill.mjs
