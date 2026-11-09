@@ -1,3 +1,29 @@
+## SEC06 — Distribution and resource ownership
+
+018 adds reference-only ownership metadata and a visit-assignment review flag.
+The runner applies that business delta to public and existing company namespaces;
+new namespaces include it in bootstrap. 019 distinguishes platform/operator
+companies, records successful one-time distributions and sanitized failure status.
+
+The trusted Preview distribution transfers complete customer families: contacts,
+addresses, reminders, surveys/photos, estimates/revisions/offers/baselines, contracts,
+visits/tasks/personnel/costs, invoices/lines/payments and corresponding histories.
+Original UUIDs, binary photo payloads, frozen snapshots, amounts and timestamps stay
+unchanged. FK cycles between offers/contracts are reconstructed transactionally.
+Static catalogs/rates/counters and synthetic-batch provenance are configuration;
+company batch counts are reconciled after the split, without loading another scenario.
+
+Live crew/person ownership is partitioned in connected groups so shared employees
+are never split between live crews across companies. Reference-only archived rows
+preserve already-recorded visit/personnel relationships and never enter live workforce
+counts. Monetary totals, product row counts and disjoint customer/financial identifiers
+must reconcile before commit. Source/dependent-row deletion is part of the same atomic
+transfer; there is no intermediate published duplicate portfolio.
+
+This is not a backup/restore drill. Transaction rollback is tested with an injected
+failure after transfer and user creation; independent restore/concurrency acceptance
+remains separate. No production setup flag or new database service is introduced.
+
 ## SEC05 — Company data namespaces (current)
 
 Migration 017 adds the platform IT registry, company-storage mapping, membership display

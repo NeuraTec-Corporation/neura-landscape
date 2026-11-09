@@ -221,7 +221,7 @@ export async function saveVisit(db, input) {
 		];
 		if (v.id)
 			await tx.query(
-				"UPDATE visits SET contract_id=$2,crew_id=$3,scheduled_at=$4,route_order=$5,title=$6,planned_minutes=$7,travel_minutes=$8,service_key=$9,planned_revenue_cents=$10,planned_labor_hourly_cents=$11,revision=revision+1 WHERE id=$1",
+				"UPDATE visits SET contract_id=$2,crew_id=$3,scheduled_at=$4,route_order=$5,title=$6,planned_minutes=$7,travel_minutes=$8,service_key=$9,planned_revenue_cents=$10,planned_labor_hourly_cents=$11,assignment_review_required=false,assignment_review_reason='',revision=revision+1 WHERE id=$1",
 				vals,
 			);
 		else
@@ -294,6 +294,10 @@ export async function changeVisit(db, input) {
 		if (!row || row.deleted_at || row.revision !== v.revision)
 			throw new ManageError("La visita cambió. Recarga.", 409);
 		if (v.action === "start") {
+			if (row.assignment_review_required)
+				throw new ManageError(
+					"Revisa y guarda una cuadrilla propia antes de iniciar esta visita.",
+				);
 			if (row.status !== "scheduled")
 				throw new ManageError("La visita debe estar programada.");
 			const crew = (

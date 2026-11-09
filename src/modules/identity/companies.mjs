@@ -31,7 +31,7 @@ export async function availableCompanies(db, subject) {
 	const root = await platformIT(db, subject);
 	return (
 		await db.query(
-			`SELECT c.id,c.name,c.status,c.operational_enabled,c.version,l.prefix FROM security_companies c LEFT JOIN security_company_logins l ON l.company_id=c.id WHERE $2::boolean OR (c.status='active' AND EXISTS(SELECT 1 FROM security_memberships m WHERE m.company_id=c.id AND m.subject_id=$1 AND m.status='active')) ORDER BY c.name,c.id`,
+			`SELECT c.id,c.name,c.status,c.operational_enabled,c.version,c.kind,l.prefix FROM security_companies c LEFT JOIN security_company_logins l ON l.company_id=c.id WHERE $2::boolean OR (c.kind='operator' AND c.status='active' AND EXISTS(SELECT 1 FROM security_memberships m WHERE m.company_id=c.id AND m.subject_id=$1 AND m.status='active')) ORDER BY c.name,c.id`,
 			[subject, root],
 		)
 	).rows;
@@ -121,15 +121,23 @@ export async function saveCompany(db, subject, input, templates) {
 				[id, name, input.status],
 			);
 		} else {
-			if (!/^[A-Z]{3}$/.test(prefix) || prefix === "NEU")
+			if (
+				!/^[A-Z]{3}$/.test(prefix) ||
+				(prefix === "NEU" && input.kind !== "platform")
+			)
 				throw new SecurityError(
 					"Usa tres letras únicas; NEU está reservado a la plataforma.",
 				);
 			id = randomUUID();
 			const schema = `tenant_${id.replaceAll("-", "")}`;
 			await tx.query(
-				"INSERT INTO security_companies(id,name,status,operational_enabled) VALUES($1,$2,$3,true)",
-				[id, name, input.status],
+				"INSERT INTO security_companies(id,name,status,operational_enabled,kind) VALUES($1,$2,$3,true,$4)",
+				[
+					id,
+					name,
+					input.status,
+					input.kind === "platform" ? "platform" : "operator",
+				],
 			);
 			await tx.query(
 				"INSERT INTO security_company_logins(company_id,prefix) VALUES($1,$2)",
@@ -188,7 +196,7 @@ export async function assignCompany(db, subject, input) {
 				[input.company_id],
 			)
 		).rows[0];
-		if (company?.status !== "active")
+		if (company?.status !== "active" || company.kind === "platform")
 			throw new SecurityError("Selecciona una empresa activa.");
 		const user = (
 			await tx.query(

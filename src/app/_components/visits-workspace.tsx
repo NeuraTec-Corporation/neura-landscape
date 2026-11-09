@@ -31,6 +31,8 @@ export type Personnel = {
 	actual_minutes: number | null;
 };
 export type Visit = {
+	assignment_review_required?: boolean;
+	assignment_review_reason?: string;
 	id: string;
 	revision: number;
 	contract_id: string;
@@ -754,6 +756,11 @@ export function VisitsWorkspace() {
 								<p className="notice">Motivo: {v.cancellation_reason}</p>
 							) : null}
 							{v.notes ? <p>{v.notes}</p> : null}
+							{v.assignment_review_required ? (
+								<p className="notice" role="status">
+									Reasignación pendiente: {v.assignment_review_reason}
+								</p>
+							) : null}
 							<div className="manage-actions">
 								{v.status === "scheduled" ? (
 									<>
@@ -780,7 +787,11 @@ export function VisitsWorkspace() {
 										</button>
 										<button
 											type="button"
-											disabled={state.busy || !canExecute}
+											disabled={
+												state.busy ||
+												!canExecute ||
+												v.assignment_review_required
+											}
 											onClick={() =>
 												void state.save({
 													action: "start",

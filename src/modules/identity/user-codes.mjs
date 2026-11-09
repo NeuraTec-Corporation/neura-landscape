@@ -82,6 +82,13 @@ export async function assignUserCode(
 	return code;
 }
 export async function ensureMemberCode(db, companyId, subjectId) {
+	const canonical = (
+		await db.query(
+			"SELECT code FROM security_login_codes WHERE subject_id=$1 AND account_kind='platform' LIMIT 1",
+			[subjectId],
+		)
+	).rows[0];
+	if (canonical) return canonical.code;
 	const old = (
 		await db.query(
 			"SELECT code FROM security_login_codes WHERE company_id=$1 AND subject_id=$2",
@@ -179,14 +186,11 @@ export async function provisionEvaluationUsers(
 	// Existing credentials and assignments are never reset on deployment or reload.
 	for (const item of users) {
 		const email = `${companyId}.${item.role}@access.neuratec.invalid`;
-		if (
-			(
-				await db.query(
-					"SELECT code FROM security_login_codes WHERE company_id=$1 AND subject_id=$2 AND evaluation_only=true",
-					[companyId, email],
-				)
-			).rows.length
-		)
+		const existingCodeSql =
+			item.kind === "platform"
+				? "SELECT code FROM security_login_codes WHERE (company_id=$1 OR account_kind='platform') AND subject_id=$2 AND evaluation_only=true"
+				: "SELECT code FROM security_login_codes WHERE company_id=$1 AND subject_id=$2 AND evaluation_only=true";
+		if ((await db.query(existingCodeSql, [companyId, email])).rows.length)
 			continue;
 		const encoded = await password.hash(env.LANDSCAPE_EVALUATION_PASSWORD);
 		await db.transaction(async (tx) => {
@@ -194,14 +198,7 @@ export async function provisionEvaluationUsers(
 				"SELECT id FROM security_companies WHERE id=$1 FOR UPDATE",
 				[companyId],
 			);
-			if (
-				(
-					await tx.query(
-						"SELECT code FROM security_login_codes WHERE company_id=$1 AND subject_id=$2 AND evaluation_only=true",
-						[companyId, email],
-					)
-				).rows.length
-			)
+			if ((await tx.query(existingCodeSql, [companyId, email])).rows.length)
 				return;
 			if (
 				(

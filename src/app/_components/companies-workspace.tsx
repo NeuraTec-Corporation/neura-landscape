@@ -3,13 +3,31 @@ import { useCallback, useEffect, useState } from "react";
 import { PagedTable } from "./paged-collection";
 import { Notices } from "./management-shared";
 type Company = {
+	kind?: "platform" | "operator";
 	id: string;
 	name: string;
 	status: string;
 	version: number;
 	prefix: string | null;
 };
+type Totals = {
+	customers: number;
+	properties: number;
+	crews: number;
+	employees: number;
+};
 type Data = {
+	scenario?: {
+		distribution: { source: Totals; destination: Totals };
+		operators: { id: string; name: string }[];
+		users: {
+			code: string;
+			name: string;
+			company_id: string;
+			profile: string;
+		}[];
+	};
+	setupStatus?: { status: string; message: string };
 	companies: Company[];
 	platformIT: boolean;
 	activeCompany: string;
@@ -47,7 +65,15 @@ export function CompaniesWorkspace() {
 				)?.email ||
 				"",
 		);
-		setTarget((old) => old || v.activeCompany);
+		setTarget(
+			(old) =>
+				old ||
+				v.companies.find(
+					(c: Company) => c.id === v.activeCompany && c.kind !== "platform",
+				)?.id ||
+				v.companies.find((c: Company) => c.kind !== "platform")?.id ||
+				"",
+		);
 	}, []);
 	useEffect(() => {
 		refresh().catch((e) => setError(e.message));
@@ -83,7 +109,52 @@ export function CompaniesWorkspace() {
 		);
 	return (
 		<div className="manage-workspace">
-			<Notices error={error} notice={notice} />
+			<Notices
+				error={
+					error ||
+					(data.setupStatus?.status === "blocked"
+						? data.setupStatus.message
+						: "")
+				}
+				notice={notice}
+			/>
+			{data.platformIT && data.scenario ? (
+				<section className="panel">
+					<h3>Resultado del reparto inicial</h3>
+					<p>
+						Recursos existentes distribuidos entre las operadoras. Las
+						referencias históricas archivadas no cuentan como empleados ni
+						cuadrillas adicionales.
+					</p>
+					<PagedTable label="Distribución inicial por empresa">
+						<table className="data-directory">
+							<thead>
+								<tr>
+									<th>Empresa</th>
+									<th>Clientes</th>
+									<th>Localidades</th>
+									<th>Empleados</th>
+									<th>Cuadrillas</th>
+								</tr>
+							</thead>
+							<tbody>
+								{[
+									data.scenario.distribution.source,
+									data.scenario.distribution.destination,
+								].map((totals, index) => (
+									<tr key={data.scenario?.operators[index].id}>
+										<td>{data.scenario?.operators[index].name}</td>
+										<td>{totals.customers}</td>
+										<td>{totals.properties}</td>
+										<td>{totals.employees}</td>
+										<td>{totals.crews}</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</PagedTable>
+				</section>
+			) : null}
 			<section className="panel">
 				<h2>Empresas y acceso</h2>
 				<p>
@@ -105,6 +176,11 @@ export function CompaniesWorkspace() {
 								<tr key={c.id}>
 									<td>
 										<strong>{c.name}</strong>
+										{c.kind === "platform" ? (
+											<span className="table-subline">
+												Administración de plataforma · IT
+											</span>
+										) : null}
 										{c.id === data.activeCompany ? (
 											<span className="table-subline">Empresa activa</span>
 										) : null}
@@ -250,7 +326,9 @@ export function CompaniesWorkspace() {
 											required
 										>
 											{data.companies
-												.filter((c) => c.status === "active")
+												.filter(
+													(c) => c.status === "active" && c.kind !== "platform",
+												)
 												.map((c) => (
 													<option key={c.id} value={c.id}>
 														{c.name}

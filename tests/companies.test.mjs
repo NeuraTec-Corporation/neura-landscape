@@ -338,3 +338,30 @@ test("company selection never trusts an unauthorized explicit target and stale p
 	assert.equal(selectCompany(companies, null, "foreign").id, "own");
 	assert.equal(selectCompany([], null, "own"), undefined);
 });
+
+test("business migrations upgrade existing company namespaces without copying or dropping business records", async () => {
+	const db = await setup();
+	try {
+		const { id } = await create(db, "Aurora", "AUR"),
+			schema = (
+				await db.query(
+					"SELECT schema_name FROM security_company_storage WHERE company_id=$1",
+					[id],
+				)
+			).rows[0].schema_name;
+		const port = await storageForCompany(db, id);
+		await port.query("INSERT INTO customers VALUES('retained','Retained')");
+		await db.exec(
+			`ALTER TABLE "${schema}".crews DROP COLUMN reference_only,DROP COLUMN origin_company_id;ALTER TABLE "${schema}".employees DROP COLUMN reference_only,DROP COLUMN origin_company_id;ALTER TABLE "${schema}".visits DROP COLUMN assignment_review_required,DROP COLUMN assignment_review_reason;DELETE FROM "${schema}".schema_migrations WHERE version=18`,
+		);
+		await migrate(db);
+		await migrate(db);
+		const upgraded = await storageForCompany(db, id);
+		assert.equal(
+			(await upgraded.query("SELECT name FROM customers")).rows[0].name,
+			"Retained",
+		);
+	} finally {
+		await db.close();
+	}
+});

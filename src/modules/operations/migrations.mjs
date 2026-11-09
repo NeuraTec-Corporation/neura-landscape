@@ -18,6 +18,8 @@ const files = [
 	"015_user_codes.sql",
 	"016_platform_admin.sql",
 	"017_companies.sql",
+	"018_resource_ownership.sql",
+	"019_enterprise_scenario.sql",
 ];
 export async function migrate(db, advisory = false) {
 	await db.transaction(async (tx) => {
@@ -33,5 +35,35 @@ export async function migrate(db, advisory = false) {
 		for (const file of files)
 			if (!applied.has(Number(file.slice(0, 3))))
 				await tx.exec(await readFile(resolve("db/migrations", file), "utf8"));
+		// Business deltas must reach already-existing company namespaces too.
+		// New namespaces include this delta in the trusted bootstrap list.
+		const companies = (
+			await tx.query(
+				"SELECT schema_name FROM security_company_storage WHERE schema_name<>'public'",
+			)
+		).rows;
+		for (const company of companies) {
+			const schema = company.schema_name;
+			if (!/^tenant_[a-f0-9]{32}$/.test(schema))
+				throw Error("Invalid company migration namespace");
+			if (
+				!(
+					await tx.query(
+						`SELECT version FROM "${schema}".schema_migrations WHERE version=18`,
+					)
+				).rows.length
+			) {
+				await tx.query("SELECT set_config('search_path',$1,true)", [
+					`"${schema}"`,
+				]);
+				await tx.exec(
+					await readFile(
+						resolve("db/migrations", "018_resource_ownership.sql"),
+						"utf8",
+					),
+				);
+				await tx.query("SELECT set_config('search_path','public',true)");
+			}
+		}
 	});
 }

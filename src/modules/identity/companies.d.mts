@@ -6,6 +6,7 @@ export type Company = {
 	operational_enabled: boolean;
 	version: number;
 	prefix: string | null;
+	kind: "platform" | "operator";
 };
 export function selectCompany(
 	companies: Company[],

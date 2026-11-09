@@ -122,6 +122,17 @@ async function handlePOST(request: Request) {
 			async (port) => {
 				const tx = port as PGlite;
 				const isPlatform = await platformIT(tx, v.email);
+				const companyKind = (
+					await tx.query<{ kind: string }>(
+						"SELECT kind FROM security_companies WHERE id=$1",
+						[companyId],
+					)
+				).rows[0]?.kind;
+				if (companyKind === "platform" && !isPlatform)
+					throw new SecurityError(
+						"NeuraTec Corporation está reservada a IT. Selecciona una empresa operadora para crear usuarios.",
+						403,
+					);
 				if (
 					isPlatform &&
 					(v.status !== "active" || !v.profile_ids.includes("default-it_admin"))

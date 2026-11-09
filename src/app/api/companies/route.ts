@@ -51,6 +51,20 @@ export async function GET(request: Request) {
 			memberships,
 			profiles,
 			platformIT: root,
+			scenario: root
+				? (
+						await db.query<{ manifest: unknown }>(
+							"SELECT manifest FROM security_scenarios WHERE id='enterprise-distribution-v1'",
+						)
+					).rows[0]?.manifest
+				: null,
+			setupStatus: root
+				? (
+						await db.query(
+							"SELECT status,message FROM security_setup_attempts WHERE id='enterprise-distribution-v1'",
+						)
+					).rows[0]
+				: null,
 			activeCompany: actor.security?.company_id,
 		},
 		{ headers },

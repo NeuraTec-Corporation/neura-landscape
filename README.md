@@ -343,3 +343,16 @@ or a company administrator's editable permission matrix. Hierarchy: IT → compa
 or modify higher profiles. Disabling a membership affects only that company's access.
 The existing company and its records are preserved; no additional company is preloaded.
 See the current SEC05 contracts in [security](docs/security.md) and [database](docs/database.md).
+
+## SEC06 — Three evaluation companies
+
+The authorized Preview setup creates NeuraTec Corporation (IT platform company),
+renames the existing operator to Rojas Lawn Maintenance and prepares Evergreen
+Grounds Services with approximately half the existing customers/localities and
+live workforce. Native users remain separated by operator; IT retains global access.
+The one-time server flag LANDSCAPE_ENTERPRISE_SETUP is off by default and gated to
+Preview plus enabled evaluation users. A success ledger prevents replay; keep the
+flag disabled after execution. No new business portfolio or workforce is generated.
+Archived references preserve history without becoming extra deployable resources.
+Visits flagged for reassignment must be edited before they can start.
+See docs/security.md and docs/database.md for the transfer/rollback contracts.
