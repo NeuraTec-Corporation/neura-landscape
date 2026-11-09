@@ -1,9 +1,10 @@
+import { companyRoute } from "../_company-route";
 import { capability } from "../_security";
 import { assignedWork } from "@/modules/identity/assignments.mjs";
 import { principal } from "../_identity";
 import { database } from "@/modules/operations/index.mjs";
 export const dynamic = "force-dynamic";
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
 	const member = await principal(request);
 	if (
 		!member ||
@@ -24,3 +25,5 @@ export async function GET(request: Request) {
 		);
 	}
 }
+
+export const GET = companyRoute(handleGET);

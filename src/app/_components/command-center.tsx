@@ -1,3 +1,4 @@
+import { CompaniesWorkspace } from "./companies-workspace";
 import { UserAccount } from "./user-account";
 import { WorkspaceNavigation } from "./workspace-navigation";
 import Link from "next/link";
@@ -15,6 +16,7 @@ import { ExperimentalNotice } from "@/shared/ui";
 import { CustomerWorkspace } from "./customer-workspace";
 import { PropertyWorkspace } from "./property-workspace";
 export const sections = [
+	{ id: "empresas", label: "Empresas" },
 	{ id: "resumen", label: "Panel gerencial" },
 	{ id: "clientes", label: "Clientes" },
 	{ id: "propiedades", label: "Propiedades y localidades" },
@@ -76,7 +78,9 @@ export function CommandCenter({ section }: { section: string }) {
 							</h1>
 						</div>
 					</div>
-					{section === "clientes" ? (
+					{section === "empresas" ? (
+						<CompaniesWorkspace />
+					) : section === "clientes" ? (
 						<CustomerWorkspace />
 					) : section === "propiedades" ? (
 						<PropertyWorkspace />

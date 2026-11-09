@@ -2,10 +2,10 @@
 
 Next.js + TypeScript application for customer relationships and landscaping operations.
 
-Current security scope: native email/password access with optional Google sign-in, plus company-scoped, configurable access profiles,
+Current security scope: native user-code/password access with optional Google sign-in, plus company-scoped, configurable access profiles,
 module/action checkboxes, transactional membership assignment and audited changes.
-See [security contracts and limits](docs/security.md). The sole operational company
-remains pinned until business-data tenant isolation is verified. Administrators create users, assign profiles and generate a private activation/recovery link; no Gmail account is required.
+See [security contracts and limits](docs/security.md). SEC05 adds IT-managed companies,
+company-specific memberships/profiles and isolated business schemas in the same database. Administrators create users, assign profiles and generate a private activation/recovery link; no Gmail account is required.
 Earlier increment descriptions below retain their historical scope.
 
 ## Customer workspace
@@ -70,9 +70,9 @@ Local/CI tests use isolated PGlite PostgreSQL instances and never hosted credent
 The old .data/landscape data is not uploaded or synchronized to Neon.
 
 Vercel Authentication remains enabled for all deployments. This is a protected
-single operational workspace with profile-based authorization, not an accepted multi-tenant platform.
-Keep deployment protection enabled. Real multi-company operation still needs governed
-application identity, tenant isolation and operational acceptance.
+multi-company workspace with profile-based authorization. Keep deployment protection enabled.
+Schema isolation is verified in automated PostgreSQL-engine fixtures; commercial security
+certification, restore drills and production concurrency acceptance remain separate work.
 
 ## Local commands
 
@@ -328,3 +328,18 @@ Better Auth owns hashing, session cookies and persistent login rate limits. Publ
 The native login now asks Usuario / Clave. Users receive unique company codes such as ROJ001; emails are optional when creating a native-only user. The Google button remains the second sign-in method. Users and the account menu display the code. Activation/recovery links continue to establish a native password for that code.
 
 For the requested Preview evaluation, six named accounts are provisioned once, one per default profile, with the initial key supplied privately through LANDSCAPE_EVALUATION_PASSWORD. LANDSCAPE_EVALUATION_USERS=true enables them only on Preview; production denies their application sessions. The normal activation password policy is unchanged. These accounts and their credentials are not recreated or reset on every deployment. LANDSCAPE_LOGIN_PREFIX reserves the operator abbreviation (e.g. ROJ); new codes retain a monotonically increasing sequence and assigned codes are never renamed automatically.
+
+## SEC05 — Companies and hierarchy
+
+Use **Sistema / Empresas** as authenticated platform IT to create/edit companies and
+assign existing users to company profiles. Open a company, then use **Usuarios y permisos**
+to create its owners, general administrators and staff. Credentials remain personal;
+Google remains optional. Users with several memberships choose an active company in the
+account menu; the page reload clears prior-company view state.
+
+Platform IT is held in a separate trusted registry, not inferred from a displayed name
+or a company administrator's editable permission matrix. Hierarchy: IT → company owners
+→ general administrator → operational profiles. Owners/admins cannot promote themselves
+or modify higher profiles. Disabling a membership affects only that company's access.
+The existing company and its records are preserved; no additional company is preloaded.
+See the current SEC05 contracts in [security](docs/security.md) and [database](docs/database.md).

@@ -117,6 +117,7 @@ test("prototype routes expose distinct screens and retain noindex", async () => 
 		["configuracion", "Configuración"],
 		["integraciones", "Integraciones"],
 		["usuarios", "Usuarios y permisos"],
+        ["empresas", "Empresas"],
 	]) {
 		const response = await fetch(`${base}/${path}`);
 		assert.equal(response.status, 200, path);
@@ -432,7 +433,7 @@ test("HTTP workflow saves related records and computes completed visit costs", a
 	const forbiddenImage = await fetch(`${base}/api/photos?id=${photo.id}`, {
 		headers: { Origin: "https://external.invalid" },
 	});
-	assert.equal(forbiddenImage.status, 404);
+	assert.equal(forbiddenImage.status, 403);
 	const dossier = await (
 		await fetch(`${base}/api/survey?property_id=${property.id}`)
 	).json();
@@ -703,7 +704,7 @@ test("security HTTP workflow stores profile grants and memberships atomically wi
 	};
 	let data = await get();
 	assert.equal(data.company.id, "landscape");
-	assert.equal(data.profiles.length, 6);
+	assert.equal(data.profiles.length, 7);
 	const profile = await post("/api/security", {
 		action: "profile",
 		name: "Consulta comercial",

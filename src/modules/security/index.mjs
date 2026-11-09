@@ -9,10 +9,7 @@ export async function resolveSecurity(db, companyId, subjectId, registry) {
 			[companyId, subjectId],
 		)
 	).rows[0];
-	if (
-		member?.status !== "active" ||
-		member.company_status !== "active"
-	)
+	if (member?.status !== "active" || member.company_status !== "active")
 		return null;
 	const profiles = (
 		await db.query(
@@ -43,6 +40,9 @@ export async function resolveSecurity(db, companyId, subjectId, registry) {
 			}),
 		),
 		root: profiles.some((p) => p.protected),
+		authority_level: Math.min(
+			...profiles.map((p) => p.authority_level ?? (p.protected ? 0 : 100)),
+		),
 		grants: [
 			...new Set(profiles.flatMap((p) => p.grants).filter((g) => valid.has(g))),
 		].sort(),
@@ -173,6 +173,14 @@ export function securityService(db, registry) {
 				[ctx.companyId, subjectId],
 			)
 		).rows;
+		if (
+			!access.root &&
+			current.some((p) => (p.authority_level ?? 100) < access.authority_level)
+		)
+			throw new SecurityError(
+				"No puedes administrar un perfil superior al tuyo.",
+				403,
+			);
 		if (!access.root && current.some((p) => p.protected))
 			throw new SecurityError("Solo IT puede modificar este acceso.", 403);
 		for (const profile of current) delegable(access, profile.grants);
@@ -187,6 +195,11 @@ export function securityService(db, registry) {
 			if (!p)
 				throw new SecurityError(
 					"Un perfil no está disponible en esta empresa.",
+				);
+			if (!access.root && (p.authority_level ?? 100) < access.authority_level)
+				throw new SecurityError(
+					"No puedes asignar un perfil superior al tuyo.",
+					403,
 				);
 			if (p.protected && !access.root)
 				throw new SecurityError(
@@ -283,6 +296,15 @@ export function securityService(db, registry) {
 						"Revisa nombre, descripción y estado del perfil.",
 					);
 				if (old) delegable(access, old.grants);
+				if (
+					old &&
+					!access.root &&
+					(old.authority_level ?? 100) < access.authority_level
+				)
+					throw new SecurityError(
+						"No puedes modificar un perfil superior al tuyo.",
+						403,
+					);
 				const grants = validateGrants(registry, input.grants, input.scope);
 				delegable(access, grants);
 				if (

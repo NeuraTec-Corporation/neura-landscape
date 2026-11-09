@@ -1,8 +1,9 @@
-import { CURRENT_COMPANY, permissionRegistry } from "./_security-manifest.mjs";
+import { permissionRegistry } from "./_security-manifest.mjs";
 import { permits } from "../modules/security/index.mjs";
 export function capability(member, key) {
 	return Boolean(
-		member?.security && permits(member.security, key, CURRENT_COMPANY),
+		member?.security &&
+			permits(member.security, key, member.security.company_id),
 	);
 }
 const routes = {

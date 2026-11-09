@@ -3,7 +3,7 @@ import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 import { getMigrations } from "better-auth/db/migration";
 import { Pool } from "pg";
-import { database } from "../operations/index.mjs";
+import { globalDatabase as database } from "../operations/index.mjs";
 import { evaluationAccountsAllowed } from "./user-codes.mjs";
 export function authConfigured() {
 	return identityReadiness().ready;
@@ -87,6 +87,15 @@ export async function memberForSession(
 		await db.query(
 			"INSERT INTO app_members(email,name,role,status) VALUES($1,$2,'it_admin','active') ON CONFLICT(email) DO NOTHING",
 			[email, session.user.name || email],
+		);
+	if (
+		session.user.emailVerified &&
+		bootstrapEmail &&
+		email === bootstrapEmail.toLowerCase()
+	)
+		await db.query(
+			"INSERT INTO security_platform_admins(subject_id) VALUES($1) ON CONFLICT DO NOTHING",
+			[email],
 		);
 	const member = (
 		await db.query(

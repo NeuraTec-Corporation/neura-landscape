@@ -1,3 +1,35 @@
+## SEC05 — Company data namespaces (current)
+
+Migration 017 adds the platform IT registry, company-storage mapping, membership display
+names, authority levels and the general-administrator profile. Existing company
+`landscape` remains in `public`; its business identifiers and records do not move.
+New companies use generated `tenant_<UUID hex>` schemas in the same existing database.
+Creation, empty schema bootstrap, default profiles, prefix reservation and audit commit
+in one transaction. Failure rolls everything back. No new hosted service is provisioned.
+
+Identity/session and security tables are shared. Business tables (customers, properties,
+contracts, estimates, crews/personnel, visits/tasks/costs, invoices/payments, catalogs,
+photo metadata and samples) are isolated by schema. The provider-wide media budget stays
+shared deliberately. Private media retrieval first requires scoped photo metadata.
+
+Bootstrap runs the trusted business SQL files 001–005 and 007–011 with **only** the new
+namespace in search_path, so CREATE IF NOT EXISTS cannot resolve an existing company's
+tables. It never replays identity or sample-identity migrations and never copies data.
+Runtime uses transaction-local search_path; commit/rollback restores pooled connections.
+A table/column/type/nullability manifest and foreign-key boundary check reject incomplete
+or incompatible company schemas before requests. Invalid identifiers are rejected.
+
+**Migration contract:** when future business migrations change the product structure,
+upgrade every mapped company namespace transactionally before enabling its requests and
+update bootstrap accordingly. The runtime fails closed on drift; it does not run a
+request against public business tables as a compatibility fallback. Schema rollout and
+restore drills across real production tenants remain operational acceptance work.
+
+Isolated PGlite/PostgreSQL-engine fixtures verify duplicate prefixes/rollback, preservation
+of existing data, duplicate IDs in separate companies, foreign-ID FK rejection, parallel
+request contexts and restoration of search_path. These tests do not claim independent
+PostgreSQL roles, RLS enforcement, penetration testing or production load certification.
+
 # PostgreSQL schema and ownership
 
 Hosted persistence is the existing dedicated Neon PostgreSQL database. Local/CI use
@@ -42,7 +74,7 @@ Unknown inputs remain pending. Empty resource lines mean zero only after explici
 resource review. Geometric overlap is not inferred: the operator declares independent
 areas. Measurements are not claimed field-verified merely by using them.
 
-Single-workspace scope remains. There are no tenant keys/RLS or client portal grants.
+Historical B04/B05 used one workspace. SEC05 adds company namespaces as documented above; there is no RLS or client portal grant implementation.
 Restore, production PostgreSQL concurrency, historical contract quotas and resource
 inventory valuation are not certified by PGlite tests or this additive migration.
 

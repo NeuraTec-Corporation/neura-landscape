@@ -1,3 +1,4 @@
+import { companyRoute } from "../_company-route";
 import { database, snapshot } from "../../../modules/operations/index.mjs";
 import { authorizedRequest as allowedRequest } from "../_identity";
 export const runtime = "nodejs";
@@ -5,7 +6,7 @@ export const dynamic = "force-dynamic";
 async function allowed(request: Request) {
 	return allowedRequest(request);
 }
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
 	if (!(await allowed(request)))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 	try {
@@ -19,7 +20,7 @@ export async function GET(request: Request) {
 		);
 	}
 }
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
 	if (!(await allowed(request)))
 		return Response.json({ error: "Origen no permitido." }, { status: 403 });
 	if (!request.headers.get("content-type")?.startsWith("application/json"))
@@ -69,3 +70,6 @@ export async function POST(request: Request) {
 		);
 	}
 }
+
+export const GET = companyRoute(handleGET);
+export const POST = companyRoute(handlePOST);

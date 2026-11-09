@@ -15,6 +15,7 @@ export type SecurityAccess = {
 	subject_id: string;
 	scope: string;
 	root: boolean;
+	authority_level: number;
 	grants: string[];
 	profiles: {
 		id: string;

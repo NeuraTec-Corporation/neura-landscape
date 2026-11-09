@@ -259,6 +259,14 @@ test("code resolution denies disabled and foreign memberships and evaluation cre
 			"UPDATE security_memberships SET status='disabled' WHERE subject_id=$1",
 			[row.subject_id],
 		);
+		assert.equal(
+			await emailForUserCode(db, "landscape", row.code, env),
+			row.subject_id,
+		);
+		await db.query(
+			"UPDATE security_platform_admins SET status='disabled' WHERE subject_id=$1",
+			[row.subject_id],
+		);
 		assert.equal(await emailForUserCode(db, "landscape", row.code, env), null);
 	} finally {
 		await db.close();

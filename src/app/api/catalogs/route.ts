@@ -1,3 +1,4 @@
+import { companyRoute } from "../_company-route";
 import { capability } from "../_security";
 import { sectionPermission } from "../../_security-manifest.mjs";
 import { database } from "@/modules/operations/index.mjs";
@@ -11,7 +12,7 @@ import {
 } from "@/modules/operations/catalog.mjs";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
 	const actor = await principal(request);
 	if (!actor)
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
@@ -46,7 +47,7 @@ export async function GET(request: Request) {
 		);
 	}
 }
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
 	const actor = await principal(request);
 	if (!actor || !capability(actor, "catalogs.update"))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
@@ -85,3 +86,6 @@ export async function POST(request: Request) {
 		);
 	}
 }
+
+export const GET = companyRoute(handleGET);
+export const POST = companyRoute(handlePOST);

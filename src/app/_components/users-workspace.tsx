@@ -24,6 +24,7 @@ type Data = SecuritySnapshot & {
 	users: User[];
 	crews: { id: string; name: string }[];
 	canEdit: boolean;
+	platformIT: boolean;
 	enabled: boolean;
 	readiness: IdentityReadiness;
 };
@@ -110,10 +111,9 @@ export function UsersWorkspace() {
 				<section className="panel">
 					<h3>{data.company.name}</h3>
 					<p>
-						Empresa operativa actual. El modelo de seguridad separa las
-						membresías y los perfiles por empresa. La creación de otra empresa
-						operativa no está habilitada mientras se verifica el aislamiento de
-						los módulos de negocio.
+						Los perfiles, cuadrillas y accesos de esta pantalla pertenecen a la
+						empresa activa. En Sistema / Empresas, IT crea empresas y asigna
+						usuarios entre ellas.
 					</p>
 					<h3>Ingreso</h3>
 					<p>
@@ -143,6 +143,11 @@ export function UsersWorkspace() {
 				<div className="manage-workspace">
 					<div className="manage-actions">
 						<h3>Usuarios de la empresa</h3>
+						{data.platformIT ? (
+							<a className="quiet-button" href="/empresas">
+								Asignar empresas a usuarios ↗
+							</a>
+						) : null}
 						{data.canEdit ? (
 							<button type="button" onClick={() => open()}>
 								＋ Autorizar usuario
@@ -265,7 +270,9 @@ export function UsersWorkspace() {
 										{data.profiles
 											.filter(
 												(p) =>
-													p.status === "active" || profileIds.includes(p.id),
+													(p.status === "active" ||
+														profileIds.includes(p.id)) &&
+													(!p.protected || !!edit?.profile_ids.includes(p.id)),
 											)
 											.map((p) => (
 												<label key={p.id}>
@@ -392,6 +399,14 @@ export function UsersWorkspace() {
 												.join(" · ") || "Sin asignación"}
 										</td>
 										<td>
+											{data.platformIT && u.account_kind !== "platform" ? (
+												<a
+													className="quiet-button"
+													href={`/empresas?usuario=${encodeURIComponent(u.login_code)}`}
+												>
+													Asignar empresa ↗
+												</a>
+											) : null}
 											{data.canEdit ? (
 												<button
 													type="button"

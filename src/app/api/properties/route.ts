@@ -1,3 +1,4 @@
+import { companyRoute } from "../_company-route";
 import { authorizedMutation } from "../_identity";
 import { removeEntity } from "@/modules/operations/contracts.mjs";
 
@@ -35,7 +36,7 @@ function failure(error: unknown) {
 	);
 }
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
 	if (!(await allowedRequest(request)))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 
@@ -54,7 +55,7 @@ export async function GET(request: Request) {
 	}
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
 	if (!(await allowedRequest(request)))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 
@@ -98,3 +99,6 @@ export async function POST(request: Request) {
 		return failure(error);
 	}
 }
+
+export const GET = companyRoute(handleGET);
+export const POST = companyRoute(handlePOST);

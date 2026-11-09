@@ -1,14 +1,12 @@
+import { companyRoute } from "../_company-route";
 import { database } from "@/modules/operations/index.mjs";
 import { securityService, SecurityError } from "@/modules/security/index.mjs";
-import {
-	CURRENT_COMPANY,
-	permissionRegistry,
-} from "../../_security-manifest.mjs";
+import { permissionRegistry } from "../../_security-manifest.mjs";
 import { principal } from "../_identity";
 import { capability } from "../_security";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
 	const member = await principal(request);
 	if (!member?.security || !capability(member, "security.read"))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
@@ -17,7 +15,7 @@ export async function GET(request: Request) {
 			await database(),
 			permissionRegistry,
 		).snapshot({
-			companyId: CURRENT_COMPANY,
+			companyId: member.security.company_id,
 			subjectId: member.security.subject_id,
 		});
 		return Response.json(
@@ -28,7 +26,7 @@ export async function GET(request: Request) {
 		return failure(error);
 	}
 }
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
 	const member = await principal(request);
 	if (!member?.security || !capability(member, "security.update"))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
@@ -42,7 +40,7 @@ export async function POST(request: Request) {
 				{ status: 413 },
 			);
 		const input = JSON.parse(raw);
-		if (input.company_id && input.company_id !== CURRENT_COMPANY)
+		if (input.company_id && input.company_id !== member.security.company_id)
 			return Response.json(
 				{ error: "Empresa no autorizada." },
 				{ status: 403 },
@@ -53,7 +51,10 @@ export async function POST(request: Request) {
 			await database(),
 			permissionRegistry,
 		).saveProfile(
-			{ companyId: CURRENT_COMPANY, subjectId: member.security.subject_id },
+			{
+				companyId: member.security.company_id,
+				subjectId: member.security.subject_id,
+			},
 			input,
 		);
 		return Response.json(result);
@@ -72,3 +73,6 @@ function failure(error: unknown) {
 		{ status: error instanceof SecurityError ? error.status : 422 },
 	);
 }
+
+export const GET = companyRoute(handleGET);
+export const POST = companyRoute(handlePOST);

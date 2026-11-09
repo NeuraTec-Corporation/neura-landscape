@@ -1,3 +1,4 @@
+import { companyRoute } from "../_company-route";
 import { redactFinancials } from "../_security-data";
 import { database } from "@/modules/operations/index.mjs";
 import { principal } from "../_identity";
@@ -47,7 +48,7 @@ function failure(error: unknown) {
 		{ status: 422 },
 	);
 }
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
 	const url = new URL(request.url),
 		area = url.searchParams.get("area") || "",
 		actor = await principal(request);
@@ -90,7 +91,7 @@ export async function GET(request: Request) {
 		return failure(error);
 	}
 }
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
 	const area = new URL(request.url).searchParams.get("area") || "",
 		actor = await principal(request);
 	if (!actor || !canManage(actor, area, "POST"))
@@ -145,3 +146,6 @@ export async function POST(request: Request) {
 		return failure(error);
 	}
 }
+
+export const GET = companyRoute(handleGET);
+export const POST = companyRoute(handlePOST);

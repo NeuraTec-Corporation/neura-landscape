@@ -1,3 +1,4 @@
+import { companyRoute } from "../_company-route";
 import { authorizedMutation } from "../_identity";
 import {
 	database,
@@ -13,7 +14,7 @@ import {
 import { authorizedRequest as allowedRequest } from "../_identity";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
 	if (!(await allowedRequest(request)))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 	try {
@@ -41,7 +42,7 @@ export async function GET(request: Request) {
 		return failure(error);
 	}
 }
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
 	if (!(await allowedRequest(request)))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 	if (!request.headers.get("content-type")?.startsWith("application/json"))
@@ -83,3 +84,6 @@ function failure(error: unknown) {
 		{ status: 500 },
 	);
 }
+
+export const GET = companyRoute(handleGET);
+export const POST = companyRoute(handlePOST);

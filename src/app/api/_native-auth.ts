@@ -3,7 +3,7 @@ import {
 	ensureMemberCode,
 	provisionEvaluationUsers,
 } from "@/modules/identity/user-codes.mjs";
-import { database } from "@/modules/operations/index.mjs";
+import { globalDatabase as database } from "@/modules/operations/index.mjs";
 import { CURRENT_COMPANY } from "../_security-manifest.mjs";
 import { evaluationUsers as users } from "../_evaluation-users.mjs";
 let prepared: Promise<void> | undefined;
@@ -12,7 +12,12 @@ export async function nativeAuthentication() {
 	if (!prepared)
 		prepared = (async () => {
 			const db = await database();
-			await provisionEvaluationUsers(db,CURRENT_COMPANY,users,(await auth.$context).password);
+			await provisionEvaluationUsers(
+				db,
+				CURRENT_COMPANY,
+				users,
+				(await auth.$context).password,
+			);
 			const existing = (
 				await db.query<{ email: string }>(
 					"SELECT m.email FROM app_members m JOIN security_memberships s ON s.subject_id=m.email AND s.company_id=$1 ORDER BY m.email",

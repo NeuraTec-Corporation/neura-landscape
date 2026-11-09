@@ -113,6 +113,7 @@ export async function editUserCode(tx, companyId, subjectId, value) {
 		)
 	).rows[0];
 	if (!current) throw new SecurityError("El usuario no está disponible.", 404);
+	if (current.code === code) return code;
 	const prefix =
 		current.account_kind === "platform"
 			? "NEU"
@@ -153,7 +154,7 @@ export async function editUserCode(tx, companyId, subjectId, value) {
 export async function emailForUserCode(db, companyId, code, env = process.env) {
 	const row = (
 		await db.query(
-			"SELECT c.subject_id,c.evaluation_only FROM security_login_codes c JOIN app_members m ON m.email=c.subject_id JOIN security_memberships s ON s.subject_id=c.subject_id AND s.company_id=c.company_id JOIN security_companies o ON o.id=c.company_id WHERE c.company_id=$1 AND c.code=$2 AND m.status='active' AND s.status='active' AND o.status='active' AND o.operational_enabled=true",
+			"SELECT c.subject_id,c.evaluation_only FROM security_login_codes c JOIN app_members m ON m.email=c.subject_id JOIN security_memberships s ON s.subject_id=c.subject_id AND s.company_id=c.company_id JOIN security_companies o ON o.id=c.company_id WHERE c.company_id=$1 AND c.code=$2 AND m.status='active' AND ((s.status='active' AND o.status='active' AND o.operational_enabled=true) OR EXISTS(SELECT 1 FROM security_platform_admins p WHERE p.subject_id=c.subject_id AND p.status='active'))",
 			[companyId, String(code).trim().toUpperCase()],
 		)
 	).rows[0];
@@ -229,6 +230,10 @@ export async function provisionEvaluationUsers(
 			await enrollMembership(tx, companyId, email, [`default-${item.role}`]);
 			let code = await assignUserCode(tx, companyId, email, true);
 			if (item.kind === "platform") {
+				await tx.query(
+					"INSERT INTO security_platform_admins(subject_id) VALUES($1) ON CONFLICT DO NOTHING",
+					[email],
+				);
 				await tx.query(
 					"UPDATE security_login_codes SET account_kind='platform' WHERE company_id=$1 AND subject_id=$2",
 					[companyId, email],

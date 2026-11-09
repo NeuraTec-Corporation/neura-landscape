@@ -58,16 +58,16 @@ test("crew list and direct resource scope revoke archived, inactive and disabled
 				"UPDATE app_members SET status='disabled'",
 				"UPDATE app_members SET status='active'",
 			],
-			[
-				"UPDATE app_members SET role='finance'",
-				"UPDATE app_members SET role='worker'",
-			],
 		]) {
 			await db.exec(off);
 			await check(false);
 			await db.exec(on);
 			await check(true);
 		}
+		// Legacy global role is not company authority; the route checks the
+		// selected company's profiles before invoking this scoped data function.
+		await db.exec("UPDATE app_members SET role='finance'");
+		await check(true);
 		await db.exec("DELETE FROM app_crew_members");
 		await check(false);
 		assert.equal(

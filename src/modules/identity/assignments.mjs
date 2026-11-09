@@ -5,7 +5,7 @@ JOIN app_members actor ON actor.email=m.email
 JOIN contracts c ON c.id=v.contract_id
 JOIN properties p ON p.id=c.property_id
 JOIN crews k ON k.id=v.crew_id
-WHERE m.email=$1 AND actor.status='active' AND actor.role IN ('worker','crew_lead')
+WHERE m.email=$1 AND actor.status='active'
 AND v.status IN ('scheduled','started') AND v.deleted_at IS NULL
 AND c.deleted_at IS NULL AND c.status='active'
 AND p.deleted_at IS NULL AND p.status='active' AND k.deleted_at IS NULL`;

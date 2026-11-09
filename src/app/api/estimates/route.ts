@@ -1,3 +1,4 @@
+import { companyRoute } from "../_company-route";
 import { database } from "@/modules/operations/index.mjs";
 import { principal } from "../_identity";
 import { manageAllowed as canManage, mutationAllowed } from "../_security";
@@ -27,7 +28,7 @@ function failure(e: unknown) {
 		{ status: 500 },
 	);
 }
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
 	const actor = await principal(request);
 	if (!actor || !canManage(actor, "estimates", "GET"))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
 		return failure(e);
 	}
 }
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
 	const actor = await principal(request);
 	if (!actor || !canManage(actor, "estimates", "POST"))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
@@ -89,3 +90,6 @@ export async function POST(request: Request) {
 		return failure(e);
 	}
 }
+
+export const GET = companyRoute(handleGET);
+export const POST = companyRoute(handlePOST);

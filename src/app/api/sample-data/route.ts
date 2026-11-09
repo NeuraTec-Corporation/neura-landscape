@@ -1,3 +1,4 @@
+import { companyRoute } from "../_company-route";
 import { capability } from "../_security";
 import { loadSampleOperations } from "@/modules/operations/sample-operations.mjs";
 import { database } from "@/modules/operations/index.mjs";
@@ -11,7 +12,7 @@ import { principal } from "../_identity";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
 	const actor = await principal(request);
 	if (
 		!actor ||
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
 		headers: { "Cache-Control": "no-store" },
 	});
 }
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
 	const actor = await principal(request);
 	if (
 		!actor ||
@@ -84,3 +85,6 @@ export async function POST(request: Request) {
 		);
 	}
 }
+
+export const GET = companyRoute(handleGET);
+export const POST = companyRoute(handlePOST);

@@ -1,3 +1,4 @@
+import { companyRoute } from "../_company-route";
 import { authorizedMutation } from "../_identity";
 import { database } from "@/modules/operations/index.mjs";
 import { savePhoto, readPhoto } from "@/modules/operations/photos.mjs";
@@ -5,7 +6,7 @@ import { SurveyError } from "@/modules/operations/survey.mjs";
 import { propertyAllowed } from "../_identity";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
 	const id = new URL(request.url).searchParams.get("id");
 	try {
 		const row = (
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
 		return new Response(null, { status: 500 });
 	}
 }
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
 	const url = new URL(request.url),
 		input = Object.fromEntries(url.searchParams);
 	if (
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
 	}
 }
 
-export async function DELETE(request: Request) {
+async function handleDELETE(request: Request) {
 	try {
 		const id = new URL(request.url).searchParams.get("id");
 		const db = await database();
@@ -110,3 +111,7 @@ export async function DELETE(request: Request) {
 		);
 	}
 }
+
+export const GET = companyRoute(handleGET);
+export const POST = companyRoute(handlePOST);
+export const DELETE = companyRoute(handleDELETE);

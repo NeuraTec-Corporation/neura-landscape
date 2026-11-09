@@ -1,3 +1,37 @@
+> Current increment: **SEC05** adds operational multi-company access. Earlier sections
+> below describe their original increment and are superseded where they pin one company.
+
+## SEC05 — Platform and company authority
+
+- `security_platform_admins` is the trusted platform authority. Only active IT identities
+  in this registry create/edit companies or assign identities across companies. Existing
+  trusted IT accounts migrate without recreating their identity, password or Google link.
+- `security_companies`, company-specific profiles, memberships and assignments retain
+  the reusable kernel. IT=0, owner=10, general administrator=20, supervisor=30,
+  finance=40, crew lead=50, crew=60; custom profiles default to 100. Rank does not
+  grant permissions: both capability containment and rank checks apply.
+- A company's administrator cannot change a higher profile or reset a shared person's
+  global credential. Platform IT handles recovery for identities with multiple companies.
+- `app_members.status` remains a global identity condition. Company user status lives
+  in its membership. Per-company display names avoid changing another company's label.
+- Company codes have unique three-letter prefixes; NEU is reserved for platform IT.
+  Native login resolves a globally unique code then validates its company membership.
+  Platform IT keeps its canonical code; credentials are not copied between companies.
+- Active-company cookies are HttpOnly/SameSite=Lax (Secure hosted). Explicit API company
+  targeting fails closed without membership or trusted IT authority. Every operational
+  route enters request-local AsyncLocalStorage after authentication and validation.
+  Tables, exports, direct IDs and photo reads use the same selected namespace.
+- Changing company reloads the application to discard previous-company client state.
+- New companies start empty except static reference catalogs. IT opens the company and
+  creates its owner/general administrator in Users, or assigns an existing person in
+  Companies. Profile checkboxes and crew assignment remain company-specific.
+- Local authentication-disabled evaluation is single-company only. Company provisioning
+  requires a real authenticated platform IT identity. Deployment protection stays enabled.
+
+This is an application isolation implementation, not RLS, a security certification,
+corporate Core publication, client portal, SSO federation or completed commercial rollout.
+Do not expose raw SQL, database roles or schema names to company administrators.
+
 # Security kernel — 0.1 candidate
 
 This is the first functional SEC01 increment in the existing Landscape application,
@@ -11,7 +45,7 @@ Canonical decision: https://app.notion.com/p/40b839ef360281d0af28ff7278f0d908 (S
 | `src/modules/security` | Generic membership/profile resolution, grant validation, authorization, transactions and security audit. |
 | `src/app/_security-manifest.mjs` | Landscape resource/action registry, allowed scopes, dependencies and initial profile definitions. |
 | `src/app/_permission-policy.mjs` | Adapter from HTTP/business operations to declared capabilities. |
-| `src/app/api/_security.ts` | Trusted compatibility enrollment and current operational-company selection. |
+| `src/app/api/_security.ts` | Authenticated company selection and explicit platform IT synchronization. |
 | `src/modules/identity` | Native credentials and optional Google/Better Auth sessions; activation and legacy assignment scope; not a dependency of the kernel. |
 | `src/app/api/security`, `src/app/api/users` | HTTP transport and composition with existing identities/crews. |
 | `security-profiles.tsx`, `users-workspace.tsx` | Profile matrix and user-to-profile checkbox administration. |
@@ -89,8 +123,7 @@ legacy domain-test compatibility and must not be used to authorize new routes.
 - Operational visit responses omit financial fields without `costs.read`.
   Dashboard access deliberately includes financial aggregates, and workforce
   access includes employment/rate records; the profile editor makes that clear.
-- Photos, contracts and other current business records still belong to the sole
-  operational workspace. They are not yet tenant-keyed resources.
+- Historical SEC01 limited operational records to one workspace. SEC05 supersedes this restriction with per-company namespaces and common scoped request composition.
 
 ## Current application experience
 

@@ -7,10 +7,14 @@ import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 
 import { migrate } from "./migrations.mjs";
+import { requestTenant } from "./tenant-database.mjs";
 
 const key = Symbol.for("neura-landscape.database");
 
 export async function database() {
+	return requestTenant()?.db || globalDatabase();
+}
+export async function globalDatabase() {
 	if (!globalThis[key])
 		globalThis[key] = (async () => {
 			if (process.env.DATABASE_URL) {

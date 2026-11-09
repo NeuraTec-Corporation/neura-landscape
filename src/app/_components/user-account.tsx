@@ -4,6 +4,8 @@ import { authClient } from "@/modules/identity/client";
 import { useCatalogs } from "./catalogs";
 
 export type SessionMember = {
+	platform_it?: boolean;
+	companies?: { id: string; name: string; status: string }[];
 	login_code?: string;
 	account_kind?: "company" | "platform";
 	name: string;
@@ -92,11 +94,7 @@ export function UserAccount() {
 					{member.security ? (
 						<div>
 							<dt>Empresa</dt>
-							<dd>
-								{member.account_kind === "platform"
-									? "NeuraTec · Administración del sistema"
-									: member.security.company_name}
-							</dd>
+							<dd>{member.security.company_name}</dd>
 						</div>
 					) : null}
 					<div>
@@ -108,6 +106,44 @@ export function UserAccount() {
 						<dd>Acceso NeuraTec</dd>
 					</div>
 				</dl>
+				{member.platform_it ? <p>NeuraTec · IT de plataforma</p> : null}
+				{member.companies &&
+				member.companies.filter((c) => c.status === "active").length > 1 ? (
+					<label>
+						Empresa activa
+						<select
+							value={member.security?.company_id || ""}
+							disabled={busy}
+							onChange={async (e) => {
+								setBusy(true);
+								setError("");
+								try {
+									const r = await fetch("/api/companies", {
+										method: "POST",
+										headers: { "Content-Type": "application/json" },
+										body: JSON.stringify({
+											action: "select",
+											company_id: e.target.value,
+										}),
+									});
+									if (!r.ok) throw Error();
+									window.location.assign("/");
+								} catch {
+									setError("No se pudo cambiar de empresa.");
+									setBusy(false);
+								}
+							}}
+						>
+							{member.companies
+								.filter((c) => c.status === "active")
+								.map((c) => (
+									<option key={c.id} value={c.id}>
+										{c.name}
+									</option>
+								))}
+						</select>
+					</label>
+				) : null}
 				{error ? <p role="alert">{error}</p> : null}
 				<button
 					type="button"

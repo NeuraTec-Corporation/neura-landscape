@@ -49,6 +49,7 @@ export const navigationGroups = [
 		label: "Sistema",
 		icon: "settings",
 		items: [
+			{ id: "empresas", label: "Empresas", href: "/empresas" },
 			{ id: "usuarios", label: "Usuarios y permisos", href: "/usuarios" },
 			{
 				id: "configuracion",

@@ -1,6 +1,7 @@
 // Landscape adapter: the reusable security module never imports this file.
 export const CURRENT_COMPANY = "landscape";
 const resources = [
+	["companies", "Empresas", ["read", "create", "update"]],
 	["dashboard", "Panel gerencial", ["read"]],
 	["customers", "Clientes", ["read", "create", "update"]],
 	["properties", "Localidades", ["read", "create", "update", "delete"]],
@@ -80,7 +81,27 @@ export const defaultProfiles = [
 		name: "Dueños",
 		scope: "company",
 		protected: false,
-		grants: all,
+		grants: all.filter(
+			(k) => !["companies.create", "companies.update"].includes(k),
+		),
+	},
+	{
+		key: "company_admin",
+		name: "Administrador general",
+		scope: "company",
+		protected: false,
+		grants: all.filter(
+			(k) =>
+				![
+					"companies.create",
+					"companies.update",
+					"finance.create",
+					"finance.update",
+					"finance.delete",
+					"finance.approve",
+					"finance.pay",
+				].includes(k),
+		),
 	},
 	{
 		key: "manager",
@@ -130,6 +151,7 @@ export const defaultProfiles = [
 	},
 ];
 export const sectionPermission = {
+	empresas: "companies",
 	resumen: "dashboard",
 	control: "dashboard",
 	clientes: "customers",

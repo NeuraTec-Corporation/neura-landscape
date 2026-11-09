@@ -16,7 +16,15 @@ async function lock(db, companyId) {
 async function authorizedTarget(db, registry, companyId, issuer, email) {
 	// Credentials identify a person globally. A tenant administrator must never
 	// take over an identity also belonging to another company.
+	const platform =
+		(
+			await db.query(
+				"SELECT p.subject_id FROM security_platform_admins p JOIN app_members m ON m.email=p.subject_id WHERE p.subject_id=$1 AND p.status='active' AND m.status='active'",
+				[issuer],
+			)
+		).rows.length > 0;
 	if (
+		!platform &&
 		(
 			await db.query(
 				"SELECT company_id FROM security_memberships WHERE subject_id=$1 AND company_id<>$2 AND status='active'",
@@ -41,7 +49,9 @@ async function authorizedTarget(db, registry, companyId, issuer, email) {
 		);
 	if (
 		!actor.root &&
-		(target.root || target.grants.some((g) => !actor.grants.includes(g)))
+		(target.root ||
+			(target.authority_level ?? 100) < (actor.authority_level ?? 100) ||
+			target.grants.some((g) => !actor.grants.includes(g)))
 	)
 		throw new SecurityError(
 			"No puedes administrar las credenciales de este perfil.",

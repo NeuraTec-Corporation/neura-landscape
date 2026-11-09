@@ -1,3 +1,4 @@
+import { companyRoute } from "../_company-route";
 import { authorizedMutation } from "../_identity";
 import { database } from "@/modules/operations/index.mjs";
 import {
@@ -11,7 +12,7 @@ import { uploadReady } from "@/modules/operations/photos.mjs";
 import { propertyAllowed } from "../_identity";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
 	const id = new URL(request.url).searchParams.get("property_id") || "";
 	if (!(await propertyAllowed(request, id)))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
@@ -44,7 +45,7 @@ function failure(error: unknown) {
 		{ status: error instanceof SurveyError ? error.status : 500 },
 	);
 }
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
 	if (!request.headers.get("content-type")?.startsWith("application/json"))
 		return Response.json({ error: "Se requiere JSON." }, { status: 415 });
 	try {
@@ -71,3 +72,6 @@ export async function POST(request: Request) {
 		return failure(error);
 	}
 }
+
+export const GET = companyRoute(handleGET);
+export const POST = companyRoute(handlePOST);

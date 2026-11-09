@@ -1,77 +1,69 @@
 import { CURRENT_COMPANY, permissionRegistry } from "../_security-manifest.mjs";
 import {
-	enrollMembership,
 	resolveSecurity,
+	enrollMembership,
 } from "@/modules/security/index.mjs";
 import type { Member } from "@/modules/identity/auth.mjs";
 import type { PGlite } from "@electric-sql/pglite";
-import { ensureMemberCode } from "@/modules/identity/user-codes.mjs";
+import { synchronizeIT } from "@/modules/identity/companies.mjs";
 
 export async function runtimeMember(
 	db: PGlite,
 	member: Member,
+	companyId: string = CURRENT_COMPANY,
 ): Promise<Member | null> {
 	const subject = member.email || "protected-evaluation";
-	// Compatibility enrollment for identities created by the trusted existing adapter.
-	const enrolled = (
-		await db.query(
-			"SELECT subject_id FROM security_memberships WHERE company_id=$1 AND subject_id=$2",
-			[CURRENT_COMPANY, subject],
-		)
-	).rows.length;
-	if (!enrolled)
-		await db.transaction(async (tx) => {
-			await tx.query(
-				"SELECT id FROM security_companies WHERE id=$1 FOR UPDATE",
-				[CURRENT_COMPANY],
-			);
-			const exists = (
-				await tx.query(
-					"SELECT subject_id FROM security_memberships WHERE company_id=$1 AND subject_id=$2",
-					[CURRENT_COMPANY, subject],
-				)
-			).rows.length;
-			if (!exists)
-				await enrollMembership(
-					tx,
-					CURRENT_COMPANY,
-					subject,
-					[`default-${member.role}`],
-					member.status,
-				);
-		});
+	if (!member.email && companyId === CURRENT_COMPANY)
+		await db.transaction((tx) =>
+			enrollMembership(tx, companyId, subject, ["default-it_admin"]),
+		);
+	const root = member.email
+		? await synchronizeIT(db, companyId, subject)
+		: false;
 	const security = await resolveSecurity(
 		db,
-		CURRENT_COMPANY,
+		companyId,
 		subject,
 		permissionRegistry,
 	);
-	if (!security?.operational_enabled) return null;
-	const role =
-		security.scope === "assigned"
-			? member.role === "crew_lead"
-				? "crew_lead"
-				: "worker"
-			: security.root
-				? "it_admin"
-				: member.role === "owner"
-					? "owner"
-					: member.role === "finance"
-						? "finance"
-						: "manager";
-	const login_code = member.email
-		? await ensureMemberCode(db, CURRENT_COMPANY, member.email)
-		: undefined;
-	const account_kind = member.email
-		? (
-				await db.query<{ account_kind: "company" | "platform" }>(
-					"SELECT account_kind FROM security_login_codes WHERE company_id=$1 AND subject_id=$2",
-					[CURRENT_COMPANY, member.email],
-				)
-			).rows[0]?.account_kind
-		: undefined;
-	return { ...member, role, security, login_code, account_kind };
+	if (!security || (!root && !security.operational_enabled)) return null;
+	// Protected tenant permissions can only originate in the platform registry.
+	if (security.root && !root && member.email) return null;
+	const keys = security.profiles.map((p) => p.system_key);
+	const role = security.root
+		? "it_admin"
+		: keys.includes("owner")
+			? "owner"
+			: security.scope === "assigned"
+				? keys.includes("crew_lead")
+					? "crew_lead"
+					: "worker"
+				: keys.includes("finance")
+					? "finance"
+					: "manager";
+	const code = (
+		await db.query<{ code: string; account_kind: "company" | "platform" }>(
+			"SELECT code,account_kind FROM security_login_codes WHERE subject_id=$1 AND (company_id=$2 OR account_kind='platform') ORDER BY account_kind DESC LIMIT 1",
+			[subject, companyId],
+		)
+	).rows[0];
+	const membership = (
+		await db.query<{ display_name: string }>(
+			"SELECT display_name FROM security_memberships WHERE company_id=$1 AND subject_id=$2",
+			[companyId, subject],
+		)
+	).rows[0];
+	return {
+		...member,
+		name: membership?.display_name || member.name,
+		role,
+		security,
+		platform_it: root,
+		login_code: code?.code,
+		account_kind: root ? "platform" : "company",
+	};
 }
+
 export {
 	capability,
 	routeAllowed,

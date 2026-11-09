@@ -7,10 +7,7 @@ import {
 import { localAccessService } from "@/modules/identity/local-access.mjs";
 import { database } from "@/modules/operations/index.mjs";
 import { SecurityError } from "@/modules/security/index.mjs";
-import {
-	CURRENT_COMPANY,
-	permissionRegistry,
-} from "../../_security-manifest.mjs";
+import { permissionRegistry } from "../../_security-manifest.mjs";
 import { principal } from "../_identity";
 import { capability } from "../_security";
 import { allowedRequest } from "../_access";
@@ -91,7 +88,10 @@ export async function POST(request: Request) {
 				{ status: 403, headers },
 			);
 		const result = await service.issue(
-			{ companyId: CURRENT_COMPANY, subjectId: actor.security.subject_id },
+			{
+				companyId: actor.security.company_id,
+				subjectId: actor.security.subject_id,
+			},
 			value.email,
 		);
 		return Response.json(
