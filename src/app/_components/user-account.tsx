@@ -5,6 +5,7 @@ import { useCatalogs } from "./catalogs";
 
 export type SessionMember = {
 	login_code?: string;
+	account_kind?: "company" | "platform";
 	name: string;
 	email?: string;
 	role: string;
@@ -16,7 +17,7 @@ export const SessionContext = createContext<{
 }>({ enabled: false, member: null });
 
 const roleLabels: Record<string, string> = {
-	it_admin: "Administrador de TI",
+	it_admin: "Administrador IT",
 	owner: "Dueño",
 	manager: "Manager",
 	crew_lead: "Jefe de cuadrilla",
@@ -91,7 +92,11 @@ export function UserAccount() {
 					{member.security ? (
 						<div>
 							<dt>Empresa</dt>
-							<dd>{member.security.company_name}</dd>
+							<dd>
+								{member.account_kind === "platform"
+									? "NeuraTec · Administración del sistema"
+									: member.security.company_name}
+							</dd>
 						</div>
 					) : null}
 					<div>

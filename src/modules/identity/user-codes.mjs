@@ -47,7 +47,9 @@ export async function assignUserCode(
 				companyId,
 			])
 		).rows[0];
-		const prefix = operatorPrefix(process.env.LANDSCAPE_LOGIN_PREFIX || operator?.code || company?.name);
+		const prefix = operatorPrefix(
+			process.env.LANDSCAPE_LOGIN_PREFIX || operator?.code || company?.name,
+		);
 		if (
 			(
 				await tx.query(
@@ -90,6 +92,63 @@ export async function ensureMemberCode(db, companyId, subjectId) {
 		old?.code ||
 		db.transaction((tx) => assignUserCode(tx, companyId, subjectId))
 	);
+}
+export async function editUserCode(tx, companyId, subjectId, value) {
+	const code = String(value).trim().toUpperCase();
+	if (
+		!/^[A-Z]{3}[0-9]{3,10}$/.test(code) ||
+		Number(code.slice(3)) < 1 ||
+		Number(code.slice(3)) > 2147483647
+	)
+		throw new SecurityError(
+			"Usa tres letras y un secuencial positivo, por ejemplo ROJ001.",
+		);
+	await tx.query("SELECT id FROM security_companies WHERE id=$1 FOR UPDATE", [
+		companyId,
+	]);
+	const current = (
+		await tx.query(
+			"SELECT code,account_kind FROM security_login_codes WHERE company_id=$1 AND subject_id=$2 FOR UPDATE",
+			[companyId, subjectId],
+		)
+	).rows[0];
+	if (!current) throw new SecurityError("El usuario no está disponible.", 404);
+	const prefix =
+		current.account_kind === "platform"
+			? "NEU"
+			: (
+					await tx.query(
+						"SELECT prefix FROM security_company_logins WHERE company_id=$1",
+						[companyId],
+					)
+				).rows[0]?.prefix;
+	if (code.slice(0, 3) !== prefix)
+		throw new SecurityError(
+			`Este usuario debe conservar el prefijo ${prefix}.`,
+		);
+	if (
+		(
+			await tx.query(
+				"SELECT subject_id FROM security_login_codes WHERE code=$1 AND (company_id<>$2 OR subject_id<>$3)",
+				[code, companyId, subjectId],
+			)
+		).rows.length
+	)
+		throw new SecurityError(
+			"El código de usuario ya está asignado. Usa otro.",
+			409,
+		);
+	if (current.code === code) return code;
+	await tx.query(
+		"UPDATE security_login_codes SET code=$3 WHERE company_id=$1 AND subject_id=$2",
+		[companyId, subjectId, code],
+	);
+	if (current.account_kind !== "platform")
+		await tx.query(
+			"UPDATE security_company_logins SET last_sequence=greatest(last_sequence,$2) WHERE company_id=$1",
+			[companyId, Number(code.slice(3))],
+		);
+	return code;
 }
 export async function emailForUserCode(db, companyId, code, env = process.env) {
 	const row = (
@@ -168,7 +227,14 @@ export async function provisionEvaluationUsers(
 				[email, item.name, item.role],
 			);
 			await enrollMembership(tx, companyId, email, [`default-${item.role}`]);
-			const code = await assignUserCode(tx, companyId, email, true);
+			let code = await assignUserCode(tx, companyId, email, true);
+			if (item.kind === "platform") {
+				await tx.query(
+					"UPDATE security_login_codes SET account_kind='platform' WHERE company_id=$1 AND subject_id=$2",
+					[companyId, email],
+				);
+				code = await editUserCode(tx, companyId, email, item.code);
+			}
 			await writeCredential(tx, { email, name: item.name }, encoded);
 			if (["worker", "crew_lead"].includes(item.role)) {
 				const crew = (

@@ -70,7 +70,7 @@ const selected = (modules) =>
 export const defaultProfiles = [
 	{
 		key: "it_admin",
-		name: "TI",
+		name: "IT",
 		scope: "company",
 		protected: true,
 		grants: all,

@@ -325,6 +325,6 @@ Better Auth owns hashing, session cookies and persistent login rate limits. Publ
 
 ## Native username update (SEC03)
 
-The native login now asks Usuario / Clave. Users receive immutable company codes such as ROJ001; emails are optional when creating a native-only user. The Google button remains the second sign-in method. Users and the account menu display the code. Activation/recovery links continue to establish a native password for that code.
+The native login now asks Usuario / Clave. Users receive unique company codes such as ROJ001; emails are optional when creating a native-only user. The Google button remains the second sign-in method. Users and the account menu display the code. Activation/recovery links continue to establish a native password for that code.
 
 For the requested Preview evaluation, six named accounts are provisioned once, one per default profile, with the initial key supplied privately through LANDSCAPE_EVALUATION_PASSWORD. LANDSCAPE_EVALUATION_USERS=true enables them only on Preview; production denies their application sessions. The normal activation password policy is unchanged. These accounts and their credentials are not recreated or reset on every deployment. LANDSCAPE_LOGIN_PREFIX reserves the operator abbreviation (e.g. ROJ); new codes retain a monotonically increasing sequence and assigned codes are never renamed automatically.

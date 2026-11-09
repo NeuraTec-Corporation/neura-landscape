@@ -91,7 +91,7 @@ export function SecurityProfiles({
 					<Notices error={error} />
 					{editing?.protected ? (
 						<p className="notice">
-							Perfil protegido de continuidad de TI. Sus permisos no se
+							Perfil protegido de continuidad IT. Sus permisos no se
 							modifican; sus asignaciones se administran desde Usuarios.
 						</p>
 					) : null}

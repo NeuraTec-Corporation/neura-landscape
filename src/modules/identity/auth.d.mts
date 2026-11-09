@@ -9,6 +9,7 @@ export function memberForSession(
 export function canUse(role: string, path: string, method?: string): boolean;
 export type Member = {
 	login_code?: string;
+	account_kind?: "company"|"platform";
  security?: import("../security/index.mjs").SecurityAccess;
 	email: string;
 	name: string;

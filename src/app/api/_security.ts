@@ -59,8 +59,18 @@ export async function runtimeMember(
 					: member.role === "finance"
 						? "finance"
 						: "manager";
-	const login_code=member.email?await ensureMemberCode(db,CURRENT_COMPANY,member.email):undefined;
-	return { ...member, role, security, login_code };
+	const login_code = member.email
+		? await ensureMemberCode(db, CURRENT_COMPANY, member.email)
+		: undefined;
+	const account_kind = member.email
+		? (
+				await db.query<{ account_kind: "company" | "platform" }>(
+					"SELECT account_kind FROM security_login_codes WHERE company_id=$1 AND subject_id=$2",
+					[CURRENT_COMPANY, member.email],
+				)
+			).rows[0]?.account_kind
+		: undefined;
+	return { ...member, role, security, login_code, account_kind };
 }
 export {
 	capability,

@@ -127,7 +127,7 @@ export function securityService(db, registry) {
 		).rows;
 		if (!roots.length)
 			throw new SecurityError(
-				"Debe conservarse un administrador de TI activo.",
+				"Debe conservarse un administrador IT activo.",
 				409,
 			);
 	}
@@ -174,7 +174,7 @@ export function securityService(db, registry) {
 			)
 		).rows;
 		if (!access.root && current.some((p) => p.protected))
-			throw new SecurityError("Solo TI puede modificar este acceso.", 403);
+			throw new SecurityError("Solo IT puede modificar este acceso.", 403);
 		for (const profile of current) delegable(access, profile.grants);
 		const profiles = [];
 		for (const id of new Set(profileIds)) {
@@ -190,7 +190,7 @@ export function securityService(db, registry) {
 				);
 			if (p.protected && !access.root)
 				throw new SecurityError(
-					"Solo TI puede asignar el perfil protegido.",
+					"Solo IT puede asignar el perfil protegido.",
 					403,
 				);
 			delegable(access, p.grants);
@@ -268,7 +268,7 @@ export function securityService(db, registry) {
 					throw new SecurityError("Perfil no encontrado en esta empresa.", 404);
 				if (old?.protected)
 					throw new SecurityError(
-						"El perfil de continuidad TI es protegido. Crea otro perfil para personalizar permisos.",
+						"El perfil de continuidad IT es protegido. Crea otro perfil para personalizar permisos.",
 						409,
 					);
 				if (

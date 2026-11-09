@@ -9,6 +9,7 @@ import { PagedTable } from "./paged-collection";
 import { Notices } from "./management-shared";
 type User = {
 	login_code: string;
+	account_kind: "company" | "platform";
 	evaluation_only: boolean;
 	has_password: boolean;
 	email: string;
@@ -182,6 +183,9 @@ export function UsersWorkspace() {
 											body: JSON.stringify({
 												email: edit?.email || fd.get("email"),
 												name: fd.get("name"),
+												...(String(fd.get("login_code") || "").trim()
+													? { login_code: String(fd.get("login_code")).trim() }
+													: {}),
 												status: fd.get("status"),
 												profile_ids: profileIds,
 												crew_ids: fd.getAll("crew_ids"),
@@ -219,8 +223,14 @@ export function UsersWorkspace() {
 										<label>
 											Código de usuario
 											<input
-												readOnly
-												value={edit?.login_code || "Se asigna al guardar"}
+												name="login_code"
+												defaultValue={edit?.login_code || ""}
+												placeholder="Automático al guardar"
+												required={!!edit}
+												maxLength={13}
+												pattern="[A-Za-z]{3}[0-9]{3,10}"
+												autoCapitalize="characters"
+												spellCheck={false}
 											/>
 										</label>
 										<label>
@@ -350,6 +360,11 @@ export function UsersWorkspace() {
 											<strong>
 												{u.login_code || "Pendiente"} · {u.name}
 											</strong>
+											{u.account_kind === "platform" ? (
+												<span className="table-subline">
+													NeuraTec · Administración del sistema
+												</span>
+											) : null}
 											{!u.email.endsWith("@access.neuratec.invalid") ? (
 												<span className="table-subline">{u.email}</span>
 											) : null}

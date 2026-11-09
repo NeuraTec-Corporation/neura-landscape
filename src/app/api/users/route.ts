@@ -14,7 +14,10 @@ import {
 import { z } from "zod";
 import type { PGlite } from "@electric-sql/pglite";
 import { randomUUID } from "node:crypto";
-import { assignUserCode } from "@/modules/identity/user-codes.mjs";
+import {
+	assignUserCode,
+	editUserCode,
+} from "@/modules/identity/user-codes.mjs";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 const schema = z
@@ -26,6 +29,12 @@ const schema = z
 				(v) => v?.toLowerCase() || `${randomUUID()}@access.neuratec.invalid`,
 			),
 		name: z.string().trim().min(1).max(150),
+		login_code: z
+			.string()
+			.trim()
+			.toUpperCase()
+			.regex(/^[A-Z]{3}[0-9]{3,10}$/)
+			.optional(),
 		status: z.enum(["active", "disabled"]),
 		profile_ids: z.array(z.string().min(1)).max(30),
 		revision: z.number().int().positive().optional(),
@@ -45,7 +54,7 @@ export async function GET(request: Request) {
 		});
 		const users = (
 			await db.query<Record<string, unknown> & { email: string }>(
-				"SELECT m.*,l.code login_code,l.evaluation_only,EXISTS(SELECT 1 FROM security_local_identities i WHERE i.email=m.email) has_password,coalesce((SELECT json_agg(crew_id) FROM app_crew_members c WHERE c.email=m.email),'[]'::json) crew_ids FROM app_members m JOIN security_memberships s ON s.subject_id=m.email AND s.company_id=$1 LEFT JOIN security_login_codes l ON l.subject_id=m.email AND l.company_id=s.company_id ORDER BY m.name",
+				"SELECT m.*,l.code login_code,l.account_kind,l.evaluation_only,EXISTS(SELECT 1 FROM security_local_identities i WHERE i.email=m.email) has_password,coalesce((SELECT json_agg(crew_id) FROM app_crew_members c WHERE c.email=m.email),'[]'::json) crew_ids FROM app_members m JOIN security_memberships s ON s.subject_id=m.email AND s.company_id=$1 LEFT JOIN security_login_codes l ON l.subject_id=m.email AND l.company_id=s.company_id ORDER BY m.name",
 				[CURRENT_COMPANY],
 			)
 		).rows;
@@ -96,7 +105,7 @@ export async function POST(request: Request) {
 			(v.status !== "active" || !v.profile_ids.includes("default-it_admin"))
 		)
 			throw new SecurityError(
-				"El administrador inicial de TI debe conservar su perfil protegido activo.",
+				"El administrador inicial IT debe conservar su perfil protegido activo.",
 				409,
 			);
 		const db = await database();
@@ -116,9 +125,10 @@ export async function POST(request: Request) {
 						name: string;
 						role: string;
 						status: string;
+						login_code: string | null;
 					}>(
-						"SELECT revision,name,role,status FROM app_members WHERE email=$1 FOR UPDATE",
-						[v.email],
+						"SELECT revision,name,role,status,(SELECT code FROM security_login_codes c WHERE c.subject_id=app_members.email AND c.company_id=$2) login_code FROM app_members WHERE email=$1 FOR UPDATE",
+						[v.email, CURRENT_COMPANY],
 					)
 				).rows[0];
 				if (old && old.revision !== v.revision)
@@ -159,6 +169,14 @@ export async function POST(request: Request) {
 					);
 				await enrollMembership(tx, CURRENT_COMPANY, v.email, [], v.status);
 				await assignUserCode(tx, CURRENT_COMPANY, v.email);
+				const loginCode = v.login_code
+					? await editUserCode(tx, CURRENT_COMPANY, v.email, v.login_code)
+					: (
+							await tx.query<{ code: string }>(
+								"SELECT code FROM security_login_codes WHERE company_id=$1 AND subject_id=$2",
+								[CURRENT_COMPANY, v.email],
+							)
+						).rows[0].code;
 				const previousCrews = (
 					await tx.query<{ crew_id: string }>(
 						"SELECT crew_id FROM app_crew_members WHERE email=$1",
@@ -192,6 +210,7 @@ export async function POST(request: Request) {
 						JSON.stringify(old ? { ...old, crew_ids: previousCrews } : null),
 						JSON.stringify({
 							name: v.name,
+							login_code: loginCode,
 							status: v.status,
 							role: legacy,
 							crew_ids: [...new Set(v.crew_ids)],
@@ -202,14 +221,24 @@ export async function POST(request: Request) {
 		);
 		return Response.json({ ok: true });
 	} catch (error) {
+		const duplicate =
+			typeof error === "object" &&
+			error !== null &&
+			"code" in error &&
+			error.code === "23505";
 		return Response.json(
 			{
 				error:
 					error instanceof SecurityError
 						? error.message
-						: "Revisa nombre, correo, perfiles, cuadrillas y revisión del usuario.",
+						: duplicate
+							? "El código o identidad ya está asignado. Usa otro."
+							: "Revisa código, nombre, correo, perfiles, cuadrillas y revisión del usuario.",
 			},
-			{ status: error instanceof SecurityError ? error.status : 422 },
+			{
+				status:
+					error instanceof SecurityError ? error.status : duplicate ? 409 : 422,
+			},
 		);
 	}
 }
