@@ -1,5 +1,10 @@
 # PostgreSQL recovery and concurrency drill
 
+First executed successfully in [CI 42568189488, PostgreSQL job](https://github.com/NeuraTec-Corporation/neura-landscape/actions/runs/42568189488/job/128999252169)
+on 2026-11-09, source `94bf21470ac839d2a1b51753537ccda71203da7f`.
+This closes the synthetic PostgreSQL restore and bounded contention checks only;
+the hosted recovery and commercial capacity limits below still apply.
+
 `scripts/postgres-drill.mjs` runs only against loopback PostgreSQL on port 5432.
 It requires `LANDSCAPE_POSTGRES_DRILL=local-disposable-only` and
 `LANDSCAPE_DRILL_PASSWORD` for that disposable server. It does not read
