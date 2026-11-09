@@ -36,6 +36,7 @@ const databases = [];
 const connections = [];
 const started = performance.now();
 const root = "operator@recovery.invalid";
+let report;
 const quote = (name) => `"${name.replaceAll('"', '""')}"`;
 function connect(name) {
 	const url = new URL("postgresql://127.0.0.1:5432");
@@ -77,6 +78,17 @@ async function fingerprint(db) {
 	}
 	hash.update(JSON.stringify([structure, constraints, sequences]));
 	return { tables: tables.length, rows, sha256: hash.digest("hex") };
+}
+async function dropClosedDatabase(name) {
+	for (let attempt = 0; ; attempt++) {
+		try {
+			await admin.query(`DROP DATABASE ${quote(name)}`);
+			return;
+		} catch (error) {
+			if (error.code !== "55006" || attempt === 49) throw error;
+			await new Promise((resolve) => setTimeout(resolve, 100));
+		}
+	}
 }
 try {
 	for (const name of names) {
@@ -150,10 +162,17 @@ try {
 	// Identity-backed audit sequence remains usable after restore.
 	const nextEmployee = await saveEmployee(recovered, { ...input, id: undefined, revision: undefined, first_name: "Marina", last_name: "Alder" });
 	assert.ok(nextEmployee.id);
-	console.log(JSON.stringify({ status: "passed", engine: (await db.query("SHOW server_version")).rows[0].server_version, simultaneousJobs: 48, pooledConnections: new Set(jobs).size, revisionRace: "one success, one 409", restore: before, postRestoreWrite: true, elapsedSeconds: Math.round((performance.now() - started) / 1000), scope: "disposable synthetic PostgreSQL; not hosted backup or production capacity certification" }));
+	report = { status: "passed", engine: (await db.query("SHOW server_version")).rows[0].server_version, simultaneousJobs: 48, pooledConnections: new Set(jobs).size, revisionRace: "one success, one 409", restore: before, postRestoreWrite: true, elapsedSeconds: Math.round((performance.now() - started) / 1000), scope: "disposable synthetic PostgreSQL; not hosted backup or production capacity certification" };
 } finally {
-	await Promise.allSettled(connections.map((db) => db.close()));
-	for (const name of databases.reverse()) await admin.query(`DROP DATABASE ${quote(name)} WITH (FORCE)`);
-	await admin.end();
-	await rm(directory, { recursive: true, force: true });
+	try {
+		await Promise.all(connections.map((db) => db.close()));
+		// pg Pool.end can resolve before PostgreSQL has processed socket closure.
+		// Never FORCE-terminate a closing client: that races its idle error handler.
+		for (const name of databases.reverse()) await dropClosedDatabase(name);
+	} finally {
+		await admin.end();
+		await rm(directory, { recursive: true, force: true });
+	}
 }
+// A successful drill includes successful cleanup, not just successful assertions.
+console.log(JSON.stringify({ ...report, cleanup: "databases and temporary dump removed" }));
