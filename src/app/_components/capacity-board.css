@@ -1,4 +1,5 @@
 @layer management {
+	.manage-workspace .notice { white-space:normal; }
 	.capacity-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
 	.capacity-card { padding:20px; border:1px solid #d5dfcc; border-radius:14px; min-width:0; background:#fafbf7; }
 	.capacity-numbers { display:flex; flex-wrap:wrap; gap:16px; margin:18px 0 12px; }

@@ -1,5 +1,9 @@
 # Daily crew planning — OPS02
 
+Vercel uses the repository's `npm run build` command. Existing GitHub CI retains
+lint, types and automated test gates; the deployment does not repeat the same suite.
+This avoids redundant CI/deployment test execution without disabling CI checks.
+
 In Trabajos y agenda, company planners see a daily crew board before the visit
 editor. Each card shows current crew members, shift, break, scheduled service and
 travel minutes, remaining total time and warnings. Search and pagination reuse the
