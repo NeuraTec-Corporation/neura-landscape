@@ -1,7 +1,9 @@
 "use client";
 import { useSessionAccess } from "./user-account";
 import { PagedCollection } from "./paged-collection";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { CapacityBoard, CapacitySummary } from "./capacity-board";
+import { dailyCapacity, planningDay } from "@/modules/operations/daily-capacity.mjs";
 import { CatalogSelect, useCatalogs } from "./catalogs";
 import {
 	Notices,
@@ -303,6 +305,16 @@ export function VisitsWorkspace() {
 		} | null>(null),
 		[filter, setFilter] = useState(""),
 		[title, setTitle] = useState("");
+	const editorRef = useRef<HTMLElement>(null);
+	const [scheduled, setScheduled] = useState(""),
+		[plannedMinutes, setPlannedMinutes] = useState("60"),
+		[travelMinutes, setTravelMinutes] = useState("0");
+	useEffect(() => {
+		if (editing) {
+			editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+			editorRef.current?.focus({ preventScroll: true });
+		}
+	}, [editing]);
 	useEffect(() => {
 		if (!canPlan) return;
 		Promise.all([
@@ -351,14 +363,34 @@ export function VisitsWorkspace() {
 		setCrewId("");
 		setTitle("");
 		setTasks([freshTask()]);
+		setScheduled("");
+		setPlannedMinutes("60");
+		setTravelMinutes("0");
+	};
+	const editVisit = (v: Visit) => {
+		setExecution(null);
+		setEditing(v);
+		setContractId(v.contract_id);
+		setCrewId(v.crew_id);
+		setTitle(v.title || "Trabajo del contrato");
+		setScheduled(localInput(v.scheduled_at));
+		setPlannedMinutes(String(v.planned_minutes ?? 60));
+		setTravelMinutes(String(v.travel_minutes ?? 0));
+		setTasks(v.tasks.length ? v.tasks.map((t) => ({ ...t, clientKey: t.id ?? crypto.randomUUID() })) : [freshTask()]);
 	};
 	const people = crew?.members ?? [];
+	const previewDate = new Date(scheduled);
+	const preview = crew && !Number.isNaN(previewDate.getTime()) && Number(plannedMinutes) > 0 && Number(travelMinutes) >= 0
+		? dailyCapacity(workforce?.crews ?? [], state.data ?? [], planningDay(previewDate), {
+			id: editing?.id ?? "unsaved-capacity-preview", crew_id: crew.id, scheduled_at: previewDate.toISOString(), status: "scheduled", planned_minutes: Number(plannedMinutes), travel_minutes: Number(travelMinutes), personnel: people.map((p) => ({ employee_id: p.employee_id })),
+		}).find((row) => row.id === crew.id) : null;
 	const known =
 			people.length > 0 && people.every((p) => p.hourly_cents !== null),
 		hourly = people.reduce((sum, p) => sum + Number(p.hourly_cents || 0), 0);
 	return (
 		<div className="manage-workspace">
 			<Notices error={state.error} notice={state.notice} />
+			{canPlan && workforce && state.data ? <CapacityBoard workforce={workforce} visits={state.data} busy={state.busy} canEdit={canUpdate} onEdit={editVisit} /> : null}
 			{execution ? (
 				<ExecutionForm
 					visit={execution.visit}
@@ -368,10 +400,11 @@ export function VisitsWorkspace() {
 					onClose={() => setExecution(null)}
 				/>
 			) : (editing ? canUpdate : canCreate) ? (
-				<section className="panel">
+				<section className="panel" ref={editorRef} tabIndex={-1} aria-label="Editor de visita">
 					<h2>
 						{editing ? "Editar y reprogramar visita" : "Programar visita"}
 					</h2>
+					{editing?.assignment_review_required ? <p className="notice">Reasignación pendiente. Selecciona una cuadrilla operativa y revisa los responsables de las tareas; el servidor confirmará la asignación al guardar.</p> : null}
 					<form
 						key={editing?.id ?? "new"}
 						className="manage-form"
@@ -409,6 +442,7 @@ export function VisitsWorkspace() {
 											setContractId(e.target.value);
 											const ct = contracts.find((c) => c.id === e.target.value);
 											setTitle(ct?.service ?? "");
+											setPlannedMinutes(String(ct?.estimated_minutes ?? 60));
 											setTasks([freshTask()]);
 										}}
 									>
@@ -459,9 +493,8 @@ export function VisitsWorkspace() {
 										name="scheduled_at"
 										type="datetime-local"
 										required
-										defaultValue={
-											editing ? localInput(editing.scheduled_at) : ""
-										}
+										value={scheduled}
+										onChange={(e) => setScheduled(e.target.value)}
 									/>
 								</label>
 								<label>
@@ -473,11 +506,8 @@ export function VisitsWorkspace() {
 										required
 										min="1"
 										max="1440"
-										defaultValue={
-											editing?.planned_minutes ??
-											contract?.estimated_minutes ??
-											60
-										}
+										value={plannedMinutes}
+										onChange={(e) => setPlannedMinutes(e.target.value)}
 									/>
 								</label>
 								<label>
@@ -488,7 +518,8 @@ export function VisitsWorkspace() {
 										required
 										min="0"
 										max="1440"
-										defaultValue={editing?.travel_minutes ?? 0}
+										value={travelMinutes}
+										onChange={(e) => setTravelMinutes(e.target.value)}
 									/>
 								</label>
 								<label>
@@ -519,6 +550,7 @@ export function VisitsWorkspace() {
 											</span>
 										))}
 									</div>
+									{preview ? <div aria-live="polite"><h4>Jornada prevista al guardar · {planningDay(previewDate)}</h4><CapacitySummary value={preview} /><p>Vista previa orientativa. Al guardar se comprueban otra vez el turno, las personas y los cruces con las asignaciones vigentes.</p></div> : <p>Selecciona fecha y hora para ver la carga de esta cuadrilla antes de guardar.</p>}
 									{!people.length ? (
 										<p>
 											Esta cuadrilla necesita empleados identificados antes de
@@ -766,21 +798,7 @@ export function VisitsWorkspace() {
 									<>
 										<button
 											type="button"
-											onClick={() => {
-												reset();
-												setEditing(v);
-												setContractId(v.contract_id);
-												setCrewId(v.crew_id);
-												setTitle(v.title || "Trabajo del contrato");
-												setTasks(
-													v.tasks.length
-														? v.tasks.map((t) => ({
-																...t,
-																clientKey: t.id ?? crypto.randomUUID(),
-															}))
-														: [freshTask()],
-												);
-											}}
+											onClick={() => editVisit(v)}
 											disabled={state.busy || !canUpdate}
 										>
 											Editar visita
