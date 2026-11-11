@@ -1,4 +1,5 @@
 import { companyRoute } from "../_company-route";
+import { reassignPending } from "@/modules/operations/reassignment.mjs";
 import { redactFinancials } from "../_security-data";
 import { database } from "@/modules/operations/index.mjs";
 import { principal } from "../_identity";
@@ -126,6 +127,7 @@ async function handlePOST(request: Request) {
 							: saveCrew(db, input);
 				}
 				if (area === "visits") {
+					if(input.action === "reassign_pending") return reassignPending(db);
 					if (input.action === "save") return saveVisit(db, input);
 					if (input.action === "complete") return completeVisit(db, input);
 					return changeVisit(db, input);

@@ -1,4 +1,5 @@
 // One resource scope for both the list and direct property/photo access.
+import { ManageError } from "../operations/manage.mjs";
 const scope = `FROM visits v
 JOIN app_crew_members m ON m.crew_id=v.crew_id
 JOIN app_members actor ON actor.email=m.email
@@ -27,3 +28,9 @@ export async function assignedProperty(db, email, propertyId) {
 		).rows.length > 0
 	);
 }
+export async function assignedVisit(db,email,id){return (await db.query(`SELECT v.id ${scope} AND v.id=$2 LIMIT 1`,[email,id])).rows.length>0;}
+export function assignedExecutionDatabase(db,email,id){return {transaction:fn=>db.transaction(async tx=>{
+	const access=await tx.query(`SELECT v.id ${scope} AND v.id=$2 FOR SHARE OF m,actor`,[email,id]);
+	if(!access.rows.length)throw new ManageError("La visita ya no está asignada a tu cuadrilla.",403);
+	return fn(tx);
+})};}

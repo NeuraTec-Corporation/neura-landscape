@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { parse, ManageError, text, revision, audit, money } from "./manage.mjs";
 import { requireOption } from "./catalog.mjs";
+import { resourceCostState } from "./resources.mjs";
 const task = z.object({
 	service_key: text,
 	description: text,
@@ -454,7 +455,7 @@ export async function changeVisit(db, input) {
 					}
 					await tx.query(
 						"UPDATE visits SET actual_minutes=$2,labor_cents=$3,cost_complete=$4,revenue_cents=0 WHERE id=$1",
-						[v.id, actual || null, known ? labor : null, known],
+						[v.id, actual || null, known ? labor : null, known && (await resourceCostState(tx,v.id)).complete],
 					);
 				}
 				await tx.query(
@@ -579,6 +580,7 @@ export async function completeVisit(db, input) {
 				[t.id, t.completed_quantity, t.status, t.notes],
 			);
 		}
+		const resourcesComplete = (await resourceCostState(tx,v.id)).complete;
 		await tx.query(
 			"UPDATE visits SET status='completed',completed_at=now(),actual_minutes=$2,labor_cents=$3,revenue_cents=planned_revenue_cents,cost_complete=$4,notes=$5,revision=revision+1 WHERE id=$1",
 			[
@@ -587,7 +589,7 @@ export async function completeVisit(db, input) {
 					? Math.max(...v.personnel.map((p) => p.actual_minutes))
 					: v.legacy_minutes,
 				known ? labor : null,
-				known,
+				known && resourcesComplete,
 				v.notes,
 			],
 		);
@@ -660,6 +662,10 @@ export async function saveVisitCosts(db, input) {
 				],
 			);
 		}
+		const resourceState = await resourceCostState(tx,v.id);
+		totals.materials += resourceState.totals.materials;
+		totals.equipment += resourceState.totals.equipment;
+		if(Object.values(totals).some(n=>n>100000000))throw new ManageError("El costo total supera el máximo permitido.");
 		const labor =
 			v.labor === undefined || v.labor === ""
 				? row.labor_cents
@@ -673,7 +679,7 @@ export async function saveVisitCosts(db, input) {
 				totals.equipment,
 				totals.travel,
 				totals.overhead,
-				labor !== null,
+				labor !== null && resourceState.complete,
 			],
 		);
 		await audit(tx, "visit_cost", v.id, `adjusted:${v.reason}`, {

@@ -9,6 +9,7 @@ import { ManagementDashboard } from "./management-dashboard";
 import { WorkforceWorkspace } from "./workforce-workspace";
 import { VisitsWorkspace } from "./visits-workspace";
 import { CostsWorkspace } from "./costs-workspace";
+import { ResourceCatalogWorkspace } from "./resource-workspace";
 import { FinanceWorkspace } from "./finance-workspace";
 import { ContractWorkspace } from "./contract-workspace";
 import { ExperimentalNotice } from "@/shared/ui";
@@ -28,6 +29,7 @@ export const sections = [
 	{ id: "facturacion", label: "Facturas y cobros" },
 	{ id: "empleados", label: "Empleados" },
 	{ id: "cuadrillas", label: "Cuadrillas" },
+	{ id: "materiales", label: "Materiales y equipos" },
 	{ id: "usuarios", label: "Usuarios y permisos" },
 	{ id: "configuracion", label: "Configuración" },
 	{ id: "integraciones", label: "Integraciones" },
@@ -98,6 +100,8 @@ export function CommandCenter({ section }: { section: string }) {
 						<WorkforceWorkspace mode="crews" />
 					) : section === "agenda" ? (
 						<VisitsWorkspace />
+					) : section === "materiales" ? (
+						<ResourceCatalogWorkspace />
 					) : section === "costos" ? (
 						<CostsWorkspace />
 					) : section === "facturacion" ? (

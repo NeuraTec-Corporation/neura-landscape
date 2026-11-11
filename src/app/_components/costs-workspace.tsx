@@ -8,6 +8,7 @@ import {
 	type AmountLine,
 } from "./management-shared";
 import type { Visit } from "./visits-workspace";
+import { VisitResourcePanel } from "./resource-workspace";
 export function CostsWorkspace() {
 	const state = useManagement<Visit[]>("costs"),
 		[selected, setSelected] = useState(""),
@@ -105,6 +106,7 @@ export function CostsWorkspace() {
 						}}
 					>
 						<fieldset disabled={state.busy}>
+							<p>Estas líneas son costos adicionales. Los consumos del plan de materiales y equipos se suman automáticamente; no los registres otra vez aquí.</p>
 							<AmountLines lines={lines} onChange={setLines} categories />
 							<div className="manage-grid">
 								<label>
@@ -137,6 +139,7 @@ export function CostsWorkspace() {
 							<button type="submit">Guardar costos detallados</button>
 						</fieldset>
 					</form>
+					<VisitResourcePanel visitId={visit.id} onChanged={state.refresh}/>
 				</section>
 			) : null}
 		</div>

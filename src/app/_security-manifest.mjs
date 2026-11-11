@@ -36,7 +36,7 @@ const resources = [
 	["catalogs", "Catálogos", ["read", "update"]],
 	["integrations", "Integraciones", ["read"]],
 	["security", "Usuarios y perfiles", ["read", "update"]],
-	["my_work", "Mis asignaciones", ["read"]],
+	["my_work", "Mis asignaciones", ["read", "execute"]],
 ];
 export const actionLabels = {
 	read: "Consultar",
@@ -56,11 +56,11 @@ export const permissionRegistry = resources.flatMap(
 			action,
 			actionLabel: actionLabels[action],
 			requires:
-				resource === "visits" && ["create", "update"].includes(action)
+				resource === "my_work" && action === "execute" ? ["my_work.read"] : resource === "visits" && ["create", "update"].includes(action)
 					? ["contracts.read", "workforce.read"]
 					: [],
 			scopes:
-				action === "read" && ["survey", "my_work"].includes(resource)
+				(resource === "my_work" || action === "read" && resource === "survey")
 					? ["company", "assigned"]
 					: ["company"],
 		})),
@@ -140,17 +140,18 @@ export const defaultProfiles = [
 		name: "Jefe de cuadrilla",
 		scope: "assigned",
 		protected: false,
-		grants: ["survey.read", "my_work.read"],
+		grants: ["survey.read", "my_work.read", "my_work.execute"],
 	},
 	{
 		key: "worker",
 		name: "Cuadrillas",
 		scope: "assigned",
 		protected: false,
-		grants: ["survey.read", "my_work.read"],
+		grants: ["survey.read", "my_work.read", "my_work.execute"],
 	},
 ];
 export const sectionPermission = {
+	materiales: "costs",
 	empresas: "companies",
 	resumen: "dashboard",
 	control: "dashboard",

@@ -20,6 +20,8 @@ const files = [
 	"017_companies.sql",
 	"018_resource_ownership.sql",
 	"019_enterprise_scenario.sql",
+	"020_visit_resources.sql",
+	"021_crew_execution.sql",
 ];
 export async function migrate(db, advisory = false) {
 	await db.transaction(async (tx) => {
@@ -46,10 +48,10 @@ export async function migrate(db, advisory = false) {
 			const schema = company.schema_name;
 			if (!/^tenant_[a-f0-9]{32}$/.test(schema))
 				throw Error("Invalid company migration namespace");
-			if (
+			for(const [version,file] of [[18,"018_resource_ownership.sql"],[20,"020_visit_resources.sql"]]) if (
 				!(
 					await tx.query(
-						`SELECT version FROM "${schema}".schema_migrations WHERE version=18`,
+						`SELECT version FROM "${schema}".schema_migrations WHERE version=$1`,[version],
 					)
 				).rows.length
 			) {
@@ -58,7 +60,7 @@ export async function migrate(db, advisory = false) {
 				]);
 				await tx.exec(
 					await readFile(
-						resolve("db/migrations", "018_resource_ownership.sql"),
+						resolve("db/migrations", file),
 						"utf8",
 					),
 				);

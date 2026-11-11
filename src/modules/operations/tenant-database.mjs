@@ -26,6 +26,7 @@ const businessFiles = [
 	"010_ux_catalogs_samples.sql",
 	"011_sample_operations.sql",
 	"018_resource_ownership.sql",
+	"020_visit_resources.sql",
 ];
 function namespace(schema) {
 	if (schema !== "public" && !/^tenant_[a-f0-9]{32}$/.test(schema))

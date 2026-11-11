@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { LocalSignIn } from "./local-sign-in";
 import { SurveyWorkspace } from "./survey-workspace";
 import { WorkspaceAccess } from "./workspace-access";
+import { CrewVisit } from "./crew-visit";
 import {
 	SessionContext,
 	UserAccount,
@@ -31,9 +32,8 @@ function CrewPortal({ name }: { name: string }) {
 	const [work, setWork] = useState<Work[]>([]),
 		[error, setError] = useState(""),
 		[site, setSite] = useState<string | null>(null);
-	useEffect(() => {
-		const controller = new AbortController();
-		fetch("/api/my-work", { signal: controller.signal, cache: "no-store" })
+	const [selected,setSelected]=useState<string|null>(null);
+	const refresh=useCallback((signal?:AbortSignal)=>fetch("/api/my-work", { signal, cache: "no-store" })
 			.then(async (r) => {
 				const v = await r.json();
 				if (!r.ok) throw new Error(v.error);
@@ -41,9 +41,12 @@ function CrewPortal({ name }: { name: string }) {
 			})
 			.catch((e) => {
 				if (e.name !== "AbortError") setError(e.message);
-			});
+			}),[]);
+	useEffect(() => {
+		const controller = new AbortController();
+		void refresh(controller.signal);
 		return () => controller.abort();
-	}, []);
+	}, [refresh]);
 	return (
 		<main className="crew-portal">
 			<header className="survey-hero">
@@ -53,7 +56,7 @@ function CrewPortal({ name }: { name: string }) {
 				<UserAccount />
 			</header>
 			{error ? <p role="alert">{error}</p> : null}
-			{site ? (
+			{selected ? <CrewVisit id={selected} onClose={()=>{setSelected(null);void refresh();}}/> : site ? (
 				<SurveyWorkspace
 					propertyId={site}
 					readOnly
@@ -82,6 +85,7 @@ function CrewPortal({ name }: { name: string }) {
 							<button type="button" onClick={() => setSite(visit.property_id)}>
 								Ver lugar, fotos y cuidados
 							</button>
+							<button type="button" onClick={()=>setSelected(visit.id)}>Abrir trabajo y registrar ejecución</button>
 						</article>
 					))}
 					{!work.length && !error ? (

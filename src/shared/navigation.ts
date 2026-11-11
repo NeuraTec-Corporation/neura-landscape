@@ -33,6 +33,7 @@ export const navigationGroups = [
 		items: [
 			{ id: "empleados", label: "Empleados", href: "/empleados" },
 			{ id: "cuadrillas", label: "Cuadrillas", href: "/cuadrillas" },
+			{ id: "materiales", label: "Materiales y equipos", href: "/materiales" },
 		],
 	},
 	{

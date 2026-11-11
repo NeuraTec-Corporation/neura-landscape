@@ -3,12 +3,14 @@ import { useSessionAccess } from "./user-account";
 import { PagedCollection } from "./paged-collection";
 import { useEffect, useState, useRef } from "react";
 import { CapacityBoard, CapacitySummary } from "./capacity-board";
+import { VisitResourcePanel } from "./resource-workspace";
 import { dailyCapacity, planningDay } from "@/modules/operations/daily-capacity.mjs";
 import { CatalogSelect, useCatalogs } from "./catalogs";
 import {
 	Notices,
 	useManagement,
 	readManagement,
+	writeManagement,
 	usd,
 } from "./management-shared";
 import type { Workforce } from "./workforce-workspace";
@@ -33,6 +35,7 @@ export type Personnel = {
 	actual_minutes: number | null;
 };
 export type Visit = {
+	service?: string;
 	assignment_review_required?: boolean;
 	assignment_review_reason?: string;
 	id: string;
@@ -110,7 +113,7 @@ const localInput = (value: string) => {
 		.toISOString()
 		.slice(0, 16);
 };
-function ExecutionForm({
+export function ExecutionForm({
 	visit,
 	cancel,
 	busy,
@@ -306,6 +309,8 @@ export function VisitsWorkspace() {
 		[filter, setFilter] = useState(""),
 		[title, setTitle] = useState("");
 	const editorRef = useRef<HTMLElement>(null);
+	const [reassigning,setReassigning]=useState(false),[reassignment,setReassignment]=useState<{assigned:{id:string;crew:string}[];blocked:{id:string;name:string;reason:string}[];remaining:number}|null>(null);
+	async function reassign(){setReassigning(true);state.setError("");try{setReassignment(await writeManagement("visits",{action:"reassign_pending"}));await state.refresh();}catch(e){state.setError(e instanceof Error?e.message:"No se pudieron reasignar las visitas.");}finally{setReassigning(false);}}
 	const [scheduled, setScheduled] = useState(""),
 		[plannedMinutes, setPlannedMinutes] = useState("60"),
 		[travelMinutes, setTravelMinutes] = useState("0");
@@ -391,6 +396,7 @@ export function VisitsWorkspace() {
 		<div className="manage-workspace">
 			<Notices error={state.error} notice={state.notice} />
 			{canPlan && workforce && state.data ? <CapacityBoard workforce={workforce} visits={state.data} busy={state.busy} canEdit={canUpdate} onEdit={editVisit} /> : null}
+			{canUpdate?<section className="panel"><h2>Resolver reasignaciones pendientes</h2><p>Se conservan fechas, duración y tareas. Se elige personal activo de esta empresa con capacidad y sin cruces. Los casos incompatibles quedan pendientes con un motivo; no se inventan tiempos ni recursos.</p><button type="button" disabled={reassigning||state.busy} onClick={()=>void reassign()}>{reassigning?"Comprobando y asignando…":"Reasignar pendientes compatibles"}</button>{reassignment?<div role="status"><p>{reassignment.assigned.length} reasignadas · {reassignment.remaining} pendientes.</p>{reassignment.blocked.length?<details><summary>Ver motivos de las pendientes</summary><ul>{reassignment.blocked.map(b=><li key={b.id}>{b.name}: {b.reason}</li>)}</ul></details>:null}</div>:null}</section>:null}
 			{execution ? (
 				<ExecutionForm
 					visit={execution.visit}
@@ -918,6 +924,7 @@ export function VisitsWorkspace() {
 									Eliminar de agenda
 								</button>
 							</div>
+							<VisitResourcePanel visitId={v.id} onChanged={state.refresh}/>
 						</article>
 					))}
 			</PagedCollection>
