@@ -1,5 +1,11 @@
 # OPS03 — Asignación, recursos y resultados
 
+El inicializador de reparto original solo admite el catálogo/consumos de recursos
+vacíos; no vuelve a repartir empresas ya configuradas ni ignora recursos nuevos.
+Un traslado posterior de recursos poblados requiere un contrato de transferencia
+propio. La compatibilidad de columnas se compara por nombre/tipo/nulabilidad,
+independiente del orden físico en que una actualización las haya añadido.
+
 ## Reasignación compatible
 
 Agenda ofrece un lote de hasta 50 visitas marcadas por empresa. Mantiene fecha,

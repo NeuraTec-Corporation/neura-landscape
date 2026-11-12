@@ -54,7 +54,7 @@ export async function bootstrapCompanyStorage(tx, schema) {
 	);
 	await tx.query("SELECT set_config('search_path','public',true)");
 }
-const signatureSql = `SELECT c.relname,a.attname,pg_catalog.format_type(a.atttypid,a.atttypmod) type,a.attnotnull FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace JOIN pg_catalog.pg_attribute a ON a.attrelid=c.oid WHERE n.nspname=$1 AND c.relkind IN('r','p') AND a.attnum>0 AND NOT a.attisdropped AND NOT(c.relname=ANY($2::text[])) AND c.relname NOT LIKE 'security_%' ORDER BY c.relname,a.attnum`;
+const signatureSql = `SELECT c.relname,a.attname,pg_catalog.format_type(a.atttypid,a.atttypmod) type,a.attnotnull FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace JOIN pg_catalog.pg_attribute a ON a.attrelid=c.oid WHERE n.nspname=$1 AND c.relkind IN('r','p') AND a.attnum>0 AND NOT a.attisdropped AND NOT(c.relname=ANY($2::text[])) AND c.relname NOT LIKE 'security_%' ORDER BY c.relname,a.attname`;
 export async function assertCompanyStorage(db, schema) {
 	namespace(schema);
 	if (schema === "public") return;
