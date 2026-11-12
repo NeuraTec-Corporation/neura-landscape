@@ -99,7 +99,7 @@ try {
 	const db = connect(sourceName);
 	// Two real pooled connections must serialize the migration lock.
 	await Promise.all([migrate(db, true), migrate(db, true)]);
-	assert.equal((await db.query("SELECT count(*)::int n FROM schema_migrations")).rows[0].n, 21);
+	assert.equal((await db.query("SELECT count(*)::int n FROM schema_migrations")).rows[0].n, 22);
 	const identityPool = new Pool({ ...config, database: sourceName });
 	try {
 		const auth = betterAuth(authenticationOptions(identityPool, {

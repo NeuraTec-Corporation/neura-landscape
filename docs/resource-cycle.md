@@ -71,3 +71,5 @@ Tres casos en tests/resource-cycle.test.mjs: lote compatible/idempotente con cas
 bloqueados; plan/consumo/correcciones y costos sin duplicar; migración multicompañía
 y ejecución asignada. Solo se reejecutan casos fallidos/modificados. Tipos/lint y CI
 existente acompañan la publicación; Vercel compila sin repetir la suite de CI.
+
+La migraci�n 022 conserva por separado la tarifa prevista y la tarifa real corregida. Corregir la valoraci�n del consumo no modifica el presupuesto original; una tarifa prevista desconocida permanece pendiente.

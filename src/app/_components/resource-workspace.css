@@ -1,6 +1,5 @@
 @layer management {
  .resource-workspace {min-width:0;overflow-wrap:anywhere;}
- .resource-workspace .notice {white-space:normal;}
  .resource-table {overflow-x:auto;max-width:100%;}
  .resource-table table {width:100%;border-collapse:collapse;font-size:13px;}
  .resource-table th,.resource-table td {text-align:left;padding:12px 8px;border-bottom:1px solid #d5dfcc;}
@@ -10,3 +9,6 @@
  .visit-resource-panel {margin-top:18px;}
  @media(max-width:680px){.resource-plan-line {grid-template-columns:minmax(0,1fr);} .resource-workspace input,.resource-workspace select,.resource-workspace textarea {min-width:0;max-width:100%;width:100%;} .resource-workspace fieldset {min-width:0;} }
 }
+
+/* Override the shared unlayered notice rule in the field workspace. */
+.resource-workspace .notice {white-space:normal;overflow-wrap:anywhere;}

@@ -25,7 +25,7 @@ export async function resourceCostState(tx,id){
 	const rows=(await tx.query("SELECT * FROM visit_resources WHERE visit_id=$1",[id])).rows;
 	const totals={materials:0,equipment:0};
 	let complete=true;
-	for(const r of rows){if(r.actual_quantity===null||r.unit_cost_cents===null){complete=false;continue;}totals[r.category]+=Math.round(Number(r.actual_quantity)*r.unit_cost_cents);}
+	for(const r of rows){if(r.actual_quantity===null||r.actual_unit_cost_cents===null){complete=false;continue;}totals[r.category]+=Math.round(Number(r.actual_quantity)*r.actual_unit_cost_cents);}
 	if(Object.values(totals).some(v=>!Number.isSafeInteger(v)||v>100000000))throw new ManageError("El costo de recursos supera el máximo permitido.");
 	return {totals,complete};
 }
@@ -53,7 +53,7 @@ export async function saveResourcePlan(db,input){
 			lines.push({...l,id:previous?.id||randomUUID(),name_snapshot:previous?.name_snapshot||resource.name,category:previous?.category||resource.category,unit_key:previous?.unit_key||resource.unit_key,unit_cost_cents:previous?previous.unit_cost_cents:resource.unit_cost_cents});
 		}
 		await tx.query("DELETE FROM visit_resources WHERE visit_id=$1",[v.id]);
-		for(const l of lines)await tx.query("INSERT INTO visit_resources(id,visit_id,resource_id,name_snapshot,category,unit_key,unit_cost_cents,planned_quantity) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",[l.id,v.id,l.resource_id,l.name_snapshot,l.category,l.unit_key,l.unit_cost_cents,l.planned_quantity]);
+		for(const l of lines)await tx.query("INSERT INTO visit_resources(id,visit_id,resource_id,name_snapshot,category,unit_key,unit_cost_cents,actual_unit_cost_cents,planned_quantity) VALUES($1,$2,$3,$4,$5,$6,$7,$7,$8)",[l.id,v.id,l.resource_id,l.name_snapshot,l.category,l.unit_key,l.unit_cost_cents,l.planned_quantity]);
 		await tx.query("UPDATE visits SET revision=revision+1,resources_prepared=true WHERE id=$1",[v.id]);await recalculate(tx,v.id);await audit(tx,"visit_resource_plan",v.id,"prepared",{before:old,after:lines});return {id:v.id};
 	});
 }
@@ -66,7 +66,7 @@ export async function saveResourceUsage(db,input,{allowPrices=false}={}){
 		const old=(await tx.query("SELECT * FROM visit_resources WHERE visit_id=$1",[v.id])).rows;
 		if(v.lines.length!==old.length||new Set(v.lines.map(l=>l.id)).size!==old.length||v.lines.some(l=>!old.some(o=>o.id===l.id)))throw new ManageError("Revisa todos los recursos del plan.");
 		if(v.lines.some(l=>old.find(o=>o.id===l.id).unit_key==="each"&&!Number.isInteger(l.actual_quantity)))throw new ManageError("Las unidades utilizadas deben ser enteras.");
-		for(const l of v.lines)await tx.query("UPDATE visit_resources SET actual_quantity=$2,notes=$3,unit_cost_cents=CASE WHEN $5::integer IS NULL THEN unit_cost_cents ELSE $5 END WHERE id=$1 AND visit_id=$4",[l.id,l.actual_quantity,l.notes,v.id,l.unit_cost===undefined?null:Math.round(l.unit_cost*100)]);
+		for(const l of v.lines)await tx.query("UPDATE visit_resources SET actual_quantity=$2,notes=$3,actual_unit_cost_cents=CASE WHEN $5::integer IS NULL THEN actual_unit_cost_cents ELSE $5 END WHERE id=$1 AND visit_id=$4",[l.id,l.actual_quantity,l.notes,v.id,l.unit_cost===undefined?null:Math.round(l.unit_cost*100)]);
 		await tx.query("UPDATE visits SET revision=revision+1 WHERE id=$1",[v.id]);await recalculate(tx,v.id);await audit(tx,"visit_resource_usage",v.id,"recorded",{reason:v.reason,before:old,after:v.lines});return {id:v.id};
 	});
 }
@@ -79,7 +79,7 @@ export async function resourceReport(db,id,financial=true){
 		const actualMinutes=plannedPerson.n&&plannedPerson.reported===plannedPerson.n?plannedPerson.actual:null;
 		const tasks=(await tx.query("SELECT service_key,unit,sum(quantity)::float8 planned,sum(completed_quantity)::float8 actual,count(*)::int n,count(completed_quantity)::int reported FROM visit_tasks WHERE visit_id=$1 GROUP BY service_key,unit ORDER BY service_key,unit",[id])).rows;
 		const productivity=tasks.map(t=>({...t,actual:t.reported===t.n?t.actual:null,per_person_hour:actualMinutes>0&&t.reported===t.n?Math.round(t.actual/(actualMinutes/60)*1000)/1000:null}));
-		const lines=rows.map(r=>({id:r.id,resource_id:r.resource_id,name:r.name_snapshot,category:r.category,unit_key:r.unit_key,planned_quantity:Number(r.planned_quantity),actual_quantity:r.actual_quantity===null?null:Number(r.actual_quantity),notes:r.notes,...(financial?{unit_cost_cents:r.unit_cost_cents,planned_cents:r.unit_cost_cents===null?null:Math.round(Number(r.planned_quantity)*r.unit_cost_cents),actual_cents:r.actual_quantity===null||r.unit_cost_cents===null?null:Math.round(Number(r.actual_quantity)*r.unit_cost_cents)}:{})}));
+		const lines=rows.map(r=>({id:r.id,resource_id:r.resource_id,name:r.name_snapshot,category:r.category,unit_key:r.unit_key,planned_quantity:Number(r.planned_quantity),actual_quantity:r.actual_quantity===null?null:Number(r.actual_quantity),notes:r.notes,...(financial?{unit_cost_cents:r.actual_unit_cost_cents,planned_cents:r.unit_cost_cents===null?null:Math.round(Number(r.planned_quantity)*r.unit_cost_cents),actual_cents:r.actual_quantity===null||r.actual_unit_cost_cents===null?null:Math.round(Number(r.actual_quantity)*r.actual_unit_cost_cents)}:{})}));
 		const known=lines.every(l=>l.actual_cents!==null&&l.actual_cents!==undefined),planKnown=lines.every(l=>l.planned_cents!==null&&l.planned_cents!==undefined);
 		const totals=financial?{planned_cents:visit.resources_prepared&&planKnown?lines.reduce((s,l)=>s+l.planned_cents,0):null,actual_cents:visit.resources_prepared&&known?lines.reduce((s,l)=>s+l.actual_cents,0):null}:{};
 		return {visit:{id:visit.id,revision:visit.revision,status:visit.status,resources_prepared:visit.resources_prepared},lines,person_minutes:{planned:personMinutes,actual:actualMinutes},productivity,...(financial?{totals}:{} )};

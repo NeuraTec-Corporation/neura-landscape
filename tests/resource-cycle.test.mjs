@@ -37,7 +37,7 @@ test("planned resources freeze tariffs; actuals and corrections update costs onc
 		await saveResourceUsage(db,{id:v.id,revision:6,reason:"Valorar equipo con tarifa",lines:lines.map(l=>({...l,...(report.lines.find(r=>r.id===l.id).resource_id===unknown.id?{unit_cost:2}:{})}))},{allowPrices:true});
 		row=(await visitList(db))[0];assert.equal(row.materials_cents,4500);assert.equal(row.equipment_cents,200);assert.equal(row.cost_complete,true);
 		await saveResourceUsage(db,{id:v.id,revision:7,reason:"Corrección de bolsas devueltas",lines:lines.map(l=>({...l,actual_quantity:report.lines.find(r=>r.id===l.id).resource_id===mat.id?2:1}))});
-		row=(await visitList(db))[0];assert.equal(row.materials_cents,2500);assert.equal(row.equipment_cents,200);report=await resourceReport(db,v.id);assert.equal(report.productivity[0].per_person_hour,150);assert.equal(report.person_minutes.actual,60);assert.equal(JSON.stringify(await resourceReport(db,v.id,false)).includes("cents"),false);
+		row=(await visitList(db))[0];assert.equal(row.materials_cents,2500);assert.equal(row.equipment_cents,200);report=await resourceReport(db,v.id);assert.equal(report.totals.planned_cents,null);assert.equal(report.lines.find(l=>l.resource_id===mat.id).planned_cents,3000);assert.equal(report.lines.find(l=>l.resource_id===unknown.id).actual_cents,200);assert.equal(report.productivity[0].per_person_hour,150);assert.equal(report.person_minutes.actual,60);assert.equal(JSON.stringify(await resourceReport(db,v.id,false)).includes("cents"),false);
 	}finally{await db.close();}
 });
 test("resource migration upgrades old namespaces and assigned execution rejects another crew and another company's resources",async()=>{
@@ -51,7 +51,7 @@ test("resource migration upgrades old namespaces and assigned execution rejects 
 		await changeVisit(assignedExecutionDatabase(db,"crew@access.invalid",v.id),{id:v.id,revision:2,action:"start"});
 		const started=(await visitList(db))[0];await changeVisit(assignedExecutionDatabase(db,"crew@access.invalid",v.id),{id:v.id,revision:3,action:"cancel",reason:"Se inició por error",personnel:started.personnel.map(p=>({employee_id:p.employee_id,actual_minutes:0})),tasks:started.tasks.map(t=>({id:t.id,completed_quantity:0}))});
 		assert.equal((await visitList(db))[0].cost_complete,false);
-		await db.exec(`DROP TABLE "${schema}".visit_resources,"${schema}".operating_resources;ALTER TABLE "${schema}".visits DROP COLUMN resources_prepared;DELETE FROM "${schema}".schema_migrations WHERE version=20`);
+		await db.exec(`DROP TABLE "${schema}".visit_resources,"${schema}".operating_resources;ALTER TABLE "${schema}".visits DROP COLUMN resources_prepared;DELETE FROM "${schema}".schema_migrations WHERE version IN (20,22)`);
 		await db.query("INSERT INTO security_companies(id,name,status,operational_enabled) VALUES('other','Other company','active',true)");await db.query("INSERT INTO security_company_storage VALUES('other',$1)",[schema]);await migrate(db);await assertCompanyStorage(db,schema);assert.equal((await other.query("SELECT count(*)::int n FROM customers")).rows[0].n,1);
 	}finally{await db.close();}
 });
