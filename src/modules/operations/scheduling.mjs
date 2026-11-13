@@ -22,7 +22,8 @@ function slots(visits,w,f,now){
  const options=[],duration=Number(visit.planned_minutes),travel=Number(visit.travel_minutes||0);
  const reserved=visits.filter(v=>v.id!==visit.id&&["scheduled","started","completed"].includes(v.status));
  // Do not bring a future contractual visit forward merely to clear the pending list.
- for(let day=f.from>planningDay(visit.scheduled_at)?f.from:planningDay(visit.scheduled_at);day<=f.to;day=new Date(Date.parse(`${day}T12:00:00Z`)+86400000).toISOString().slice(0,10)){
+ const firstDay=[f.from,planningDay(visit.scheduled_at)].sort().pop();
+ for(let day=firstDay;day<=f.to;day=new Date(Date.parse(`${day}T12:00:00Z`)+86400000).toISOString().slice(0,10)){
   if((visit.effective_from&&day<visit.effective_from)||(visit.effective_until&&day>visit.effective_until)||visit.contract_status!=="active"||visit.property_status!=="active")continue;
   for(const crew of w.crews){
    if(!crew.members.length||crew.members.some(p=>p.status!=="active"))continue;
