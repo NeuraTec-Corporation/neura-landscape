@@ -3,7 +3,7 @@
 ## 1. Resolver pendientes
 
 Agenda incorpora búsqueda individual y propuesta conjunta de hasta 50 visitas pendientes.
-El usuario elige fechas desde hoy, hasta 28 días; se ofrecen comienzos cada 15 minutos
+El usuario elige fechas desde hoy, hasta 28 días (14 por defecto); nunca se adelanta una visita futura antes de su día original. se ofrecen comienzos cada 15 minutos
 en America/New_York. Se comprueban personal activo y compartido, ocupación de cuadrillas,
 traslado previo, descanso total, duración, vigencia del contrato y localidad activa.
 

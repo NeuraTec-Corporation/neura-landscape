@@ -72,6 +72,7 @@ export async function saveVisit(db, input) {
 			throw new ManageError(
 				"La visita debe estar dentro de la vigencia del contrato.",
 			);
+		if (v.reschedule_reason && !accessWindow(contract.service_hours)) throw new ManageError("Confirma un intervalo de acceso válido antes de aplicar la alternativa.");
 		if (accessWindow(contract.service_hours) && !fitsAccess(v.scheduled_at,v.planned_minutes,contract.service_hours)) throw new ManageError("La visita debe caber en el horario de acceso de la localidad.",422,{scheduled_at:"Fuera del horario de acceso."});
 		const old = v.id
 			? (await tx.query("SELECT * FROM visits WHERE id=$1 FOR UPDATE", [id]))
@@ -130,13 +131,14 @@ export async function saveVisit(db, input) {
 		const begin = new Date(v.scheduled_at).getTime() - v.travel_minutes * 60000,
 			end = new Date(v.scheduled_at).getTime() + v.planned_minutes * 60000;
 		const collisions = await tx.query(
-			"SELECT v.id FROM visits v WHERE v.id<>$1 AND v.deleted_at IS NULL AND v.status IN ('scheduled','started') AND (v.crew_id=$2 OR EXISTS(SELECT 1 FROM visit_personnel p WHERE p.visit_id=v.id AND p.employee_id=ANY($5::text[]))) AND v.scheduled_at-coalesce(v.travel_minutes,0)*interval '1 minute'<$4::timestamptz AND v.scheduled_at+coalesce(v.planned_minutes,1)*interval '1 minute'>$3::timestamptz LIMIT 1",
+			"SELECT v.id FROM visits v WHERE v.id<>$1 AND v.deleted_at IS NULL AND v.status IN ('scheduled','started') AND (v.contract_id=$6 OR v.crew_id=$2 OR EXISTS(SELECT 1 FROM visit_personnel p WHERE p.visit_id=v.id AND p.employee_id=ANY($5::text[]))) AND v.scheduled_at-coalesce(v.travel_minutes,0)*interval '1 minute'<$4::timestamptz AND v.scheduled_at+coalesce(v.planned_minutes,1)*interval '1 minute'>$3::timestamptz LIMIT 1",
 			[
 				id,
 				v.crew_id,
 				new Date(begin).toISOString(),
 				new Date(end).toISOString(),
 				people.map((p) => p.id),
+				v.contract_id,
 			],
 		);
 		if (collisions.rows.length)

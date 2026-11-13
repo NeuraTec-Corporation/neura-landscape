@@ -6,7 +6,7 @@ import type { Visit } from "./visits-workspace";
 import { writeManagement } from "./management-shared";
 import { PagedCollection } from "./paged-collection";
 export function ReschedulePanel({visits,onChanged}:{visits:Visit[];onChanged:()=>Promise<void>}){
- const [id,setId]=useState(""),[from,setFrom]=useState(()=>planningDay(new Date())),[to,setTo]=useState(()=>planningDay(new Date(Date.now()+6*86400000))),[result,setResult]=useState<SlotResult|null>(null),[error,setError]=useState(""),[notice,setNotice]=useState(""),[busy,setBusy]=useState(false),[reason,setReason]=useState("");
+ const [id,setId]=useState(""),[from,setFrom]=useState(()=>planningDay(new Date())),[to,setTo]=useState(()=>planningDay(new Date(Date.now()+13*86400000))),[result,setResult]=useState<SlotResult|null>(null),[error,setError]=useState(""),[notice,setNotice]=useState(""),[busy,setBusy]=useState(false),[reason,setReason]=useState("");
  const scheduled=visits.filter(v=>v.status==="scheduled"),visit=scheduled.find(v=>v.id===id);
  async function search(){setBusy(true);setError("");setNotice("");setResult(null);try{setResult(await writeManagement("visits",{action:"suggest_slots",id,from,to}));}catch(e){setError(e instanceof Error?e.message:"No se pudieron buscar alternativas.");}finally{setBusy(false);}}
  async function apply(slot:Slot){
@@ -14,7 +14,7 @@ export function ReschedulePanel({visits,onChanged}:{visits:Visit[];onChanged:()=
   if(!window.confirm(`Reprogramar ${visit?.property_name} para ${new Date(slot.scheduled_at).toLocaleString("es-US",{timeZone:"America/New_York"})} con ${slot.crew_name}. ¿Confirmar?`))return;
   setBusy(true);setError("");try{await writeManagement("visits",{action:"apply_slot",id:result.id,revision:result.revision,crew_id:slot.crew_id,scheduled_at:slot.scheduled_at,reason});setResult(null);setNotice("Visita reprogramada; tareas y preparación conservadas. Revisa los responsables de la nueva cuadrilla.");await onChanged();}catch(e){setError(e instanceof Error?e.message:"La disponibilidad cambió. Busca nuevamente.");setResult(null);}finally{setBusy(false);}
  }
- return <section className="panel capacity-board" aria-label="Alternativas de reprogramación"><h2>Buscar un horario viable</h2><p>Se comprueban personas activas, cruces, turno, descanso total, duración, traslado previsto, vigencia del contrato y acceso de la localidad. No se cambia nada hasta elegir y confirmar una alternativa.</p>
+ return <section className="panel capacity-board" aria-label="Alternativas de reprogramación"><h2>Buscar un horario viable</h2><p>Se comprueban personas activas, cruces, turno, descanso total, duración, traslado previsto, vigencia del contrato y acceso de la localidad. No se adelanta una visita futura respecto de su día original. No se cambia nada hasta elegir y confirmar una alternativa.</p>
  {error?<p role="alert" className="notice error">{error}</p>:null}{notice?<p role="status" className="notice">{notice}</p>:null}
  <form className="manage-form" onSubmit={e=>{e.preventDefault();void search();}}><fieldset disabled={busy}><div className="manage-grid">
  <label className="field-wide">Visita *<select required value={id} onChange={e=>{setId(e.target.value);setResult(null);}}><option value="">Selecciona una visita…</option>{scheduled.map(v=><option key={v.id} value={v.id}>{v.assignment_review_required?"Pendiente · ":""}{v.customer_name} · {v.property_name} · {new Date(v.scheduled_at).toLocaleDateString("es-US",{timeZone:"America/New_York"})}</option>)}</select></label>

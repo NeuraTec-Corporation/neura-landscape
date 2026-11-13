@@ -21,7 +21,8 @@ function slots(visits,w,f,now){
  if(!visit.planned_minutes||!visit.tasks.length)return {id:visit.id,revision:visit.revision,options:[],reason:"Completa las tareas y la duración antes de buscar horarios."};
  const options=[],duration=Number(visit.planned_minutes),travel=Number(visit.travel_minutes||0);
  const reserved=visits.filter(v=>v.id!==visit.id&&["scheduled","started","completed"].includes(v.status));
- for(let day=f.from;day<=f.to;day=new Date(Date.parse(`${day}T12:00:00Z`)+86400000).toISOString().slice(0,10)){
+ // Do not bring a future contractual visit forward merely to clear the pending list.
+ for(let day=f.from>planningDay(visit.scheduled_at)?f.from:planningDay(visit.scheduled_at);day<=f.to;day=new Date(Date.parse(`${day}T12:00:00Z`)+86400000).toISOString().slice(0,10)){
   if((visit.effective_from&&day<visit.effective_from)||(visit.effective_until&&day>visit.effective_until)||visit.contract_status!=="active"||visit.property_status!=="active")continue;
   for(const crew of w.crews){
    if(!crew.members.length||crew.members.some(p=>p.status!=="active"))continue;
@@ -32,7 +33,7 @@ function slots(visits,w,f,now){
    for(let m=Math.ceil(start/15)*15;m<=end;m+=15){
     const timestamp=planningInstant(day,m);if(!timestamp||Date.parse(timestamp)<now.getTime())continue;
     const a=Date.parse(timestamp)-travel*60000,b=Date.parse(timestamp)+duration*60000;
-    const collision=reserved.some(v=>v.status!=="completed"&&(v.crew_id===crew.id||v.personnel.some(p=>ids.has(p.employee_id)))&&span(v)[0]<b&&span(v)[1]>a);
+    const collision=reserved.some(v=>v.status!=="completed"&&(v.contract_id===visit.contract_id||v.crew_id===crew.id||v.personnel.some(p=>ids.has(p.employee_id)))&&span(v)[0]<b&&span(v)[1]>a);
     if(collision)continue;
     options.push({crew_id:crew.id,crew_name:crew.name,scheduled_at:timestamp,remaining_minutes:capacity-load-duration-travel,people:crew.members.length});break;
    }

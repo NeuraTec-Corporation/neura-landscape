@@ -22,6 +22,7 @@ test("schedule alternatives respect access, shared workers, travel, contract and
  const range={id:target.id,from:"2030-01-07",to:"2030-01-07"},now=new Date("2030-01-07T12:00:00Z");
  assert.equal((await suggestSlots(db,range,now)).options.length,0);
  await db.query("UPDATE properties SET service_hours='09:00–17:00'");
+ const earlier=await suggestSlots(db,{id:target.id,from:"2030-01-06",to:"2030-01-07"},new Date("2030-01-06T12:00:00Z"));assert.ok(earlier.options.every(x=>x.scheduled_at>="2030-01-07T00:00:00Z"));
  const result=await suggestSlots(db,range,now);assert.ok(result.options.length>=1);assert.ok(result.options.every(s=>s.scheduled_at>="2030-01-07T15:10:00.000Z"));
  await assert.rejects(saveVisit(db,{...input,scheduled_at:"2030-01-07T13:00:00Z"}),/acceso/);
  const choice=result.options[0],request={...choice,id:target.id,revision:result.revision,reason:"Resolver el cruce de personal"};await applySlot(db,request);
