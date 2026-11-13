@@ -1,3 +1,4 @@
+import { operatingComparison } from "./operating-comparison.mjs";
 import { z } from "zod";
 import { parse, date, ManageError } from "./manage.mjs";
 const schema = z.object({
@@ -296,7 +297,9 @@ export async function managementDashboard(db, input) {
 				)
 			).rows[0]?.manifest || null;
 
+		const comparison=operatingComparison(visits,(await tx.query("SELECT * FROM visit_resources WHERE visit_id=ANY($1::text[])",[visits.map(v=>v.id)])).rows);
 		return {
+			comparison,
 			filters: f,
 			costBreakdown,
 			scenario,

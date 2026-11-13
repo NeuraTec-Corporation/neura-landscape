@@ -225,7 +225,7 @@ export async function loadSampleOperations(
 			const p = sites[i],
 				crew = crews[i % 6],
 				group = Math.floor(i / 6),
-				hours = 8 + (group % 3) * 3,
+				hours = group % 3 === 0 ? 9 : 8 + (group % 3) * 3,
 				monthly =
 					p.kind === "commercial" ? 980 + (i % 9) * 80 : 420 + (i % 9) * 35;
 			const front = (

@@ -1,4 +1,6 @@
 "use client";
+import { OperatingComparisonBoard } from "./operating-comparison";
+import type { OperatingComparison } from "@/modules/operations/operating-comparison.mjs";
 import { PagedTable, PagedCollection } from "./paged-collection";
 import { DataDirectory } from "./data-directory";
 import { SampleDataPanel } from "./sample-data-panel";
@@ -7,6 +9,7 @@ import { useCatalogs } from "./catalogs";
 import { Notices, today, usd } from "./management-shared";
 import type { Visit } from "./visits-workspace";
 type Dashboard = {
+	comparison: OperatingComparison;
 	costBreakdown: Record<string, number>;
 	portfolio: {
 		customers: number;
@@ -401,6 +404,7 @@ export function ManagementDashboard() {
 							</button>
 						) : null}
 					</aside>
+					<OperatingComparisonBoard data={data.comparison}/>
 					<section className="portfolio-kpis" aria-label="Cartera del alcance">
 						<a href="/clientes">
 							<span>Clientes</span>

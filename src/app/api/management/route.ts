@@ -1,4 +1,5 @@
 import { companyRoute } from "../_company-route";
+import { suggestSlots, applySlot, suggestPendingSlots, applyPendingSlots } from "@/modules/operations/scheduling.mjs";
 import { reassignPending } from "@/modules/operations/reassignment.mjs";
 import { redactFinancials } from "../_security-data";
 import { database } from "@/modules/operations/index.mjs";
@@ -127,6 +128,10 @@ async function handlePOST(request: Request) {
 							: saveCrew(db, input);
 				}
 				if (area === "visits") {
+					if(input.action === "suggest_batch") return suggestPendingSlots(db,input);
+					if(input.action === "apply_batch") return applyPendingSlots(db,input);
+					if(input.action === "suggest_slots") return suggestSlots(db,input);
+					if(input.action === "apply_slot") return applySlot(db,input);
 					if(input.action === "reassign_pending") return reassignPending(db);
 					if (input.action === "save") return saveVisit(db, input);
 					if (input.action === "complete") return completeVisit(db, input);

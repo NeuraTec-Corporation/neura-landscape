@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { parse, ManageError, text, revision, audit, money } from "./manage.mjs";
 import { requireOption } from "./catalog.mjs";
+import { fitsAccess, accessWindow } from "./access-window.mjs";
 import { resourceCostState } from "./resources.mjs";
 const task = z.object({
 	service_key: text,
@@ -18,6 +19,7 @@ const schema = z.object({
 	crew_id: z.string().min(1),
 	scheduled_at: z.string().datetime({ offset: true }),
 	title: text,
+	reschedule_reason: z.string().trim().max(500).optional(),
 	planned_minutes: z.coerce.number().int().min(1).max(1440),
 	travel_minutes: z.coerce.number().int().min(0).max(1440),
 	route_order: z.preprocess(
@@ -30,7 +32,7 @@ export async function visitList(db) {
 	return db.transaction(async (tx) => {
 		const rows = (
 			await tx.query(
-				"SELECT v.*,p.name property_name,p.code property_code,p.city,p.region,p.id property_id,p.customer_id,u.name customer_name,c.service,k.name crew_name,coalesce((SELECT json_agg(t ORDER BY t.id) FROM visit_tasks t WHERE t.visit_id=v.id),'[]'::json) tasks,coalesce((SELECT json_agg(pn ORDER BY pn.name_snapshot) FROM visit_personnel pn WHERE pn.visit_id=v.id),'[]'::json) personnel,coalesce((SELECT json_agg(cl ORDER BY cl.id) FROM visit_cost_lines cl WHERE cl.visit_id=v.id),'[]'::json) cost_lines FROM visits v JOIN contracts c ON c.id=v.contract_id JOIN properties p ON p.id=c.property_id JOIN customers u ON u.id=p.customer_id JOIN crews k ON k.id=v.crew_id WHERE v.deleted_at IS NULL ORDER BY v.scheduled_at,v.route_order",
+				"SELECT v.*,p.name property_name,p.code property_code,p.city,p.region,p.service_hours,p.status property_status,c.status contract_status,c.effective_from::text effective_from,c.effective_until::text effective_until,p.id property_id,p.customer_id,u.name customer_name,c.service,k.name crew_name,coalesce((SELECT json_agg(t ORDER BY t.id) FROM visit_tasks t WHERE t.visit_id=v.id),'[]'::json) tasks,coalesce((SELECT json_agg(pn ORDER BY pn.name_snapshot) FROM visit_personnel pn WHERE pn.visit_id=v.id),'[]'::json) personnel,coalesce((SELECT json_agg(cl ORDER BY cl.id) FROM visit_cost_lines cl WHERE cl.visit_id=v.id),'[]'::json) cost_lines FROM visits v JOIN contracts c ON c.id=v.contract_id JOIN properties p ON p.id=c.property_id JOIN customers u ON u.id=p.customer_id JOIN crews k ON k.id=v.crew_id WHERE v.deleted_at IS NULL ORDER BY v.scheduled_at,v.route_order",
 			)
 		).rows;
 		return rows;
@@ -49,7 +51,7 @@ export async function saveVisit(db, input) {
 		if (!crew) throw new ManageError("Selecciona una cuadrilla disponible.");
 		const contract = (
 			await tx.query(
-				"SELECT c.*,c.effective_from::text effective_from,c.effective_until::text effective_until,p.deleted_at property_deleted FROM contracts c JOIN properties p ON p.id=c.property_id WHERE c.id=$1 FOR UPDATE OF c,p",
+				"SELECT c.*,c.effective_from::text effective_from,c.effective_until::text effective_until,p.deleted_at property_deleted,p.service_hours FROM contracts c JOIN properties p ON p.id=c.property_id WHERE c.id=$1 FOR UPDATE OF c,p",
 				[v.contract_id],
 			)
 		).rows[0];
@@ -70,6 +72,7 @@ export async function saveVisit(db, input) {
 			throw new ManageError(
 				"La visita debe estar dentro de la vigencia del contrato.",
 			);
+		if (accessWindow(contract.service_hours) && !fitsAccess(v.scheduled_at,v.planned_minutes,contract.service_hours)) throw new ManageError("La visita debe caber en el horario de acceso de la localidad.",422,{scheduled_at:"Fuera del horario de acceso."});
 		const old = v.id
 			? (await tx.query("SELECT * FROM visits WHERE id=$1 FOR UPDATE", [id]))
 					.rows[0]

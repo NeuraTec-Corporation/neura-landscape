@@ -643,6 +643,7 @@ export function PropertyWorkspace({
 										error={errors.contact_phone}
 									/>
 									{textField("service_hours")}
+									<small>Para calcular alternativas usa HH:mm–HH:mm, por ejemplo 09:00–17:00. Otras restricciones se revisan con el cliente.</small>
 								</div>
 								<div className="section-caption">
 									<h3>Superficies e indicaciones</h3>

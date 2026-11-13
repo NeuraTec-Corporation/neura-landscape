@@ -5,6 +5,36 @@ import { requireOption } from "./catalog.mjs";
 const quantity = z.coerce.number().finite().min(0).max(1000000).refine(v => Math.abs(v*1000-Math.round(v*1000))<0.00001,"Usa hasta tres decimales.");
 const schema = z.object({id:z.string().uuid().optional(),revision:z.number().int().positive().optional(),name:text,category:z.enum(["materials","equipment"]),unit_key:text,unit_cost:z.union([z.literal(""),z.null(),money]),status:z.enum(["active","inactive"])});
 export async function resourceCatalog(db) { return (await db.query("SELECT * FROM operating_resources WHERE deleted_at IS NULL ORDER BY category,name")).rows; }
+export async function prepareResourceCatalog(db){
+ const templates=[
+  ["Mantillo / mulch","materials","bag"],["Fertilizante","materials","bag"],["Semilla de césped","materials","bag"],["Sal para deshielo","materials","bag"],
+  ["Cortadora de césped","equipment","hour"],["Desbrozadora","equipment","hour"],["Sopladora","equipment","hour"],["Quitanieves","equipment","hour"]
+ ];
+ return db.transaction(async tx=>{
+  let created=0;
+  for(const [name,category,unit] of templates){
+   if((await tx.query("SELECT id FROM operating_resources WHERE lower(name)=lower($1) AND category=$2 AND deleted_at IS NULL",[name,category])).rows.length)continue;
+   await requireOption(tx,"element_unit",unit);
+   const id=randomUUID(),result=await tx.query("INSERT INTO operating_resources(id,code,name,category,unit_key,unit_cost_cents,status) VALUES($1,$2,$3,$4,$5,NULL,'active') ON CONFLICT DO NOTHING RETURNING id",[id,await sequence(tx,"resource",category==="materials"?"MAT":"EQP"),name,category,unit]);
+   if(result.rows.length){created++;await audit(tx,"resource",id,"created",{source:"operator_selected_starter_catalog",name,category,unit_key:unit,unit_cost_cents:null});}
+  }
+  return {created};
+ });
+}
+export async function saveResourceRates(db,input){
+ const v=parse(z.object({reason:z.string().trim().min(5).max(500),lines:z.array(z.object({id:z.string().uuid(),revision:z.number().int().positive(),unit_cost:z.union([z.literal(""),z.null(),money])})).min(1).max(100)}),input);
+ if(new Set(v.lines.map(l=>l.id)).size!==v.lines.length)throw new ManageError("No repitas recursos.");
+ return db.transaction(async tx=>{
+  for(const l of [...v.lines].sort((a,b)=>a.id.localeCompare(b.id))){
+   const old=(await tx.query("SELECT * FROM operating_resources WHERE id=$1 AND deleted_at IS NULL FOR UPDATE",[l.id])).rows[0];
+   if(!old||old.revision!==l.revision)throw new ManageError("Un recurso cambió o no pertenece a esta empresa. Recarga las tarifas.",409);
+   const cents=l.unit_cost===""||l.unit_cost===null?null:Math.round(l.unit_cost*100);
+   await tx.query("UPDATE operating_resources SET unit_cost_cents=$2,revision=revision+1 WHERE id=$1",[l.id,cents]);
+   await audit(tx,"resource",l.id,"rate_updated",{reason:v.reason,before:old.unit_cost_cents,after:cents});
+  }
+  return {updated:v.lines.length};
+ });
+}
 export async function saveResource(db,input) {
 	const v=parse(schema,input),id=v.id||randomUUID();
 	return db.transaction(async tx=>{

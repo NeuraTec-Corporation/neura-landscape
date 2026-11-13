@@ -1,6 +1,7 @@
 "use client";
 import { useEffect,useState,useCallback } from "react";
 import { CatalogSelect,useCatalogs } from "./catalogs";
+import { ResourceRates } from "./resource-rates";
 import { PagedCollection } from "./paged-collection";
 import { useSessionAccess } from "./user-account";
 import { usd } from "./management-shared";
@@ -19,6 +20,8 @@ export function ResourceCatalogWorkspace(){
 	return <div className="manage-workspace resource-workspace">
 		{error?<p role="alert" className="notice error">{error}</p>:null}{notice?<p role="status" className="notice">{notice}</p>:null}
 		<p>Catálogo de materiales y equipos de esta empresa. Las cantidades por visita se preparan en Agenda. Las tarifas se guardan como referencia; este catálogo no acredita existencias físicas ni descuenta inventario.</p>
+		{canEdit?<section className="panel"><h2>Preparar el catálogo de la operadora</h2><p>Incorpora ocho materiales y equipos habituales sin duplicar nombres ni sobrescribir recursos existentes. Se crean sin existencias ni tarifas; define tus costos en la tabla inferior.</p><button type="button" disabled={busy} onClick={()=>void save({action:"prepare_catalog"})}>Añadir catálogo inicial sin tarifas</button></section>:null}
+		{canEdit&&data?.catalog.length?<ResourceRates resources={data.catalog} busy={busy} onSave={save}/>:null}
 		{canEdit?<section className="panel"><h2>{editing?"Editar recurso":"Nuevo material o equipo"}</h2><form key={editing?.id||"new"} className="manage-form" onSubmit={async e=>{e.preventDefault();const form=e.currentTarget,f=Object.fromEntries(new FormData(form));if(await save({...f,action:"save",unit_key:unit,...(editing?{id:editing.id,revision:editing.revision}:{})}))form.reset();}}><fieldset disabled={busy}><div className="manage-grid">
 			<label>Nombre *<input name="name" required maxLength={500} defaultValue={editing?.name||""}/></label>
 			<label>Tipo<select name="category" defaultValue={editing?.category||"materials"}><option value="materials">Material</option><option value="equipment">Equipo</option></select></label>

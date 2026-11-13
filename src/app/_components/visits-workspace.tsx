@@ -2,6 +2,7 @@
 import { useSessionAccess } from "./user-account";
 import { PagedCollection } from "./paged-collection";
 import { useEffect, useState, useRef } from "react";
+import { ReschedulePanel } from "./reschedule-panel";
 import { CapacityBoard, CapacitySummary } from "./capacity-board";
 import { VisitResourcePanel } from "./resource-workspace";
 import { dailyCapacity, planningDay } from "@/modules/operations/daily-capacity.mjs";
@@ -36,6 +37,7 @@ export type Personnel = {
 };
 export type Visit = {
 	service?: string;
+	service_hours?: string;
 	assignment_review_required?: boolean;
 	assignment_review_reason?: string;
 	id: string;
@@ -396,6 +398,7 @@ export function VisitsWorkspace() {
 		<div className="manage-workspace">
 			<Notices error={state.error} notice={state.notice} />
 			{canPlan && workforce && state.data ? <CapacityBoard workforce={workforce} visits={state.data} busy={state.busy} canEdit={canUpdate} onEdit={editVisit} /> : null}
+			{canUpdate&&state.data?<ReschedulePanel visits={state.data} onChanged={state.refresh}/>:null}
 			{canUpdate?<section className="panel"><h2>Resolver reasignaciones pendientes</h2><p>Se conservan fechas, duración y tareas. Se elige personal activo de esta empresa con capacidad y sin cruces. Los casos incompatibles quedan pendientes con un motivo; no se inventan tiempos ni recursos.</p><button type="button" disabled={reassigning||state.busy} onClick={()=>void reassign()}>{reassigning?"Comprobando y asignando…":"Reasignar pendientes compatibles"}</button>{reassignment?<div role="status"><p>{reassignment.assigned.length} reasignadas · {reassignment.remaining} pendientes.</p>{reassignment.blocked.length?<details><summary>Ver motivos de las pendientes</summary><ul>{reassignment.blocked.map(b=><li key={b.id}>{b.name}: {b.reason}</li>)}</ul></details>:null}</div>:null}</section>:null}
 			{execution ? (
 				<ExecutionForm

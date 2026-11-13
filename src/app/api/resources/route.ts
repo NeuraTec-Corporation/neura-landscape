@@ -5,7 +5,7 @@ import { redactFinancials } from "../_security-data";
 import { database } from "@/modules/operations/index.mjs";
 import { assignedVisit,assignedExecutionDatabase } from "@/modules/identity/assignments.mjs";
 import { ManageError,withActor } from "@/modules/operations/manage.mjs";
-import { resourceCatalog,resourceReport,saveResource,removeResource,saveResourcePlan,saveResourceUsage } from "@/modules/operations/resources.mjs";
+import { resourceCatalog,resourceReport,saveResource,removeResource,saveResourcePlan,saveResourceUsage,prepareResourceCatalog,saveResourceRates } from "@/modules/operations/resources.mjs";
 export const dynamic="force-dynamic";
 function failure(e:unknown){return Response.json({error:e instanceof ManageError?e.message:"No se pudo completar la operación de recursos."},{status:e instanceof ManageError?e.status:422});}
 async function get(request:Request){
@@ -28,6 +28,8 @@ async function post(request:Request){
 			if(input.action==="actual"&&(assigned||capability(member,"visits.execute")||canPrice))return Response.json(await saveResourceUsage(assigned?assignedExecutionDatabase(db,member.email,input.id):db,input,{allowPrices:canPrice}));
 			if(!assigned&&input.action==="plan"&&capability(member,"visits.update"))return Response.json(await saveResourcePlan(db,input));
 			if(canPrice&&input.action==="save")return Response.json(await saveResource(db,input));
+			if(canPrice&&input.action==="prepare_catalog")return Response.json(await prepareResourceCatalog(db));
+			if(canPrice&&input.action==="rates")return Response.json(await saveResourceRates(db,input));
 			if(canPrice&&input.action==="delete")return Response.json(await removeResource(db,input));
 			return Response.json({error:"Acceso no permitido."},{status:403});
 		});

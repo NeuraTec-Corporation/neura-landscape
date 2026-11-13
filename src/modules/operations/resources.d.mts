@@ -1,4 +1,6 @@
 export function resourceCatalog(db:unknown):Promise<unknown>;
+export function prepareResourceCatalog(db:unknown):Promise<{created:number}>;
+export function saveResourceRates(db:unknown,input:unknown):Promise<{updated:number}>;
 export function saveResource(db:unknown,input:unknown):Promise<{id:string}>;
 export function removeResource(db:unknown,input:unknown):Promise<{id:string}>;
 export function saveResourcePlan(db:unknown,input:unknown):Promise<{id:string}>;
