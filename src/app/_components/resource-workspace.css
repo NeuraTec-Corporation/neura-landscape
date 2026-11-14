@@ -1,3 +1,4 @@
+@layer base, survey, management, estimates;
 @layer management {
  .resource-workspace {min-width:0;overflow-wrap:anywhere;}
  .resource-table {overflow-x:auto;max-width:100%;}

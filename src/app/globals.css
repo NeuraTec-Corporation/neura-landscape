@@ -1,4 +1,4 @@
-@layer base, survey, management;
+@layer base, survey, management, estimates;
 @layer base {
 :root {
 	color-scheme: light;
