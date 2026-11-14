@@ -1,0 +1,20 @@
+@layer base, survey, management, estimates;
+@layer management {
+ .resource-workspace {min-width:0;overflow-wrap:anywhere;}
+ .resource-table {overflow-x:auto;max-width:100%;}
+ .resource-table table {width:100%;border-collapse:collapse;font-size:13px;}
+ .resource-table th,.resource-table td {text-align:left;padding:12px 8px;border-bottom:1px solid #d5dfcc;}
+ .resource-plan-line {display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto;gap:12px;align-items:end;margin:16px 0;}
+ .resource-usage-line {padding:16px;border:1px solid #d5dfcc;border-radius:12px;margin:12px 0;}
+ .resource-editor {padding:18px 0;min-width:0;}
+ .visit-resource-panel {margin-top:18px;}
+ @media(max-width:680px){.resource-plan-line {grid-template-columns:minmax(0,1fr);} .resource-workspace input,.resource-workspace select,.resource-workspace textarea {min-width:0;max-width:100%;width:100%;} .resource-workspace fieldset {min-width:0;} }
+}
+
+/* Override the shared unlayered notice rule in the field workspace. */
+.resource-workspace .notice {white-space:normal;overflow-wrap:anywhere;}
+
+.resource-table { min-width:0; max-width:100%; overflow-x:auto; }
+.resource-table table { min-width:560px; }
+.resource-table td input { min-width:110px; max-width:180px; }
+.capacity-board .notice {white-space:normal;overflow-wrap:anywhere;}

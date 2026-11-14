@@ -1,0 +1,177 @@
+import { identityReadiness } from "./configuration.mjs";
+import { betterAuth } from "better-auth";
+import { nextCookies } from "better-auth/next-js";
+import { getMigrations } from "better-auth/db/migration";
+import { Pool } from "pg";
+import { globalDatabase as database } from "../operations/index.mjs";
+import { evaluationAccountsAllowed } from "./user-codes.mjs";
+export function authConfigured() {
+	return identityReadiness().ready;
+}
+
+let instance;
+export async function authentication() {
+	if (!authConfigured()) throw new Error("El ingreso no está configurado.");
+	if (!instance)
+		instance = (async () => {
+			await database();
+			const pool = new Pool({
+				connectionString: process.env.DATABASE_URL,
+				max: 3,
+				connectionTimeoutMillis: 10000,
+				query_timeout: 20000,
+			});
+			const auth = betterAuth({
+				...authenticationOptions(pool),
+				plugins: [nextCookies()],
+			});
+			await prepareIdentitySchema(pool, auth.options);
+			return auth;
+		})();
+	return instance;
+}
+export async function prepareIdentitySchema(
+	pool,
+	options,
+	migrations = getMigrations,
+) {
+	const client = await pool.connect();
+	try {
+		await client.query("BEGIN");
+		// Transaction-poolers cannot safely pair session-level lock/unlock calls.
+		// A dedicated transaction pins this coordinator until commit/rollback.
+		await client.query("SET LOCAL lock_timeout='15s'");
+		await client.query("SELECT pg_advisory_xact_lock(703922)");
+		await (await migrations(options)).runMigrations();
+		await client.query("COMMIT");
+	} catch (error) {
+		await client.query("ROLLBACK");
+		throw error;
+	} finally {
+		client.release();
+	}
+}
+export async function memberForSession(
+	db,
+	session,
+	bootstrapEmail = "",
+	env = process.env,
+) {
+	if (!session?.user?.email) return null;
+	const email = session.user.email.toLowerCase();
+	if (
+		!evaluationAccountsAllowed(env) &&
+		(
+			await db.query(
+				"SELECT code FROM security_login_codes WHERE subject_id=$1 AND evaluation_only=true",
+				[email],
+			)
+		).rows.length
+	)
+		return null;
+	if (
+		!session.user.emailVerified &&
+		!(
+			await db.query(
+				"SELECT user_id FROM security_local_identities WHERE email=$1 AND user_id=$2",
+				[email, session.user.id || ""],
+			)
+		).rows.length
+	)
+		return null;
+	if (
+		session.user.emailVerified &&
+		bootstrapEmail &&
+		email === bootstrapEmail.toLowerCase()
+	)
+		await db.query(
+			"INSERT INTO app_members(email,name,role,status) VALUES($1,$2,'it_admin','active') ON CONFLICT(email) DO NOTHING",
+			[email, session.user.name || email],
+		);
+	if (
+		session.user.emailVerified &&
+		bootstrapEmail &&
+		email === bootstrapEmail.toLowerCase()
+	)
+		await db.query(
+			"INSERT INTO security_platform_admins(subject_id) VALUES($1) ON CONFLICT DO NOTHING",
+			[email],
+		);
+	const member = (
+		await db.query(
+			"SELECT * FROM app_members WHERE email=$1 AND status='active'",
+			[email],
+		)
+	).rows[0];
+	return member || null;
+}
+export function canUse(role, path, method = "GET") {
+	if (["it_admin", "owner"].includes(role)) return true;
+	if (path === "/api/me" || path === "/api/my-work") return true;
+	if (path === "/api/users") return false;
+	if (["worker", "crew_lead"].includes(role))
+		return path === "/api/survey" || path === "/api/photos";
+	if (role === "manager") return !["/api/operator"].includes(path);
+	if (role === "finance")
+		return (
+			method === "GET" && ["/api/contracts", "/api/operations"].includes(path)
+		);
+	return false;
+}
+
+export function canManage(role, area, method) {
+	if (
+		![
+			"workforce",
+			"estimates",
+			"visits",
+			"costs",
+			"finance",
+			"dashboard",
+			"settings",
+		].includes(area)
+	)
+		return false;
+	if (["it_admin", "owner"].includes(role)) return true;
+	if (role === "manager")
+		return (
+			["workforce", "visits", "costs", "dashboard", "estimates"].includes(
+				area,
+			) ||
+			(area === "finance" && method === "GET")
+		);
+	if (role === "finance")
+		return (
+			["finance", "costs"].includes(area) ||
+			(["dashboard", "estimates"].includes(area) && method === "GET")
+		);
+	return false;
+}
+
+export function authenticationOptions(storage, env = process.env) {
+	return {
+		database: storage,
+		baseURL: env.BETTER_AUTH_URL,
+		trustedOrigins: [identityReadiness(env).origin],
+		secret: env.BETTER_AUTH_SECRET,
+		emailAndPassword: {
+			enabled: true,
+			disableSignUp: true,
+			minPasswordLength: 12,
+			maxPasswordLength: 128,
+			revokeSessionsOnPasswordReset: true,
+		},
+		socialProviders: identityReadiness(env).googleReady
+			? {
+					google: {
+						clientId: env.GOOGLE_CLIENT_ID,
+						clientSecret: env.GOOGLE_CLIENT_SECRET,
+						prompt: "select_account",
+					},
+				}
+			: {},
+		account: { accountLinking: { enabled: false } },
+		session: { expiresIn: 60 * 60 * 12, cookieCache: { enabled: false } },
+		rateLimit: { enabled: true, storage: "database" },
+	};
+}
