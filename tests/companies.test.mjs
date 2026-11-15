@@ -84,7 +84,7 @@ test("company creation is IT-only, atomic, prefix-unique and preserves all exist
 					[id],
 				)
 			).rows[0].n,
-			7,
+			defaultProfiles.length,
 		);
 		await assert.rejects(create(db, "Duplicate", "NOR"));
 		assert.equal(

@@ -94,6 +94,13 @@ export async function distributePortfolio(
 	if (!/^tenant_[a-f0-9]{32}$/.test(targetSchema))
 		throw Error("Invalid destination namespace");
 	const expected = [
+		"working_calendar",
+		"employee_absences",
+		"stock_movements",
+		"equipment_assets",
+		"customer_portal_access",
+		"portal_photos",
+		"customer_messages",
 		"operating_resources",
 		"visit_resources",
 		"customers",
@@ -151,6 +158,9 @@ export async function distributePortfolio(
 	// This initializer splits the original portfolio before resource setup.
 	if ((await tx.query("SELECT 1 FROM operating_resources UNION ALL SELECT 1 FROM visit_resources LIMIT 1")).rows.length)
 		throw Error("Initial portfolio distribution must precede material/equipment setup; populated resources require an explicit transfer contract.");
+	for(const table of ["working_calendar","employee_absences","stock_movements","equipment_assets","customer_portal_access","portal_photos","customer_messages"])
+		if((await tx.query(`SELECT 1 FROM public.${quote(table)} LIMIT 1`)).rows.length)
+			throw Error("Populated operational controls require an explicit transfer contract before portfolio redistribution.");
 	const target = quote(targetSchema),
 		before = await portfolioCounts(tx);
 	if ((await portfolioCounts(tx, targetSchema)).customers !== 0)
