@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { randomBytes, createHash } from "node:crypto";
+import { randomBytes, createHash,randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -13,6 +13,12 @@ import { migrate } from "../src/modules/operations/migrations.mjs";
 import { saveCompany, storageForCompany } from "../src/modules/identity/companies.mjs";
 import { defaultProfiles } from "../src/app/_security-manifest.mjs";
 import { saveEmployee } from "../src/modules/operations/workforce.mjs";
+import {prepareResourceCatalog,resourceCatalog,saveResourcePlan} from '../src/modules/operations/resources.mjs';
+import {moveStock,saveAsset} from '../src/modules/operations/inventory.mjs';
+import {saveWarehouse,transferStock} from '../src/modules/operations/warehouses.mjs';
+import {saveQualification,saveAccessPolicy} from '../src/modules/operations/qualifications.mjs';
+import {saveAssetReservations,saveMaintenance} from '../src/modules/operations/asset-reservations.mjs';
+import {saveMessage} from '../src/modules/operations/engagement.mjs';
 import { loadSampleOperations } from "../src/modules/operations/sample-operations.mjs";
 
 // This runner never accepts a hosted application URL or database name.
@@ -99,7 +105,7 @@ try {
 	const db = connect(sourceName);
 	// Two real pooled connections must serialize the migration lock.
 	await Promise.all([migrate(db, true), migrate(db, true)]);
-	assert.equal((await db.query("SELECT count(*)::int n FROM schema_migrations")).rows[0].n, 26);
+	assert.equal((await db.query("SELECT count(*)::int n FROM schema_migrations")).rows[0].n, 29);
 	const identityPool = new Pool({ ...config, database: sourceName });
 	try {
 		const auth = betterAuth(authenticationOptions(identityPool, {
@@ -121,6 +127,27 @@ try {
 	const property = (await second.query("SELECT id FROM properties LIMIT 1")).rows[0].id;
 	await second.query("INSERT INTO property_photos(id,property_id,viewpoint,caption,pathname,width,height,bytes) VALUES('recovery-photo',$1,'front','Synthetic binary preservation','recovery/private',1,1,4)", [property]);
 	await second.query("INSERT INTO property_photo_data VALUES('recovery-photo',$1)", [Buffer.from([0, 127, 128, 255])]);
+	// Populate the new controls so restoration verifies actual linked rows too,
+	// not only empty table definitions. Everything remains disposable/synthetic.
+	await second.query("INSERT INTO portal_photos(photo_id) VALUES('recovery-photo')");
+	const qualificationEmployee=(await second.query("SELECT id FROM employees WHERE deleted_at IS NULL AND status='active' LIMIT 1")).rows[0].id;
+	await saveQualification(second,{employee_id:qualificationEmployee,service_key:'mowing',valid_from:'2020-01-01',valid_until:'2050-01-01',certificate_ref:'SYNTHETIC-CERT',reason:'Synthetic recovery fixture'});
+	await saveAccessPolicy(second,{property_id:property,revision:0,windows:[{weekday:1,opens_at:'08:00',closes_at:'17:00'}],reason:'Synthetic access fixture'});
+	await prepareResourceCatalog(second);
+	const resources=await resourceCatalog(second),material=resources.find(r=>r.category==='materials'),equipment=resources.find(r=>r.category==='equipment');
+	await moveStock(second,{resource_id:material.id,kind:'count',quantity:10,reference:randomUUID(),reason:'Synthetic physical inventory'});
+	const warehouse=await saveWarehouse(second,{code:'NORTH',name:'Synthetic depot',status:'active',enforce_stock:true,reason:'Synthetic recovery fixture'});
+	await transferStock(second,{resource_id:material.id,from:'main',to:warehouse.id,quantity:1,reference:randomUUID(),reason:'Synthetic stock transfer'});
+	const visits=(await second.query("SELECT * FROM visits WHERE status='scheduled' AND deleted_at IS NULL ORDER BY id LIMIT 3")).rows;assert.equal(visits.length,3);
+	await saveResourcePlan(second,{id:visits[2].id,revision:visits[2].revision,lines:[{resource_id:equipment.id,planned_quantity:1}]});
+	const asset=await saveAsset(second,{resource_id:equipment.id,code:'REC-001',name:'Recovery mower',serial_number:'SYNTHETIC-SERIAL',crew_id:null,status:'available',maintenance_due:'',notes:''});
+	await saveAssetReservations(second,{id:visits[2].id,revision:visits[2].revision+1,asset_ids:[asset.id],reason:'Synthetic equipment allocation'});
+	await saveMaintenance(second,{asset_id:asset.id,description:'Synthetic service',due_on:'2050-01-01',status:'open',completed_on:'',cost:'',notes:''});
+	await saveWarehouse(second,{id:'main',revision:1,code:'PRINCIPAL',name:'Almacén principal',status:'active',enforce_stock:true,reason:'Synthetic stock policy'});
+	const stockRace=await Promise.allSettled(visits.slice(0,2).map(v=>saveResourcePlan(second,{id:v.id,revision:v.revision,lines:[{resource_id:material.id,planned_quantity:6}]})));
+	assert.equal(stockRace.filter(r=>r.status==='fulfilled').length,1);assert.equal(stockRace.find(r=>r.status==='rejected').reason.status,409);
+	const message=await saveMessage(second,{customer_id:(await second.query('SELECT id FROM customers LIMIT 1')).rows[0].id,channel:'email',recipient:'marina@recovery.invalid',subject:'Recovery fixture',body:'Synthetic pending communication',scheduled_at:'2050-01-01T12:00:00Z',status:'ready',reference:randomUUID()});
+	await second.query("INSERT INTO message_outbox(message_id,state) VALUES($1,'pending')",[message.id]);
 	const paths = await Promise.all(Array.from({ length: 3 }, () => db.query("SHOW search_path")));
 	const initialPath = paths[0].rows[0].search_path;
 	assert.ok(paths.every((r) => r.rows[0].search_path === initialPath));
@@ -153,16 +180,22 @@ try {
 	for (let i = 0; i < 6; i++) assert.equal((await db.query("SHOW search_path")).rows[0].search_path, initialPath);
 	const backup = join(directory, "snapshot.dump");
 	const before = await fingerprint(db);
+	const backupStarted=performance.now();
 	command("pg_dump", ["--format=custom", "--no-owner", "--no-privileges", "--file", backup], sourceName);
 	command("pg_restore", ["--exit-on-error", "--single-transaction", "--no-owner", "--no-privileges", "--dbname", restoreName, backup], restoreName);
+	const backupRestoreMilliseconds=Math.round(performance.now()-backupStarted);
 	const restored = connect(restoreName);
 	assert.deepEqual(await fingerprint(restored), before);
 	const recovered = await storageForCompany(restored, company.id);
 	assert.equal((await recovered.query("SELECT value FROM entity_sequences WHERE entity='concurrency_drill'")).rows[0].value, 24);
+	assert.equal((await recovered.query('SELECT count(*)::int n FROM visit_asset_reservations')).rows[0].n,1);
+	assert.equal((await recovered.query('SELECT count(*)::int n FROM message_outbox')).rows[0].n,1);
+	assert.equal((await recovered.query('SELECT count(*)::int n FROM employee_qualifications')).rows[0].n,1);
+	assert.ok(backupRestoreMilliseconds>=0);
 	// Identity-backed audit sequence remains usable after restore.
 	const nextEmployee = await saveEmployee(recovered, { ...input, id: undefined, revision: undefined, first_name: "Marina", last_name: "Alder" });
 	assert.ok(nextEmployee.id);
-	report = { status: "passed", engine: (await db.query("SHOW server_version")).rows[0].server_version, simultaneousJobs: 48, pooledConnections: new Set(jobs).size, revisionRace: "one success, one 409", restore: before, postRestoreWrite: true, elapsedSeconds: Math.round((performance.now() - started) / 1000), scope: "disposable synthetic PostgreSQL; not hosted backup or production capacity certification" };
+	report = { status: "passed", engine: (await db.query("SHOW server_version")).rows[0].server_version, simultaneousJobs: 48, pooledConnections: new Set(jobs).size, revisionRace: "one success, one 409", stockReservationRace:"one success, one 409",backupRestoreMilliseconds, restore: before, postRestoreWrite: true, elapsedSeconds: Math.round((performance.now() - started) / 1000), scope: "disposable synthetic PostgreSQL; not hosted backup or production capacity certification" };
 } finally {
 	try {
 		await Promise.all(connections.map((db) => db.close()));

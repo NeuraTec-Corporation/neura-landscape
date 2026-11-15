@@ -26,7 +26,7 @@ export const navigationGroups = [
 		id: "operacion",
 		label: "Operación",
 		icon: "calendar",
-		items: [{ id: "agenda", label: "Trabajos y agenda", href: "/agenda" },{id:"recorridos",label:"Recorridos de cuadrillas",href:"/recorridos"}],
+		items: [{ id: "agenda", label: "Trabajos y agenda", href: "/agenda" },{id:"recorridos",label:"Recorridos de cuadrillas",href:"/recorridos"},{id:"reglas-operativas",label:"Reglas de asignación",href:"/reglas-operativas"}],
 	},
 	{
 		id: "recursos",

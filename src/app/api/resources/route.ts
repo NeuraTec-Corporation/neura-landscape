@@ -1,3 +1,5 @@
+import {saveAssetReservations,saveMaintenance} from "@/modules/operations/asset-reservations.mjs";
+import {saveWarehouse,transferStock} from "@/modules/operations/warehouses.mjs";
 import { inventory,moveStock,postVisitStock,saveAsset } from "@/modules/operations/inventory.mjs";
 import { companyRoute } from "../_company-route";
 import { principal } from "../_identity";
@@ -15,7 +17,7 @@ async function get(request:Request){
 		const db=await database(),id=new URL(request.url).searchParams.get("visit_id"),assigned=member.security?.scope==="assigned";
 		if(assigned ? !id||!capability(member,"my_work.read")||!await assignedVisit(db,member.email,id) : !capability(member,"visits.read")&&!capability(member,"costs.read"))return Response.json({error:"Acceso no permitido."},{status:403});
 		const financial=capability(member,"costs.read"),catalog=assigned?[]:await resourceCatalog(db);
-		return Response.json({catalog:financial?catalog:redactFinancials(catalog),report:id?await resourceReport(db,id,financial):null,canPlan:!assigned&&capability(member,"visits.update"),canReport:assigned?capability(member,"my_work.execute"):capability(member,"visits.execute")||capability(member,"costs.update"),canPrice:!assigned&&capability(member,"costs.update"),financial,inventory:!assigned&&!id?await inventory(db):null});
+		return Response.json({catalog:financial?catalog:redactFinancials(catalog),report:id?await resourceReport(db,id,financial,!assigned):null,canPlan:!assigned&&capability(member,"visits.update"),canReport:assigned?capability(member,"my_work.execute"):capability(member,"visits.execute")||capability(member,"costs.update"),canPrice:!assigned&&capability(member,"costs.update"),financial,inventory:!assigned&&!id?(financial?await inventory(db):redactFinancials(await inventory(db))):null});
 	}catch(e){return failure(e);}
 }
 async function post(request:Request){
@@ -28,6 +30,10 @@ async function post(request:Request){
 		return await withActor(member.email||"protected-evaluation",async()=>{
 			if(input.action==="actual"&&(assigned||capability(member,"visits.execute")||canPrice))return Response.json(await saveResourceUsage(assigned?assignedExecutionDatabase(db,member.email,input.id):db,input,{allowPrices:canPrice}));
 			if(!assigned&&input.action==="plan"&&capability(member,"visits.update"))return Response.json(await saveResourcePlan(db,input));
+			if(!assigned&&input.action==="reserve_assets"&&capability(member,"visits.update"))return Response.json(await saveAssetReservations(db,input));
+			if(canPrice&&input.action==="warehouse")return Response.json(await saveWarehouse(db,input));
+			if(canPrice&&input.action==="transfer_stock")return Response.json(await transferStock(db,input));
+			if(canPrice&&input.action==="maintenance")return Response.json(await saveMaintenance(db,input));
 			if(canPrice&&input.action==="stock")return Response.json(await moveStock(db,input));
 			if(canPrice&&input.action==="post_stock")return Response.json(await postVisitStock(db,input));
 			if(canPrice&&input.action==="asset")return Response.json(await saveAsset(db,input));

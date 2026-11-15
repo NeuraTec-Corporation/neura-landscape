@@ -31,6 +31,9 @@ const businessFiles = [
 	"023_working_calendar.sql",
 	"024_inventory.sql",
 	"025_customer_engagement.sql",
+	"027_assignment_controls.sql",
+	"028_warehouses.sql",
+	"029_delivery_outbox.sql",
 ];
 function namespace(schema) {
 	if (schema !== "public" && !/^tenant_[a-f0-9]{32}$/.test(schema))

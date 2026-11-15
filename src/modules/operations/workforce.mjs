@@ -1,3 +1,4 @@
+import {lockOperationalPlan} from "./planning-lock.mjs";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import {
@@ -62,6 +63,8 @@ export async function saveEmployee(db, input) {
 		phone = p.number;
 	}
 	return db.transaction(async (tx) => {
+ await lockOperationalPlan(tx);
+
 		const old = v.id
 			? (await tx.query("SELECT * FROM employees WHERE id=$1 FOR UPDATE", [id]))
 					.rows[0]
@@ -107,6 +110,8 @@ export async function saveCrew(db, input) {
 	if (new Set(v.members.map((m) => m.employee_id)).size !== v.members.length)
 		throw new ManageError("Una persona no puede repetirse en la cuadrilla.");
 	return db.transaction(async (tx) => {
+ await lockOperationalPlan(tx);
+
 		if (v.id) {
 			const old = (
 				await tx.query("SELECT * FROM crews WHERE id=$1 FOR UPDATE", [id])
@@ -184,6 +189,8 @@ export async function removeWorkforce(db, entity, input) {
 	)
 		throw new ManageError("Solicitud inválida.");
 	return db.transaction(async (tx) => {
+ await lockOperationalPlan(tx);
+
 		const table = entity === "crew" ? "crews" : "employees",
 			row = (
 				await tx.query(`SELECT * FROM ${table} WHERE id=$1 FOR UPDATE`, [

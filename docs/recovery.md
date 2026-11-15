@@ -48,3 +48,11 @@ capacity, latency objectives or a production load test. Browser authorization an
 hosted company separation are verified separately in SEC06. Local Windows without
 PostgreSQL tools or a running container engine cannot execute this job; CI is the
 reproducible execution environment. Passing results must be linked to the actual run.
+
+The assignment-controls extension populates synthetic qualifications, access
+policies, warehouse counts/transfers, equipment reservations, maintenance,
+published private photo metadata and message outbox before backup. It also races
+two actual material plans against insufficient stock: exactly one succeeds.
+The final run records backup/restore elapsed milliseconds separately. The existing
+hosted recovery and capacity limitations still apply; local Windows compilation
+or successful CI restoration is not proof of recovery of the hosted application.

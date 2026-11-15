@@ -1,3 +1,6 @@
+import {lockOperationalPlan} from "./planning-lock.mjs";
+import {validateStockPlan} from "./warehouses.mjs";
+import {assetPlan} from "./asset-reservations.mjs";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { parse, ManageError, text, money, audit, sequence } from "./manage.mjs";
@@ -38,6 +41,8 @@ export async function saveResourceRates(db,input){
 export async function saveResource(db,input) {
 	const v=parse(schema,input),id=v.id||randomUUID();
 	return db.transaction(async tx=>{
+ await lockOperationalPlan(tx);
+
 		const old=v.id?(await tx.query("SELECT * FROM operating_resources WHERE id=$1 FOR UPDATE",[id])).rows[0]:null;
 		if(v.id&&(!old||old.deleted_at||old.revision!==v.revision))throw new ManageError("El recurso cambió. Recarga.",409);
 		if(old&&(old.category!==v.category||old.unit_key!==v.unit_key)&&((await tx.query("SELECT id FROM visit_resources WHERE resource_id=$1 UNION ALL SELECT id FROM stock_movements WHERE resource_id=$1 UNION ALL SELECT id FROM equipment_assets WHERE resource_id=$1 LIMIT 1",[id])).rows.length))throw new ManageError("Un recurso con historial conserva su tipo y unidad. Crea otro recurso para una unidad diferente.",409);
@@ -51,7 +56,9 @@ export async function saveResource(db,input) {
 }
 export async function removeResource(db,input){
 	const v=parse(z.object({id:z.string().uuid(),revision:z.number().int().positive(),reason:text}),input);
-	return db.transaction(async tx=>{const r=await tx.query("UPDATE operating_resources SET deleted_at=now(),status='inactive',revision=revision+1 WHERE id=$1 AND revision=$2 AND deleted_at IS NULL RETURNING id",[v.id,v.revision]);if(!r.rows.length)throw new ManageError("El recurso cambió. Recarga.",409);await audit(tx,"resource",v.id,"retired",{reason:v.reason});return {id:v.id};});
+	return db.transaction(async tx=>{
+ await lockOperationalPlan(tx);
+const r=await tx.query("UPDATE operating_resources SET deleted_at=now(),status='inactive',revision=revision+1 WHERE id=$1 AND revision=$2 AND deleted_at IS NULL RETURNING id",[v.id,v.revision]);if(!r.rows.length)throw new ManageError("El recurso cambió. Recarga.",409);await audit(tx,"resource",v.id,"retired",{reason:v.reason});return {id:v.id};});
 }
 export async function resourceCostState(tx,id){
 	const rows=(await tx.query("SELECT * FROM visit_resources WHERE visit_id=$1",[id])).rows;
@@ -69,9 +76,11 @@ async function recalculate(tx,id){
 	await tx.query("UPDATE visits SET materials_cents=$2,equipment_cents=$3,travel_cents=$4,overhead_cents=$5,cost_complete=(labor_cents IS NOT NULL AND $6) WHERE id=$1",[id,totals.materials,totals.equipment,totals.travel,totals.overhead,state.complete]);
 }
 export async function saveResourcePlan(db,input){
-	const v=parse(z.object({id:text,revision:z.number().int().positive(),lines:z.array(z.object({resource_id:z.string().uuid(),planned_quantity:quantity.refine(v=>v>0)})).max(100)}),input);
+	const v=parse(z.object({id:text,revision:z.number().int().positive(),lines:z.array(z.object({resource_id:z.string().uuid(),warehouse_id:text.optional(),planned_quantity:quantity.refine(v=>v>0)})).max(100)}),input);
 	if(new Set(v.lines.map(l=>l.resource_id)).size!==v.lines.length)throw new ManageError("No repitas un recurso en el plan.");
 	return db.transaction(async tx=>{
+ await lockOperationalPlan(tx);
+
 		const visit=(await tx.query("SELECT * FROM visits WHERE id=$1 FOR UPDATE",[v.id])).rows[0];
 		if(!visit||visit.deleted_at||visit.revision!==v.revision||visit.status!=="scheduled")throw new ManageError("Solo se prepara una visita programada sin otra edición. Recarga.",409);
 		const old=(await tx.query("SELECT * FROM visit_resources WHERE visit_id=$1",[v.id])).rows;
@@ -82,10 +91,12 @@ export async function saveResourcePlan(db,input){
 			if(!resource||(!previous&&(resource.deleted_at||resource.status!=="active")))throw new ManageError("Selecciona un recurso activo de esta empresa.");
 			if((previous?.unit_key||resource.unit_key)==="each"&&!Number.isInteger(l.planned_quantity))throw new ManageError("Las unidades previstas deben ser enteras.");
 			if(resource.unit_cost_cents!==null&&l.planned_quantity*resource.unit_cost_cents>100000000)throw new ManageError("El costo previsto supera el máximo permitido.");
-			lines.push({...l,id:previous?.id||randomUUID(),rate_basis:previous?.rate_basis||resource.rate_basis,name_snapshot:previous?.name_snapshot||resource.name,category:previous?.category||resource.category,unit_key:previous?.unit_key||resource.unit_key,unit_cost_cents:previous?previous.unit_cost_cents:resource.unit_cost_cents});
+			lines.push({...l,warehouse_id:l.warehouse_id||previous?.warehouse_id||'main',id:previous?.id||randomUUID(),rate_basis:previous?.rate_basis||resource.rate_basis,name_snapshot:previous?.name_snapshot||resource.name,category:previous?.category||resource.category,unit_key:previous?.unit_key||resource.unit_key,unit_cost_cents:previous?previous.unit_cost_cents:resource.unit_cost_cents});
 		}
+		await validateStockPlan(tx,v.id,lines);
 		await tx.query("DELETE FROM visit_resources WHERE visit_id=$1",[v.id]);
-		for(const l of lines)await tx.query("INSERT INTO visit_resources(id,visit_id,resource_id,name_snapshot,category,unit_key,unit_cost_cents,actual_unit_cost_cents,planned_quantity,rate_basis) VALUES($1,$2,$3,$4,$5,$6,$7,$7,$8,$9)",[l.id,v.id,l.resource_id,l.name_snapshot,l.category,l.unit_key,l.unit_cost_cents,l.planned_quantity,l.rate_basis]);
+		for(const l of lines)await tx.query("INSERT INTO visit_resources(id,visit_id,resource_id,name_snapshot,category,unit_key,unit_cost_cents,actual_unit_cost_cents,planned_quantity,rate_basis,warehouse_id) VALUES($1,$2,$3,$4,$5,$6,$7,$7,$8,$9,$10)",[l.id,v.id,l.resource_id,l.name_snapshot,l.category,l.unit_key,l.unit_cost_cents,l.planned_quantity,l.rate_basis,l.warehouse_id]);
+		await tx.query("DELETE FROM visit_asset_reservations r USING equipment_assets a WHERE r.visit_id=$1 AND a.id=r.asset_id AND NOT EXISTS(SELECT 1 FROM visit_resources p WHERE p.visit_id=r.visit_id AND p.resource_id=a.resource_id AND p.category='equipment')",[v.id]);
 		await tx.query("UPDATE visits SET revision=revision+1,resources_prepared=true WHERE id=$1",[v.id]);await recalculate(tx,v.id);await audit(tx,"visit_resource_plan",v.id,"prepared",{before:old,after:lines});return {id:v.id};
 	});
 }
@@ -93,6 +104,8 @@ export async function saveResourceUsage(db,input,{allowPrices=false}={}){
 	const v=parse(z.object({id:text,revision:z.number().int().positive(),reason:z.string().trim().min(5).max(500),lines:z.array(z.object({id:z.string().uuid(),actual_quantity:quantity,unit_cost:money.optional(),notes:z.string().trim().max(1000).default("")})).max(100)}),input);
 	if(!allowPrices&&v.lines.some(l=>l.unit_cost!==undefined))throw new ManageError("Tu perfil no puede cambiar tarifas.",403);
 	return db.transaction(async tx=>{
+ await lockOperationalPlan(tx);
+
 		const visit=(await tx.query("SELECT * FROM visits WHERE id=$1 FOR UPDATE",[v.id])).rows[0];
 		if(!visit||visit.deleted_at||visit.revision!==v.revision||!["started","completed","cancelled"].includes(visit.status))throw new ManageError("Registra consumos durante o después de ejecutar la visita. Recarga si cambió.",409);
 		const old=(await tx.query("SELECT * FROM visit_resources WHERE visit_id=$1",[v.id])).rows;
@@ -102,19 +115,20 @@ export async function saveResourceUsage(db,input,{allowPrices=false}={}){
 		await tx.query("UPDATE visits SET revision=revision+1 WHERE id=$1",[v.id]);await recalculate(tx,v.id);await audit(tx,"visit_resource_usage",v.id,"recorded",{reason:v.reason,before:old,after:v.lines});return {id:v.id};
 	});
 }
-export async function resourceReport(db,id,financial=true){
+export async function resourceReport(db,id,financial=true,includeAvailableAssets=false){
 	return db.transaction(async tx=>{
-		const visit=(await tx.query("SELECT id,revision,status,resources_prepared,planned_minutes,planned_labor_hourly_cents,labor_cents FROM visits WHERE id=$1 AND deleted_at IS NULL",[id])).rows[0];if(!visit)throw new ManageError("Visita no encontrada.",404);
+		const visit=(await tx.query("SELECT id,crew_id,scheduled_at,revision,status,resources_prepared,planned_minutes,planned_labor_hourly_cents,labor_cents FROM visits WHERE id=$1 AND deleted_at IS NULL",[id])).rows[0];if(!visit)throw new ManageError("Visita no encontrada.",404);
 		const rows=(await tx.query("SELECT * FROM visit_resources WHERE visit_id=$1 ORDER BY category,name_snapshot",[id])).rows;
 		const plannedPerson=(await tx.query("SELECT count(*)::int n,sum(actual_minutes)::int actual,count(actual_minutes)::int reported FROM visit_personnel WHERE visit_id=$1",[id])).rows[0];
 		const personMinutes=plannedPerson.n&&visit.planned_minutes?plannedPerson.n*visit.planned_minutes:null;
 		const actualMinutes=plannedPerson.n&&plannedPerson.reported===plannedPerson.n?plannedPerson.actual:null;
 		const tasks=(await tx.query("SELECT service_key,unit,sum(quantity)::float8 planned,sum(completed_quantity)::float8 actual,count(*)::int n,count(completed_quantity)::int reported FROM visit_tasks WHERE visit_id=$1 GROUP BY service_key,unit ORDER BY service_key,unit",[id])).rows;
 		const productivity=tasks.map(t=>({...t,actual:t.reported===t.n?t.actual:null,per_person_hour:actualMinutes>0&&t.reported===t.n?Math.round(t.actual/(actualMinutes/60)*1000)/1000:null}));
-		const lines=rows.map(r=>({id:r.id,resource_id:r.resource_id,name:r.name_snapshot,rate_basis:r.rate_basis,category:r.category,unit_key:r.unit_key,planned_quantity:Number(r.planned_quantity),actual_quantity:r.actual_quantity===null?null:Number(r.actual_quantity),notes:r.notes,...(financial?{unit_cost_cents:r.actual_unit_cost_cents,planned_cents:r.unit_cost_cents===null?null:Math.round(Number(r.planned_quantity)*r.unit_cost_cents),actual_cents:r.actual_quantity===null||r.actual_unit_cost_cents===null?null:Math.round(Number(r.actual_quantity)*r.actual_unit_cost_cents)}:{})}));
+		const lines=rows.map(r=>({id:r.id,resource_id:r.resource_id,warehouse_id:r.warehouse_id,name:r.name_snapshot,rate_basis:r.rate_basis,category:r.category,unit_key:r.unit_key,planned_quantity:Number(r.planned_quantity),actual_quantity:r.actual_quantity===null?null:Number(r.actual_quantity),notes:r.notes,...(financial?{unit_cost_cents:r.actual_unit_cost_cents,planned_cents:r.unit_cost_cents===null?null:Math.round(Number(r.planned_quantity)*r.unit_cost_cents),actual_cents:r.actual_quantity===null||r.actual_unit_cost_cents===null?null:Math.round(Number(r.actual_quantity)*r.actual_unit_cost_cents)}:{})}));
 		const known=lines.every(l=>l.actual_cents!==null&&l.actual_cents!==undefined),planKnown=lines.every(l=>l.planned_cents!==null&&l.planned_cents!==undefined);
 		const totals=financial?{planned_cents:visit.resources_prepared&&planKnown?lines.reduce((s,l)=>s+l.planned_cents,0):null,actual_cents:visit.resources_prepared&&known?lines.reduce((s,l)=>s+l.actual_cents,0):null}:{};
-		return {visit:{id:visit.id,revision:visit.revision,status:visit.status,resources_prepared:visit.resources_prepared},lines,person_minutes:{planned:personMinutes,actual:actualMinutes},productivity,...(financial?{totals}:{} )};
+		const assets=(await assetPlan(tx,id)).filter(a=>includeAvailableAssets||a.reserved).map(({id,code,name,resource_id,crew_id,status,maintenance_due,reserved})=>({id,code,name,resource_id,crew_id,status,maintenance_due,reserved}));
+		return {visit:{id:visit.id,crew_id:visit.crew_id,scheduled_at:visit.scheduled_at,revision:visit.revision,status:visit.status,resources_prepared:visit.resources_prepared},warehouses:includeAvailableAssets?(await tx.query("SELECT id,name,status,enforce_stock FROM warehouses ORDER BY name")).rows:[],assets,lines,person_minutes:{planned:personMinutes,actual:actualMinutes},productivity,...(financial?{totals}:{} )};
 	});
 }
 

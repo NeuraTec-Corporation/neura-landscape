@@ -1,3 +1,8 @@
+import {authentication} from "@/modules/identity/auth.mjs";
+import {evaluationAccountsAllowed} from "@/modules/identity/user-codes.mjs";
+import {provisionCustomerEvaluationAccess} from "@/modules/identity/customer-evaluation-access.mjs";
+import {permissionRegistry} from "../../_security-manifest.mjs";
+import {SecurityError} from "@/modules/security/index.mjs";
 import { companyRoute } from "../_company-route";
 import { principal } from "../_identity";
 import { capability } from "../_security";
@@ -12,7 +17,7 @@ async function get(request:Request){
   const db=await database(),url=new URL(request.url),photo=url.searchParams.get("photo");
   if(url.searchParams.get("manage")==="1"){
    if(!capability(actor,"security.update")||!capability(actor,"customers.read"))return Response.json({error:"Acceso no permitido."},{status:403});
-   return Response.json({assignments:(await db.query("SELECT a.*,c.name customer_name FROM customer_portal_access a JOIN customers c ON c.id=a.customer_id ORDER BY a.subject_id")).rows,customers:(await db.query("SELECT id,name FROM customers ORDER BY name")).rows,users:(await db.query("SELECT m.email,m.name FROM public.app_members m JOIN public.security_memberships a ON a.subject_id=m.email WHERE a.company_id=$1 AND a.status='active' AND m.status='active' ORDER BY m.name",[actor.security.company_id])).rows,photos:(await db.query("SELECT f.id,f.caption,p.name property_name,(x.photo_id IS NOT NULL) published FROM property_photos f JOIN properties p ON p.id=f.property_id LEFT JOIN portal_photos x ON x.photo_id=f.id WHERE f.deleted_at IS NULL AND p.deleted_at IS NULL ORDER BY p.name,f.id")).rows});
+   return Response.json({canProvisionEvaluation:evaluationAccountsAllowed()&&Boolean(process.env.LANDSCAPE_EVALUATION_PASSWORD),sampleCustomers:(await db.query<{entity_id:string}>("SELECT entity_id FROM sample_data_records WHERE entity='customer'")).rows.map(r=>r.entity_id),assignments:(await db.query("SELECT a.*,c.name customer_name FROM customer_portal_access a JOIN customers c ON c.id=a.customer_id ORDER BY a.subject_id")).rows,customers:(await db.query("SELECT id,name FROM customers ORDER BY name")).rows,users:(await db.query("SELECT m.email,m.name,(SELECT code FROM public.security_login_codes WHERE subject_id=m.email AND company_id=$1 LIMIT 1) login_code FROM public.app_members m JOIN public.security_memberships a ON a.subject_id=m.email WHERE a.company_id=$1 AND a.status='active' AND m.status='active' ORDER BY m.name",[actor.security.company_id])).rows,photos:capability(actor,"survey.read")?(await db.query("SELECT f.id,f.caption,p.name property_name,(x.photo_id IS NOT NULL) published FROM property_photos f JOIN properties p ON p.id=f.property_id LEFT JOIN portal_photos x ON x.photo_id=f.id WHERE f.deleted_at IS NULL AND p.deleted_at IS NULL ORDER BY p.name,f.id")).rows:[]});
   }
   if(!capability(actor,"portal.read"))return Response.json({error:"Acceso no permitido."},{status:403});
   if(photo){
@@ -22,7 +27,7 @@ async function get(request:Request){
    return new Response(body as BodyInit,{headers:{"Content-Type":"image/jpeg","X-Content-Type-Options":"nosniff","Content-Security-Policy":"default-src 'none'; sandbox"}});
   }
   return Response.json(await customerPortal(db,actor.email));
- }catch(e){return Response.json({error:e instanceof ManageError?e.message:"No se pudo consultar el portal."},{status:e instanceof ManageError?e.status:422});}
+ }catch(e){return Response.json({error:e instanceof ManageError?e.message:"No se pudo consultar el portal."},{status:e instanceof ManageError||e instanceof SecurityError?e.status:422});}
 }
 async function post(request:Request){
  const actor=await principal(request);if(!actor?.security||!capability(actor,"security.update")||!capability(actor,"customers.read"))return Response.json({error:"Acceso no permitido."},{status:403});
@@ -31,6 +36,7 @@ async function post(request:Request){
   const companyId=actor.security.company_id;
   const raw=await request.text();if(raw.length>8000)return Response.json({error:"Solicitud demasiado grande."},{status:413});const input=JSON.parse(raw),db=await database();
   return Response.json(await withActor(actor.email,async()=>{
+   if(input.action==="provision_evaluation"){if(typeof input.customer_id!=="string")throw new ManageError("Selecciona un cliente.");return provisionCustomerEvaluationAccess(db,{companyId,subjectId:actor.email},input.customer_id,(await (await authentication()).$context).password,permissionRegistry);}
    if(input.action==="photo"){
     if(!capability(actor,"survey.read")||typeof input.id!=="string"||typeof input.published!=="boolean")throw new ManageError("Acción no permitida.",403);
     return db.transaction(async tx=>{
@@ -41,7 +47,7 @@ async function post(request:Request){
    }
    return assignPortal(db,companyId,input);
   }));
- }catch(e){return Response.json({error:e instanceof ManageError?e.message:"No se pudo guardar el acceso."},{status:e instanceof ManageError?e.status:422});}
+ }catch(e){return Response.json({error:e instanceof ManageError||e instanceof SecurityError?e.message:"No se pudo guardar el acceso."},{status:e instanceof ManageError?e.status:422});}
 }
 export const GET=companyRoute(get);
 export const POST=companyRoute(post);

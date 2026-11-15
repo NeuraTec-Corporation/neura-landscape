@@ -1,4 +1,9 @@
+import {lockOperationalPlan} from "./planning-lock.mjs";
 import { availability, availabilityProblem } from "./availability.mjs";
+import {assignmentPolicies} from "./qualifications.mjs";
+import {qualificationProblem,accessPolicyWindow} from "./qualification-policy.mjs";
+import {validateStockPlan} from "./warehouses.mjs";
+import {validateAssetReservations} from "./asset-reservations.mjs";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { parse, ManageError, text, revision, audit, money } from "./manage.mjs";
@@ -43,6 +48,8 @@ export async function saveVisit(db, input) {
 	const v = parse(schema, input),
 		id = v.id || randomUUID();
 	return db.transaction(async (tx) => {
+ await lockOperationalPlan(tx);
+
 		const crew = (
 			await tx.query(
 				"SELECT * FROM crews WHERE id=$1 AND deleted_at IS NULL FOR UPDATE",
@@ -73,8 +80,8 @@ export async function saveVisit(db, input) {
 			throw new ManageError(
 				"La visita debe estar dentro de la vigencia del contrato.",
 			);
-		if (v.reschedule_reason && !accessWindow(contract.service_hours)) throw new ManageError("Confirma un intervalo de acceso válido antes de aplicar la alternativa.");
-		if (accessWindow(contract.service_hours) && !fitsAccess(v.scheduled_at,v.planned_minutes,contract.service_hours)) throw new ManageError("La visita debe caber en el horario de acceso de la localidad.",422,{scheduled_at:"Fuera del horario de acceso."});
+		if (v.reschedule_reason && !(await tx.query("SELECT property_id FROM property_access_policies WHERE property_id=$1",[contract.property_id])).rows.length && !accessWindow(contract.service_hours)) throw new ManageError("Confirma un intervalo de acceso válido antes de aplicar la alternativa.");
+		if (!((await tx.query("SELECT property_id FROM property_access_policies WHERE property_id=$1",[contract.property_id])).rows.length) && accessWindow(contract.service_hours) && !fitsAccess(v.scheduled_at,v.planned_minutes,contract.service_hours)) throw new ManageError("La visita debe caber en el horario de acceso de la localidad.",422,{scheduled_at:"Fuera del horario de acceso."});
 		const old = v.id
 			? (await tx.query("SELECT * FROM visits WHERE id=$1 FOR UPDATE", [id]))
 					.rows[0]
@@ -85,6 +92,7 @@ export async function saveVisit(db, input) {
 			throw new ManageError(
 				"Solo se reprograman visitas pendientes. Las realizadas conservan su historial.",
 			);
+		if(old){await validateAssetReservations(tx,{...old,...v});await validateStockPlan(tx,id,(await tx.query("SELECT * FROM visit_resources WHERE visit_id=$1",[id])).rows);}
 		const previousPlan = old
 			? {
 					visit: old,
@@ -129,6 +137,9 @@ export async function saveVisit(db, input) {
 			throw new ManageError(
 				"Identifica y activa a todos los integrantes de la cuadrilla antes de programar.",
 			);
+		const policies=await assignmentPolicies(tx),policy=accessPolicyWindow(policies,contract.property_id,serviceDay,contract.service_hours);
+		if(policy.configured&&(!policy.value||!fitsAccess(v.scheduled_at,v.planned_minutes,policy.value)))throw new ManageError("El inmueble no admite este trabajo en ese día u horario.",409);
+		const qualification=qualificationProblem(policies,serviceDay,people.map(p=>p.id),v.tasks);if(qualification)throw new ManageError(qualification,409);
 		const unavailable=availabilityProblem(await availability(tx),serviceDay,people.map(p=>p.id));
 		if(unavailable)throw new ManageError(unavailable,409);
 		const begin = new Date(v.scheduled_at).getTime() - v.travel_minutes * 60000,
@@ -297,6 +308,8 @@ export async function changeVisit(db, input) {
 		input,
 	);
 	return db.transaction(async (tx) => {
+ await lockOperationalPlan(tx);
+
 		const row = (
 			await tx.query("SELECT * FROM visits WHERE id=$1 FOR UPDATE", [v.id])
 		).rows[0];
@@ -356,6 +369,12 @@ export async function changeVisit(db, input) {
 				throw new ManageError(
 					"Edita la asignación e identifica a sus personas antes de iniciar.",
 				);
+			const policies=await assignmentPolicies(tx),taskRows=(await tx.query("SELECT * FROM visit_tasks WHERE visit_id=$1",[v.id])).rows;
+			const available=availabilityProblem(await availability(tx),actualDay,staff.map(p=>p.employee_id))||qualificationProblem(policies,actualDay,staff.map(p=>p.employee_id),taskRows);if(available)throw new ManageError(available,409);
+			const property=(await tx.query("SELECT p.id,p.service_hours FROM properties p JOIN contracts c ON c.property_id=p.id WHERE c.id=$1",[row.contract_id])).rows[0];
+			const access=accessPolicyWindow(policies,property.id,actualDay,property.service_hours);if(access.configured&&(!access.value||!fitsAccess(new Date().toISOString(),row.planned_minutes,access.value)))throw new ManageError("El acceso del inmueble no permite iniciar en este horario.",409);
+			await validateStockPlan(tx,v.id,(await tx.query("SELECT * FROM visit_resources WHERE visit_id=$1",[v.id])).rows);
+			await validateAssetReservations(tx,{...row,scheduled_at:new Date().toISOString(),travel_minutes:0},undefined,{requireComplete:true});
 			await tx.query(
 				"UPDATE visits SET status='started',started_at=now(),revision=revision+1 WHERE id=$1",
 				[v.id],
@@ -512,6 +531,8 @@ export async function completeVisit(db, input) {
 		input,
 	);
 	return db.transaction(async (tx) => {
+ await lockOperationalPlan(tx);
+
 		const row = (
 			await tx.query("SELECT * FROM visits WHERE id=$1 FOR UPDATE", [v.id])
 		).rows[0];
@@ -630,6 +651,8 @@ export async function saveVisitCosts(db, input) {
 		input,
 	);
 	return db.transaction(async (tx) => {
+ await lockOperationalPlan(tx);
+
 		const row = (
 			await tx.query(
 				"SELECT * FROM visits WHERE id=$1 AND deleted_at IS NULL FOR UPDATE",

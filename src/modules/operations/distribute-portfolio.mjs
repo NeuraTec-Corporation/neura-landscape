@@ -94,6 +94,14 @@ export async function distributePortfolio(
 	if (!/^tenant_[a-f0-9]{32}$/.test(targetSchema))
 		throw Error("Invalid destination namespace");
 	const expected = [
+		"message_outbox",
+		"warehouses",
+		"employee_qualifications",
+		"service_qualification_rules",
+		"property_access_policies",
+		"property_access_windows",
+		"visit_asset_reservations",
+		"maintenance_orders",
 		"working_calendar",
 		"employee_absences",
 		"stock_movements",
@@ -158,9 +166,10 @@ export async function distributePortfolio(
 	// This initializer splits the original portfolio before resource setup.
 	if ((await tx.query("SELECT 1 FROM operating_resources UNION ALL SELECT 1 FROM visit_resources LIMIT 1")).rows.length)
 		throw Error("Initial portfolio distribution must precede material/equipment setup; populated resources require an explicit transfer contract.");
-	for(const table of ["working_calendar","employee_absences","stock_movements","equipment_assets","customer_portal_access","portal_photos","customer_messages"])
+	for(const table of ["message_outbox","employee_qualifications","service_qualification_rules","property_access_policies","property_access_windows","visit_asset_reservations","maintenance_orders","working_calendar","employee_absences","stock_movements","equipment_assets","customer_portal_access","portal_photos","customer_messages"])
 		if((await tx.query(`SELECT 1 FROM public.${quote(table)} LIMIT 1`)).rows.length)
 			throw Error("Populated operational controls require an explicit transfer contract before portfolio redistribution.");
+	if((await tx.query("SELECT id FROM warehouses WHERE id<>'main' OR revision<>1 OR enforce_stock OR status<>'active' LIMIT 1")).rows.length)throw Error("Configured warehouses require an explicit transfer contract before redistribution.");
 	const target = quote(targetSchema),
 		before = await portfolioCounts(tx);
 	if ((await portfolioCounts(tx, targetSchema)).customers !== 0)

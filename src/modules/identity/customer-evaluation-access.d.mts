@@ -1,0 +1,1 @@
+export function provisionCustomerEvaluationAccess(db:unknown,ctx:{companyId:string;subjectId:string},customer:string,password:unknown,registry:unknown,env?:NodeJS.ProcessEnv):Promise<{code:string;created:boolean;active:boolean}>;

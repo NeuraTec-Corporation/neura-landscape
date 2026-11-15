@@ -1,4 +1,6 @@
 import { availability,availabilityProblem } from "./availability.mjs";
+import {assignmentPolicies} from "./qualifications.mjs";
+import {qualificationProblem,accessPolicyWindow} from "./qualification-policy.mjs";
 import { z } from "zod";
 import { parse, date, ManageError } from "./manage.mjs";
 import { planningDay } from "./daily-capacity.mjs";
@@ -11,25 +13,29 @@ const span=v=>[Date.parse(v.scheduled_at)-Number(v.travel_minutes||0)*60000,Date
 export async function suggestSlots(db,input,now=new Date()){
  const f=parse(z.object({id:z.string().min(1),from:date,to:date}),input);
  const [visits,w]=await Promise.all([visitList(db),workforce(db)]);
- w.availability=await availability(db);
+ w.availability=await availability(db);w.policies=await assignmentPolicies(db);
  return slots(visits,w,f,now);
 }
 function slots(visits,w,f,now){
  if(f.from<planningDay(now)||f.to<f.from||Date.parse(f.to)-Date.parse(f.from)>27*86400000)throw new ManageError("Busca desde hoy en un intervalo de hasta 28 días.");
  const visit=visits.find(v=>v.id===f.id);
  if(visit?.status!=="scheduled")throw new ManageError("Selecciona una visita programada de esta empresa.",404);
- const window=accessWindow(visit.service_hours);
- if(!window)return {id:visit.id,revision:visit.revision,options:[],reason:"Registra el horario de acceso de la localidad como HH:mm–HH:mm (por ejemplo 09:00–17:00). Las restricciones por día deben verificarse con el cliente."};
+ const hasPolicy=w.policies?.policies.some(p=>p.property_id===visit.property_id);
+ const baseWindow=accessWindow(visit.service_hours);
+ if(!baseWindow&&!hasPolicy)return {id:visit.id,revision:visit.revision,options:[],reason:"Registra el horario de acceso de la localidad como HH:mm–HH:mm (por ejemplo 09:00–17:00). Las restricciones por día deben verificarse con el cliente."};
  if(!visit.planned_minutes||!visit.tasks.length)return {id:visit.id,revision:visit.revision,options:[],reason:"Completa las tareas y la duración antes de buscar horarios."};
  const options=[],duration=Number(visit.planned_minutes),travel=Number(visit.travel_minutes||0);
  const reserved=visits.filter(v=>v.id!==visit.id&&["scheduled","started","completed"].includes(v.status));
  // Do not bring a future contractual visit forward merely to clear the pending list.
  const firstDay=[f.from,planningDay(visit.scheduled_at)].sort().pop();
  for(let day=firstDay;day<=f.to;day=new Date(Date.parse(`${day}T12:00:00Z`)+86400000).toISOString().slice(0,10)){
+  const selected=hasPolicy?accessPolicyWindow(w.policies,visit.property_id,day,visit.service_hours).value:visit.service_hours,window=accessWindow(selected);if(!window)continue;
   if((visit.effective_from&&day<visit.effective_from)||(visit.effective_until&&day>visit.effective_until)||visit.contract_status!=="active"||visit.property_status!=="active")continue;
   for(const crew of w.crews){
    if(!crew.members.length||crew.members.some(p=>p.status!=="active")||(w.availability&&availabilityProblem(w.availability,day,crew.members.map(p=>p.employee_id))))continue;
-   const ids=new Set(crew.members.map(p=>p.employee_id)),capacity=minutes(crew.shift_end)-minutes(crew.shift_start)-Number(crew.break_minutes);
+   const crewIds=crew.members.map(p=>p.employee_id);
+   if(w.policies&&qualificationProblem(w.policies,day,crewIds,visit.tasks.map(t=>({...t,employee_id:crewIds.includes(t.employee_id)?t.employee_id:null}))))continue;
+   const ids=new Set(crewIds),capacity=minutes(crew.shift_end)-minutes(crew.shift_start)-Number(crew.break_minutes);
    const load=reserved.filter(v=>v.crew_id===crew.id&&planningDay(v.scheduled_at)===day).reduce((sum,v)=>sum+Number(v.planned_minutes||0)+Number(v.travel_minutes||0),0);
    if(load+duration+travel>capacity)continue;
    const start=Math.max(minutes(crew.shift_start)+travel,window.start),end=Math.min(minutes(crew.shift_end),window.end)-duration;
@@ -48,7 +54,7 @@ function slots(visits,w,f,now){
 }
 export async function suggestPendingSlots(db,input,now=new Date()){
  const f=parse(z.object({from:date,to:date}),input),[visits,w]=await Promise.all([visitList(db),workforce(db)]);
- w.availability=await availability(db);
+ w.availability=await availability(db);w.policies=await assignmentPolicies(db);
  const pending=visits.filter(v=>v.status==="scheduled"&&v.assignment_review_required).slice(0,50),proposals=[],blocked=[];
  for(const visit of pending){
   const result=slots(visits,w,{...f,id:visit.id},now),choice=result.options[0];
@@ -71,6 +77,7 @@ export async function applySlot(db,input){
  if(Date.parse(v.scheduled_at)<Date.now())throw new ManageError("No se reprograma en el pasado.");
  const [visits,w]=await Promise.all([visitList(db),workforce(db)]),old=visits.find(r=>r.id===v.id),crew=w.crews.find(r=>r.id===v.crew_id);
  if(!old||!crew)throw new ManageError("Selecciona una visita y cuadrilla propias.",404);
- if(!fitsAccess(v.scheduled_at,Number(old.planned_minutes),old.service_hours))throw new ManageError("El horario no cabe en el acceso registrado de la localidad.");
+ const policy=accessPolicyWindow(await assignmentPolicies(db),old.property_id,planningDay(v.scheduled_at),old.service_hours);
+ if(!policy.value||!fitsAccess(v.scheduled_at,Number(old.planned_minutes),policy.value))throw new ManageError("El horario no cabe en el acceso registrado de la localidad.");
  return saveVisit(db,{id:old.id,revision:v.revision,contract_id:old.contract_id,crew_id:crew.id,scheduled_at:v.scheduled_at,title:old.title||old.service,planned_minutes:old.planned_minutes,travel_minutes:old.travel_minutes,reschedule_reason:v.reason,tasks:old.tasks.map(t=>({...t,quantity:Number(t.quantity),employee_id:crew.members.some(p=>p.employee_id===t.employee_id)?t.employee_id:null}))});
 }

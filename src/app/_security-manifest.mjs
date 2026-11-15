@@ -157,6 +157,7 @@ export const defaultProfiles = [
 ];
 export const sectionPermission = {
 	materiales: "costs",
+	"reglas-operativas":"workforce",
 	comunicaciones:"communications",
 	portal:"portal",
 	empresas: "companies",

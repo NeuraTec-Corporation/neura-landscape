@@ -1,3 +1,4 @@
+import {lockOperationalPlan} from "./planning-lock.mjs";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { parse, date, text, audit, ManageError } from "./manage.mjs";
@@ -15,6 +16,8 @@ async function flagPending(tx){
 export async function saveAvailability(db,input){
  const reasonSchema=z.string().trim().min(5).max(500);
  return db.transaction(async tx=>{
+ await lockOperationalPlan(tx);
+
   // Same row lock as visit creation; adding an absence cannot race assignment.
   if(input.action==="calendar"){
    const v=parse(z.object({weekdays:z.array(z.number().int().min(0).max(6)).min(1).max(7),revision:z.number().int().nonnegative(),reason:reasonSchema}),input);

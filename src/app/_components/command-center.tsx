@@ -1,3 +1,4 @@
+import {AssignmentControls} from "./assignment-controls";
 import { RoutesWorkspace } from "./routes-workspace";
 import { CommunicationsWorkspace } from "./communications-workspace";
 import { CustomerPortal } from "./customer-portal";
@@ -20,6 +21,7 @@ import { ExperimentalNotice } from "@/shared/ui";
 import { CustomerWorkspace } from "./customer-workspace";
 import { PropertyWorkspace } from "./property-workspace";
 export const sections = [
+	{id:"reglas-operativas",label:"Reglas de asignación"},
 	{id:"recorridos",label:"Recorridos de cuadrillas"},
 	{id:"comunicaciones",label:"Comunicaciones"},
 	{id:"portal",label:"Portal del cliente"},
@@ -86,7 +88,7 @@ export function CommandCenter({ section }: { section: string }) {
 							</h1>
 						</div>
 					</div>
-					{section === "recorridos" ? (<RoutesWorkspace/>) : section === "comunicaciones" ? (<CommunicationsWorkspace/>) : section === "portal" ? (<CustomerPortal/>) : section === "empresas" ? (
+					{section === "reglas-operativas" ? (<AssignmentControls/>) : section === "recorridos" ? (<RoutesWorkspace/>) : section === "comunicaciones" ? (<CommunicationsWorkspace/>) : section === "portal" ? (<CustomerPortal/>) : section === "empresas" ? (
 						<CompaniesWorkspace />
 					) : section === "clientes" ? (
 						<CustomerWorkspace />

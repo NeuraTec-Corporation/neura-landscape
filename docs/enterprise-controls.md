@@ -1,5 +1,8 @@
 # Operational controls — implementation and activation
 
+This document records the OPS05 baseline. Current assignment, warehouse, asset,
+portal and provider-port extensions are in [assignment-controls.md](assignment-controls.md).
+
 This release extends the existing Landscape application and company namespaces.
 There is no second application, database copy, branch or paid service.
 
@@ -16,8 +19,8 @@ There is no second application, database copy, branch or paid service.
   with revision increments; no visit is silently cancelled or reassigned. An
   unconfigured calendar is explicitly reported, not assumed to mean weekdays.
   Existing crew shifts, travel, breaks, overlap and property access-window checks
-  continue to apply. Skill text is informational; certification/skill matching and
-  day-specific property access policies remain future work.
+  continue to apply. Structured qualification validity and day-specific property access policies
+  are now implemented by the assignment-controls extension.
 - **Maps:** Daily company/crew itinerary lists registered locations and opens
   Google Maps links. Mobile routes are split into at most four destinations per
   segment (three intermediate waypoints); the previous destination starts the
@@ -31,8 +34,8 @@ There is no second application, database copy, branch or paid service.
   corrections. It does not duplicate visit costs. An initial balance is not
   assumed: materials with no movement are shown as not inventoried. Equipment
   assets have unique codes, serials, responsible crews, status and maintenance
-  dates. Editing preserves audit history. This is company inventory, not a
-  multi-warehouse purchasing or automatic asset-reservation system.
+  dates. Editing preserves audit history. The assignment-controls extension adds multiple warehouses, physical asset
+  reservations and maintenance orders; purchasing is separate.
 - **Communications:** Drafts and reminders are stored per customer, with revision
   control, cancellation and history. Prepared messages may be opened manually in
   email/SMS/WhatsApp applications. A handoff record is not a delivery receipt.
@@ -76,9 +79,11 @@ There is no second application, database copy, branch or paid service.
   retention, independent backups, private object recovery, approved RPO/RTO and
   an actual hosted restore exercise remain pending, as do representative capacity
   and availability objectives. See [recovery.md](recovery.md).
-- Qualification/certification validation, multi-warehouse allocation and physical
-  asset reservations are not implemented here. Maintenance due dates are alerts,
-  not a maintenance work-order system or GPS telemetry.
+- The subsequent assignment-controls release implements recorded qualification
+  validity, weekly access policies, multiple warehouses, reservations and
+  maintenance orders. See [assignment-controls.md](assignment-controls.md) for
+  current behavior. Initial operational data and real provider/hosted recovery
+  acceptance remain distinct from implementation.
 
 ## Architecture and verification
 
