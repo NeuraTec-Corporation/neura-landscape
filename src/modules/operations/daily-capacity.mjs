@@ -1,3 +1,4 @@
+import {availabilityProblem} from "./calendar-policy.mjs";
 export const planningZone = "America/New_York";
 export function planningDay(value) {
 	const date = new Date(value);
@@ -14,7 +15,7 @@ function outside(v, crew) {
 	return minute(time) - Number(v.travel_minutes || 0) < minute(crew.shift_start) || minute(time) + Number(v.planned_minutes || 0) > minute(crew.shift_end);
 }
 /** Read-only planning aid; the existing saveVisit transaction remains authoritative. */
-export function dailyCapacity(crews, visits, day, candidate) {
+export function dailyCapacity(crews, visits, day, candidate, availability) {
 	const all = visits.filter((v) => active(v) && (!candidate || v.id !== candidate.id));
 	if (candidate) all.push(candidate);
 	return crews.map((crew) => {
@@ -22,7 +23,8 @@ export function dailyCapacity(crews, visits, day, candidate) {
 		const assigned = all.filter((v) => v.crew_id === crew.id && planningDay(v.scheduled_at) === day);
 		const work = assigned.reduce((n, v) => n + Number(v.planned_minutes || 0), 0);
 		const travel = assigned.reduce((n, v) => n + Number(v.travel_minutes || 0), 0);
-		const capacity = Math.max(0, minute(crew.shift_end) - minute(crew.shift_start) - Number(crew.break_minutes));
+		const unavailable=availability?availabilityProblem(availability,day,members.map(p=>p.employee_id)):null;
+		const capacity = unavailable?0:Math.max(0, minute(crew.shift_end) - minute(crew.shift_start) - Number(crew.break_minutes));
 		const collisions = new Set();
 		for (const v of assigned.filter((v) => v.status !== "completed")) {
 			const a = span(v), ids = new Set(people(v, crews));
@@ -33,6 +35,8 @@ export function dailyCapacity(crews, visits, day, candidate) {
 			}
 		}
 		const warnings = [];
+		if(unavailable)warnings.push(unavailable);
+		if(availability&&!availability.calendar)warnings.push("Días laborables aún sin confirmar en Empleados.");
 		if (!members.length || members.length !== crew.members.length) warnings.push("Personal incompleto o inactivo: revisa los integrantes.");
 		if (!capacity) warnings.push("El turno no tiene capacidad disponible.");
 		if (work + travel > capacity) warnings.push(`Sobrecarga de ${work + travel - capacity} min. Cambia fecha o cuadrilla.`);

@@ -1,3 +1,4 @@
+import { availability,saveAvailability } from "@/modules/operations/availability.mjs";
 import { companyRoute } from "../_company-route";
 import { suggestSlots, applySlot, suggestPendingSlots, applyPendingSlots } from "@/modules/operations/scheduling.mjs";
 import { reassignPending } from "@/modules/operations/reassignment.mjs";
@@ -59,7 +60,7 @@ async function handleGET(request: Request) {
 	try {
 		const db = await database();
 		let data: unknown;
-		if (area === "workforce") data = await workforce(db);
+		if (area === "workforce") data = {...(await workforce(db) as object),availability:await availability(db)};
 		else if (area === "visits" || area === "costs") {
 			data = await visitList(db);
 			if (area === "visits" && !capability(actor, "costs.read"))
@@ -118,6 +119,7 @@ async function handlePOST(request: Request) {
 			async () => {
 				const db = await database();
 				if (area === "workforce") {
+					if(input.entity === "availability")return saveAvailability(db,input);
 					if (input.entity === "employee")
 						return input.action === "delete"
 							? removeWorkforce(db, "employee", input)

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { AvailabilityPanel,type AvailabilityData } from "./availability-panel";
 import { DataDirectory } from "./data-directory";
 import { CatalogField, CatalogSelect, useCatalogs } from "./catalogs";
 import { PhoneField } from "@/shared/ui";
@@ -35,7 +36,7 @@ export type Crew = {
 	revision: number;
 	members: CrewMember[];
 };
-export type Workforce = { employees: Employee[]; crews: Crew[] };
+export type Workforce = { employees: Employee[]; crews: Crew[]; availability?:AvailabilityData };
 export function WorkforceWorkspace({ mode }: { mode: "employees" | "crews" }) {
 	const state = useManagement<Workforce>("workforce"),
 		c = useCatalogs(),
@@ -70,6 +71,7 @@ export function WorkforceWorkspace({ mode }: { mode: "employees" | "crews" }) {
 	return (
 		<div className="manage-workspace">
 			<Notices error={state.error} notice={state.notice} />
+			{mode==="employees"&&data?.availability?<AvailabilityPanel data={data.availability} employees={data.employees} busy={state.busy} onSave={state.save}/>:null}
 			<header className="manage-intro">
 				<div>
 					<p className="eyebrow">EQUIPO HUMANO</p>

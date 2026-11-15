@@ -1,3 +1,6 @@
+import { RoutesWorkspace } from "./routes-workspace";
+import { CommunicationsWorkspace } from "./communications-workspace";
+import { CustomerPortal } from "./customer-portal";
 import { CompaniesWorkspace } from "./companies-workspace";
 import { UserAccount } from "./user-account";
 import { WorkspaceNavigation } from "./workspace-navigation";
@@ -17,6 +20,9 @@ import { ExperimentalNotice } from "@/shared/ui";
 import { CustomerWorkspace } from "./customer-workspace";
 import { PropertyWorkspace } from "./property-workspace";
 export const sections = [
+	{id:"recorridos",label:"Recorridos de cuadrillas"},
+	{id:"comunicaciones",label:"Comunicaciones"},
+	{id:"portal",label:"Portal del cliente"},
 	{ id: "empresas", label: "Empresas" },
 	{ id: "resumen", label: "Panel gerencial" },
 	{ id: "clientes", label: "Clientes" },
@@ -80,7 +86,7 @@ export function CommandCenter({ section }: { section: string }) {
 							</h1>
 						</div>
 					</div>
-					{section === "empresas" ? (
+					{section === "recorridos" ? (<RoutesWorkspace/>) : section === "comunicaciones" ? (<CommunicationsWorkspace/>) : section === "portal" ? (<CustomerPortal/>) : section === "empresas" ? (
 						<CompaniesWorkspace />
 					) : section === "clientes" ? (
 						<CustomerWorkspace />

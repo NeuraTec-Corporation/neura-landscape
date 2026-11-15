@@ -1,3 +1,4 @@
+import { availability,availabilityProblem } from "./availability.mjs";
 import { z } from "zod";
 import { parse, date, ManageError } from "./manage.mjs";
 import { planningDay } from "./daily-capacity.mjs";
@@ -10,6 +11,7 @@ const span=v=>[Date.parse(v.scheduled_at)-Number(v.travel_minutes||0)*60000,Date
 export async function suggestSlots(db,input,now=new Date()){
  const f=parse(z.object({id:z.string().min(1),from:date,to:date}),input);
  const [visits,w]=await Promise.all([visitList(db),workforce(db)]);
+ w.availability=await availability(db);
  return slots(visits,w,f,now);
 }
 function slots(visits,w,f,now){
@@ -26,7 +28,7 @@ function slots(visits,w,f,now){
  for(let day=firstDay;day<=f.to;day=new Date(Date.parse(`${day}T12:00:00Z`)+86400000).toISOString().slice(0,10)){
   if((visit.effective_from&&day<visit.effective_from)||(visit.effective_until&&day>visit.effective_until)||visit.contract_status!=="active"||visit.property_status!=="active")continue;
   for(const crew of w.crews){
-   if(!crew.members.length||crew.members.some(p=>p.status!=="active"))continue;
+   if(!crew.members.length||crew.members.some(p=>p.status!=="active")||(w.availability&&availabilityProblem(w.availability,day,crew.members.map(p=>p.employee_id))))continue;
    const ids=new Set(crew.members.map(p=>p.employee_id)),capacity=minutes(crew.shift_end)-minutes(crew.shift_start)-Number(crew.break_minutes);
    const load=reserved.filter(v=>v.crew_id===crew.id&&planningDay(v.scheduled_at)===day).reduce((sum,v)=>sum+Number(v.planned_minutes||0)+Number(v.travel_minutes||0),0);
    if(load+duration+travel>capacity)continue;
@@ -46,6 +48,7 @@ function slots(visits,w,f,now){
 }
 export async function suggestPendingSlots(db,input,now=new Date()){
  const f=parse(z.object({from:date,to:date}),input),[visits,w]=await Promise.all([visitList(db),workforce(db)]);
+ w.availability=await availability(db);
  const pending=visits.filter(v=>v.status==="scheduled"&&v.assignment_review_required).slice(0,50),proposals=[],blocked=[];
  for(const visit of pending){
   const result=slots(visits,w,{...f,id:visit.id},now),choice=result.options[0];

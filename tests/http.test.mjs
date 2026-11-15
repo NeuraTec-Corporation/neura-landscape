@@ -704,7 +704,7 @@ test("security HTTP workflow stores profile grants and memberships atomically wi
 	};
 	let data = await get();
 	assert.equal(data.company.id, "landscape");
-	assert.equal(data.profiles.length, 7);
+	assert.equal(data.profiles.length, 8);
 	const profile = await post("/api/security", {
 		action: "profile",
 		name: "Consulta comercial",

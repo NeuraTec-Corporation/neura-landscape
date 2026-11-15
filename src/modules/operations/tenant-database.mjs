@@ -28,6 +28,9 @@ const businessFiles = [
 	"018_resource_ownership.sql",
 	"020_visit_resources.sql",
 	"022_resource_cost_baseline.sql",
+	"023_working_calendar.sql",
+	"024_inventory.sql",
+	"025_customer_engagement.sql",
 ];
 function namespace(schema) {
 	if (schema !== "public" && !/^tenant_[a-f0-9]{32}$/.test(schema))

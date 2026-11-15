@@ -1,4 +1,5 @@
 "use client";
+import { ReadinessPanel } from "./readiness-panel";
 import { useState } from "react";
 import { CatalogManager, useCatalogs } from "./catalogs";
 import { OperatorSettings } from "./operator-settings";
@@ -61,6 +62,7 @@ export function IntegrationsWorkspace() {
 	return (
 		<div className="manage-workspace">
 			<Notices error={state.error} />
+			<ReadinessPanel/>
 			<section className="panel">
 				<h2>Conexiones externas y almacenamiento</h2>
 				<p>

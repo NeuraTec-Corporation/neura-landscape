@@ -1,6 +1,8 @@
 // Landscape adapter: the reusable security module never imports this file.
 export const CURRENT_COMPANY = "landscape";
 const resources = [
+	["communications","Comunicaciones",["read","create","update"]],
+	["portal","Portal del cliente",["read"]],
 	["companies", "Empresas", ["read", "create", "update"]],
 	["dashboard", "Panel gerencial", ["read"]],
 	["customers", "Clientes", ["read", "create", "update"]],
@@ -69,6 +71,7 @@ const all = permissionRegistry.map((item) => item.key);
 const selected = (modules) =>
 	all.filter((key) => modules.includes(key.split(".")[0]));
 export const defaultProfiles = [
+	{key:"customer",name:"Cliente · portal privado",scope:"company",protected:false,grants:["portal.read"]},
 	{
 		key: "it_admin",
 		name: "IT",
@@ -110,6 +113,8 @@ export const defaultProfiles = [
 		protected: false,
 		grants: selected([
 			"dashboard",
+			"communications",
+			"portal",
 			"customers",
 			"properties",
 			"survey",
@@ -152,6 +157,8 @@ export const defaultProfiles = [
 ];
 export const sectionPermission = {
 	materiales: "costs",
+	comunicaciones:"communications",
+	portal:"portal",
 	empresas: "companies",
 	resumen: "dashboard",
 	control: "dashboard",
@@ -162,6 +169,7 @@ export const sectionPermission = {
 	empleados: "workforce",
 	cuadrillas: "workforce",
 	agenda: "visits",
+	recorridos:"visits",
 	costos: "costs",
 	facturacion: "finance",
 	configuracion: "settings",

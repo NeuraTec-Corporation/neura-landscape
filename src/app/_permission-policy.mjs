@@ -57,6 +57,7 @@ export function mutationAllowed(member, resource, input, method = "POST") {
 			capability(member, "contracts.update")
 		);
 	let action;
+	if(resource==="workforce"&&input.entity==="availability")return capability(member,"workforce.update");
 	if(resource==="visits"&&["reassign_pending","suggest_slots","apply_slot","suggest_batch","apply_batch"].includes(input.action)) action="update";
 	else if (
 		method === "DELETE" ||

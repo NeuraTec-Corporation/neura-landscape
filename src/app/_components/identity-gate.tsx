@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
+import { CustomerPortal } from "./customer-portal";
 import { LocalSignIn } from "./local-sign-in";
 import { SurveyWorkspace } from "./survey-workspace";
 import { WorkspaceAccess } from "./workspace-access";
@@ -157,10 +158,11 @@ export function IdentityGate({
 				googleConfigured={Boolean(access.googleConfigured)}
 			/>
 		);
+	if(access.enabled&&access.member?.security?.grants.length===1&&access.member.security.grants[0]==="portal.read")return <SessionContext.Provider value={access}><main className="crew-portal"><header className="panel"><h1>Mi servicio Landscape</h1><UserAccount/></header><CustomerPortal/></main></SessionContext.Provider>;
 	if (
 		access.enabled &&
 		access.member &&
-		["worker", "crew_lead"].includes(access.member.role)
+		access.member.security?.scope === "assigned"
 	)
 		return (
 			<SessionContext.Provider value={access}>

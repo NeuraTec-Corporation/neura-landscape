@@ -29,7 +29,7 @@ export async function saveResourceRates(db,input){
    const old=(await tx.query("SELECT * FROM operating_resources WHERE id=$1 AND deleted_at IS NULL FOR UPDATE",[l.id])).rows[0];
    if(!old||old.revision!==l.revision)throw new ManageError("Un recurso cambió o no pertenece a esta empresa. Recarga las tarifas.",409);
    const cents=l.unit_cost===""||l.unit_cost===null?null:Math.round(l.unit_cost*100);
-   await tx.query("UPDATE operating_resources SET unit_cost_cents=$2,revision=revision+1 WHERE id=$1",[l.id,cents]);
+   await tx.query("UPDATE operating_resources SET unit_cost_cents=$2,rate_basis='operator',revision=revision+1 WHERE id=$1",[l.id,cents]);
    await audit(tx,"resource",l.id,"rate_updated",{reason:v.reason,before:old.unit_cost_cents,after:cents});
   }
   return {updated:v.lines.length};
@@ -40,10 +40,12 @@ export async function saveResource(db,input) {
 	return db.transaction(async tx=>{
 		const old=v.id?(await tx.query("SELECT * FROM operating_resources WHERE id=$1 FOR UPDATE",[id])).rows[0]:null;
 		if(v.id&&(!old||old.deleted_at||old.revision!==v.revision))throw new ManageError("El recurso cambió. Recarga.",409);
+		if(old&&(old.category!==v.category||old.unit_key!==v.unit_key)&&((await tx.query("SELECT id FROM visit_resources WHERE resource_id=$1 UNION ALL SELECT id FROM stock_movements WHERE resource_id=$1 UNION ALL SELECT id FROM equipment_assets WHERE resource_id=$1 LIMIT 1",[id])).rows.length))throw new ManageError("Un recurso con historial conserva su tipo y unidad. Crea otro recurso para una unidad diferente.",409);
 		await requireOption(tx,"element_unit",v.unit_key,old?.unit_key);
 		const cents=v.unit_cost===""||v.unit_cost===null?null:Math.round(v.unit_cost*100);
-		if(old)await tx.query("UPDATE operating_resources SET name=$2,category=$3,unit_key=$4,unit_cost_cents=$5,status=$6,revision=revision+1 WHERE id=$1",[id,v.name,v.category,v.unit_key,cents,v.status]);
-		else await tx.query("INSERT INTO operating_resources(id,code,name,category,unit_key,unit_cost_cents,status) VALUES($1,$2,$3,$4,$5,$6,$7)",[id,await sequence(tx,"resource",v.category==="materials"?"MAT":"EQP"),v.name,v.category,v.unit_key,cents,v.status]);
+		const basis=old&&old.unit_cost_cents===cents?old.rate_basis:cents===null?"unconfirmed":"operator";
+		if(old)await tx.query("UPDATE operating_resources SET name=$2,category=$3,unit_key=$4,unit_cost_cents=$5,rate_basis=$7,status=$6,revision=revision+1 WHERE id=$1",[id,v.name,v.category,v.unit_key,cents,v.status,basis]);
+		else await tx.query("INSERT INTO operating_resources(id,code,name,category,unit_key,unit_cost_cents,status,rate_basis) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",[id,await sequence(tx,"resource",v.category==="materials"?"MAT":"EQP"),v.name,v.category,v.unit_key,cents,v.status,basis]);
 		await audit(tx,"resource",id,old?"updated":"created",{before:old,after:v});return {id};
 	});
 }
@@ -80,10 +82,10 @@ export async function saveResourcePlan(db,input){
 			if(!resource||(!previous&&(resource.deleted_at||resource.status!=="active")))throw new ManageError("Selecciona un recurso activo de esta empresa.");
 			if((previous?.unit_key||resource.unit_key)==="each"&&!Number.isInteger(l.planned_quantity))throw new ManageError("Las unidades previstas deben ser enteras.");
 			if(resource.unit_cost_cents!==null&&l.planned_quantity*resource.unit_cost_cents>100000000)throw new ManageError("El costo previsto supera el máximo permitido.");
-			lines.push({...l,id:previous?.id||randomUUID(),name_snapshot:previous?.name_snapshot||resource.name,category:previous?.category||resource.category,unit_key:previous?.unit_key||resource.unit_key,unit_cost_cents:previous?previous.unit_cost_cents:resource.unit_cost_cents});
+			lines.push({...l,id:previous?.id||randomUUID(),rate_basis:previous?.rate_basis||resource.rate_basis,name_snapshot:previous?.name_snapshot||resource.name,category:previous?.category||resource.category,unit_key:previous?.unit_key||resource.unit_key,unit_cost_cents:previous?previous.unit_cost_cents:resource.unit_cost_cents});
 		}
 		await tx.query("DELETE FROM visit_resources WHERE visit_id=$1",[v.id]);
-		for(const l of lines)await tx.query("INSERT INTO visit_resources(id,visit_id,resource_id,name_snapshot,category,unit_key,unit_cost_cents,actual_unit_cost_cents,planned_quantity) VALUES($1,$2,$3,$4,$5,$6,$7,$7,$8)",[l.id,v.id,l.resource_id,l.name_snapshot,l.category,l.unit_key,l.unit_cost_cents,l.planned_quantity]);
+		for(const l of lines)await tx.query("INSERT INTO visit_resources(id,visit_id,resource_id,name_snapshot,category,unit_key,unit_cost_cents,actual_unit_cost_cents,planned_quantity,rate_basis) VALUES($1,$2,$3,$4,$5,$6,$7,$7,$8,$9)",[l.id,v.id,l.resource_id,l.name_snapshot,l.category,l.unit_key,l.unit_cost_cents,l.planned_quantity,l.rate_basis]);
 		await tx.query("UPDATE visits SET revision=revision+1,resources_prepared=true WHERE id=$1",[v.id]);await recalculate(tx,v.id);await audit(tx,"visit_resource_plan",v.id,"prepared",{before:old,after:lines});return {id:v.id};
 	});
 }
@@ -109,9 +111,20 @@ export async function resourceReport(db,id,financial=true){
 		const actualMinutes=plannedPerson.n&&plannedPerson.reported===plannedPerson.n?plannedPerson.actual:null;
 		const tasks=(await tx.query("SELECT service_key,unit,sum(quantity)::float8 planned,sum(completed_quantity)::float8 actual,count(*)::int n,count(completed_quantity)::int reported FROM visit_tasks WHERE visit_id=$1 GROUP BY service_key,unit ORDER BY service_key,unit",[id])).rows;
 		const productivity=tasks.map(t=>({...t,actual:t.reported===t.n?t.actual:null,per_person_hour:actualMinutes>0&&t.reported===t.n?Math.round(t.actual/(actualMinutes/60)*1000)/1000:null}));
-		const lines=rows.map(r=>({id:r.id,resource_id:r.resource_id,name:r.name_snapshot,category:r.category,unit_key:r.unit_key,planned_quantity:Number(r.planned_quantity),actual_quantity:r.actual_quantity===null?null:Number(r.actual_quantity),notes:r.notes,...(financial?{unit_cost_cents:r.actual_unit_cost_cents,planned_cents:r.unit_cost_cents===null?null:Math.round(Number(r.planned_quantity)*r.unit_cost_cents),actual_cents:r.actual_quantity===null||r.actual_unit_cost_cents===null?null:Math.round(Number(r.actual_quantity)*r.actual_unit_cost_cents)}:{})}));
+		const lines=rows.map(r=>({id:r.id,resource_id:r.resource_id,name:r.name_snapshot,rate_basis:r.rate_basis,category:r.category,unit_key:r.unit_key,planned_quantity:Number(r.planned_quantity),actual_quantity:r.actual_quantity===null?null:Number(r.actual_quantity),notes:r.notes,...(financial?{unit_cost_cents:r.actual_unit_cost_cents,planned_cents:r.unit_cost_cents===null?null:Math.round(Number(r.planned_quantity)*r.unit_cost_cents),actual_cents:r.actual_quantity===null||r.actual_unit_cost_cents===null?null:Math.round(Number(r.actual_quantity)*r.actual_unit_cost_cents)}:{})}));
 		const known=lines.every(l=>l.actual_cents!==null&&l.actual_cents!==undefined),planKnown=lines.every(l=>l.planned_cents!==null&&l.planned_cents!==undefined);
 		const totals=financial?{planned_cents:visit.resources_prepared&&planKnown?lines.reduce((s,l)=>s+l.planned_cents,0):null,actual_cents:visit.resources_prepared&&known?lines.reduce((s,l)=>s+l.actual_cents,0):null}:{};
 		return {visit:{id:visit.id,revision:visit.revision,status:visit.status,resources_prepared:visit.resources_prepared},lines,person_minutes:{planned:personMinutes,actual:actualMinutes},productivity,...(financial?{totals}:{} )};
 	});
+}
+
+export async function setEvaluationRates(db){
+ return db.transaction(async tx=>{
+  const rows=(await tx.query("SELECT * FROM operating_resources WHERE deleted_at IS NULL AND unit_cost_cents IS NULL ORDER BY id FOR UPDATE")).rows;
+  for(const r of rows){const cents=r.category==="equipment"?1800:r.unit_key==="bag"?1200:500;
+   await tx.query("UPDATE operating_resources SET unit_cost_cents=$2,rate_basis='evaluation',revision=revision+1 WHERE id=$1",[r.id,cents]);
+   await audit(tx,"resource",r.id,"evaluation_rate",{unit_cost_cents:cents,basis:"synthetic_evaluation",note:"Not a supplier quote; existing visit baselines unchanged"});
+  }
+  return {updated:rows.length};
+ });
 }

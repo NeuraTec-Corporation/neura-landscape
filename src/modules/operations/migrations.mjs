@@ -23,6 +23,10 @@ const files = [
 	"020_visit_resources.sql",
 	"021_crew_execution.sql",
 	"022_resource_cost_baseline.sql",
+	"023_working_calendar.sql",
+	"024_inventory.sql",
+	"025_customer_engagement.sql",
+	"026_engagement_permissions.sql",
 ];
 export async function migrate(db, advisory = false) {
 	await db.transaction(async (tx) => {
@@ -49,7 +53,7 @@ export async function migrate(db, advisory = false) {
 			const schema = company.schema_name;
 			if (!/^tenant_[a-f0-9]{32}$/.test(schema))
 				throw Error("Invalid company migration namespace");
-			for(const [version,file] of [[18,"018_resource_ownership.sql"],[20,"020_visit_resources.sql"],[22,"022_resource_cost_baseline.sql"]]) if (
+			for(const [version,file] of [[18,"018_resource_ownership.sql"],[20,"020_visit_resources.sql"],[22,"022_resource_cost_baseline.sql"],[23,"023_working_calendar.sql"],[24,"024_inventory.sql"],[25,"025_customer_engagement.sql"]]) if (
 				!(
 					await tx.query(
 						`SELECT version FROM "${schema}".schema_migrations WHERE version=$1`,[version],

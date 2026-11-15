@@ -15,7 +15,7 @@ export function CapacitySummary({ value }: { value: DailyCapacity }) {
 }
 export function CapacityBoard({ workforce, visits, busy, canEdit, onEdit }: { workforce: Workforce; visits: Visit[]; busy: boolean; canEdit: boolean; onEdit: (visit: Visit) => void }) {
 	const [day, setDay] = useState(() => planningDay(new Date()));
-	const rows = dailyCapacity(workforce.crews, visits, day);
+	const rows = dailyCapacity(workforce.crews, visits, day,undefined,workforce.availability);
 	const pending = visits.filter((v) => v.status === "scheduled" && v.assignment_review_required);
 	return <section className="panel capacity-board" aria-label="Capacidad diaria y reasignaciones">
 		<div className="manage-actions"><div><p className="eyebrow">PLANIFICACIÓN DE JORNADA</p><h2>Personas, tiempo y asignaciones</h2></div><label>Día de trabajo · New York<input type="date" value={day} onChange={(e) => setDay(e.target.value)} required /></label></div>

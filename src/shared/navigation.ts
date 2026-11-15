@@ -18,13 +18,15 @@ export const navigationGroups = [
 			},
 			{ id: "presupuestos", label: "Presupuestos", href: "/presupuestos" },
 			{ id: "contratos", label: "Contratos", href: "/contratos" },
+			{id:"comunicaciones",label:"Comunicaciones",href:"/comunicaciones"},
+			{id:"portal",label:"Portal del cliente",href:"/portal"},
 		],
 	},
 	{
 		id: "operacion",
 		label: "Operación",
 		icon: "calendar",
-		items: [{ id: "agenda", label: "Trabajos y agenda", href: "/agenda" }],
+		items: [{ id: "agenda", label: "Trabajos y agenda", href: "/agenda" },{id:"recorridos",label:"Recorridos de cuadrillas",href:"/recorridos"}],
 	},
 	{
 		id: "recursos",

@@ -1,3 +1,4 @@
+import { availability, availabilityProblem } from "./availability.mjs";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { parse, ManageError, text, revision, audit, money } from "./manage.mjs";
@@ -128,6 +129,8 @@ export async function saveVisit(db, input) {
 			throw new ManageError(
 				"Identifica y activa a todos los integrantes de la cuadrilla antes de programar.",
 			);
+		const unavailable=availabilityProblem(await availability(tx),serviceDay,people.map(p=>p.id));
+		if(unavailable)throw new ManageError(unavailable,409);
 		const begin = new Date(v.scheduled_at).getTime() - v.travel_minutes * 60000,
 			end = new Date(v.scheduled_at).getTime() + v.planned_minutes * 60000;
 		const collisions = await tx.query(

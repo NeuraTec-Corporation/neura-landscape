@@ -390,7 +390,7 @@ export function VisitsWorkspace() {
 	const preview = crew && !Number.isNaN(previewDate.getTime()) && Number(plannedMinutes) > 0 && Number(travelMinutes) >= 0
 		? dailyCapacity(workforce?.crews ?? [], state.data ?? [], planningDay(previewDate), {
 			id: editing?.id ?? "unsaved-capacity-preview", crew_id: crew.id, scheduled_at: previewDate.toISOString(), status: "scheduled", planned_minutes: Number(plannedMinutes), travel_minutes: Number(travelMinutes), personnel: people.map((p) => ({ employee_id: p.employee_id })),
-		}).find((row) => row.id === crew.id) : null;
+		},workforce?.availability).find((row) => row.id === crew.id) : null;
 	const known =
 			people.length > 0 && people.every((p) => p.hourly_cents !== null),
 		hourly = people.reduce((sum, p) => sum + Number(p.hourly_cents || 0), 0);
