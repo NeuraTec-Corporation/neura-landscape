@@ -1,5 +1,10 @@
 # PostgreSQL recovery and concurrency drill
 
+The owner-approved seven-calendar-year policy and the OPS07 company checkpoint
+procedure are specified in [evaluation data and retention](evaluation-data.md).
+Checkpoint decryption/integrity verification is not a hosted restore drill or an
+independent external backup. No archival deletion is enabled.
+
 First executed successfully in [CI 42568189488, PostgreSQL job](https://github.com/NeuraTec-Corporation/neura-landscape/actions/runs/42568189488/job/128999252169)
 on 2026-11-09, source `94bf21470ac839d2a1b51753537ccda71203da7f`.
 This closes the synthetic PostgreSQL restore and bounded contention checks only;
