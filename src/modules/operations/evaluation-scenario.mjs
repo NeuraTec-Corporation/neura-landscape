@@ -33,6 +33,9 @@ export async function evaluationCheckpoint(db) {
 	for (const table of tables) {
 		if (!/^[a-z_]+$/.test(table)) throw new ManageError("Nombre de tabla no permitido.");
 		data[table] = (await db.query(`SELECT to_jsonb(t)::text row FROM "${table}" t ORDER BY to_jsonb(t)::text`)).rows.map(r => JSON.parse(r.row));
+		// This mutex may be created by the first write after a portfolio transfer.
+		// It is synchronization state, not a customer/document sequence or data change.
+		if(table==='entity_sequences')data[table]=data[table].filter(r=>r.entity!=='operational_lock');
 	}
 	const serialized = JSON.stringify(data);
 	if (Buffer.byteLength(serialized) > 24 * 1024 * 1024) throw new ManageError("El respaldo requiere una exportación de mayor capacidad.", 413);
@@ -44,6 +47,8 @@ export async function evaluationCoverage(db) {
 	for (const table of ["customers", "properties", "contracts", "employees", "crews", "visits", "visit_tasks", "invoices", "payments", "operating_resources", "equipment_assets", "stock_movements", "employee_qualifications", "maintenance_orders", "employee_absences"]) {
 		counts[table] = Number((await db.query(`SELECT count(*) n FROM ${table}`)).rows[0].n);
 	}
+	counts.operating_employees=Number((await db.query("SELECT count(*) n FROM employees WHERE NOT reference_only AND deleted_at IS NULL AND status='active'")).rows[0].n);
+	counts.operating_crews=Number((await db.query("SELECT count(*) n FROM crews WHERE NOT reference_only AND deleted_at IS NULL")).rows[0].n);
 	const groups = async sql => (await db.query(sql)).rows;
 	return {
 		counts,
@@ -97,7 +102,7 @@ export async function enrichEvaluation(db, { confirmed, environment, profile, ex
 		for (const [i,c] of customers.entries()) {
 			const g = geography[(i*3+config.offset)%geography.length];
 			await tx.query("UPDATE customer_addresses SET line1=$2,line2='Referencia geográfica pública; cuenta ficticia',city=$3,region='NJ',postal_code=$4,country='US',latitude=$5,longitude=$6 WHERE customer_id=$1",[c.customer_id,g[0],g[1],g[2],g[3],g[4]]);
-			await tx.query("UPDATE customer_contacts SET phone_mobile=$2,preferred_channel=$3,contact_from=$4,contact_to=$5,consent_sms=false,consent_whatsapp=false,consent_email=false WHERE customer_id=$1",[c.customer_id,`+120155501${String(i%100).padStart(2,'0')}`,["email","phone","sms","whatsapp"][i%4],i%2?"09:00":"15:00",i%2?"12:00":"18:00"]);
+			await tx.query("UPDATE customer_contacts SET phone_mobile=$2,preferred_channel=$3,preferred_phone='mobile',contact_from=$4,contact_to=$5,consent_sms=false,consent_whatsapp=false,consent_email=false WHERE customer_id=$1",[c.customer_id,`+120155501${String(i%100).padStart(2,'0')}`,i%2?'call':'email',i%2?"09:00":"15:00",i%2?"12:00":"18:00"]);
 			if(i%3===0) await tx.query("INSERT INTO customer_contacts(id,customer_id,first_name,last_name,relationship,roles,email,preferred_channel,preferred_phone,contact_from,contact_to) VALUES($1,$2,$3,$4,$5,$6::jsonb,$7,'email','mobile','09:00','17:00')",[randomUUID(),c.customer_id,["Mariela","Samuel","Teresa","Joaquín"][i%4],["Márquez","Villalobos","Pineda","Santana"][i%4],i%2?'representative':'spouse',JSON.stringify(["notifications"]),`contacto.${profile}.${i}@example.invalid`]);
 		}
 		const contracts = (await tx.query("SELECT c.* FROM contracts c JOIN properties p ON p.id=c.property_id JOIN sample_scenario_records s ON s.entity='contract' AND s.entity_id=c.id WHERE c.deleted_at IS NULL AND c.source_offer_id IS NULL ORDER BY p.code,c.id")).rows;
@@ -188,7 +193,7 @@ export async function enrichEvaluation(db, { confirmed, environment, profile, ex
 			await changeInvoice(scoped,{id,revision:1,action:'issue'});
 			if(i!==1)await mark('payment',(await savePayment(scoped,{invoice_id:id,revision:2,received_date:`${year}-02-01`,amount,method:'bank',reference:reason})).id);
 		}
-		const staff=(await tx.query("SELECT e.* FROM employees e JOIN sample_scenario_records s ON s.entity='employee' AND s.entity_id=e.id WHERE e.deleted_at IS NULL AND e.status='active' ORDER BY e.code")).rows;
+		const staff=(await tx.query("SELECT e.* FROM employees e JOIN sample_scenario_records s ON s.entity='employee' AND s.entity_id=e.id WHERE e.deleted_at IS NULL AND e.status='active' AND NOT e.reference_only ORDER BY e.code")).rows;
 		for(const [i,e] of staff.entries()) {
 			await tx.query("UPDATE employees SET skills=$2,revision=revision+1 WHERE id=$1",[e.id,["Césped y bordes; conducción de cortadora","Poda ornamental; conservación de frutales","Riego y detección de fugas","Siembra y preparación de suelos"][i%4]]);
 			await mark('qualification',(await saveQualification(scoped,{employee_id:e.id,service_key:'pruning',valid_from:dateAt(day,-180),valid_until:dateAt(day,i%4===0?-1:180),certificate_ref:`FORM-${profile.toUpperCase()}-${String(i+1).padStart(3,'0')}`,reason})).id);

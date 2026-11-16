@@ -14,6 +14,7 @@ test('differentiated scenario is transactional, reconciled and idempotent; nativ
 		await migrate(db);
 		await loadSampleOperations(db,{confirmed:true,environment:'preview',actor:'audit',now:new Date('2026-11-16T16:00Z')});
 		await db.query("INSERT INTO customers(id,name) VALUES('manual-preserved','Registro original')");
+		await db.query("DELETE FROM entity_sequences WHERE entity='operational_lock'");
 		const backup=await evaluationCheckpoint(db);
 		assert.equal(backup.data.user,undefined);assert.equal(backup.data.security_profiles,undefined);
 		await assert.rejects(enrichEvaluation(db,{confirmed:true,environment:'production',profile:'rojas',expectedDigest:backup.digest}),e=>e.status===403);
