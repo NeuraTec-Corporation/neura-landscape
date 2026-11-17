@@ -8,6 +8,9 @@ async function main(){
  const origin=new URL(config.origin);if(origin.protocol!=='https:'&&!['127.0.0.1','localhost'].includes(origin.hostname))throw Error('Invalid backup origin');
  const headers={Origin:origin.origin,Authorization:`Bearer ${config.token}`,'Content-Type':'application/json'};
  if(config.vercelAutomationBypass)headers['x-vercel-protection-bypass']=config.vercelAutomationBypass;
+ // An authorized short-lived verification session may exercise the agent once.
+ // It is never saved in configuration or treated as permanent daily access.
+ if(process.env.NEURATEC_BACKUP_VERIFICATION_COOKIE)headers.Cookie=process.env.NEURATEC_BACKUP_VERIFICATION_COOKIE;
  const r=await fetch(new URL('/api/backups',origin),{method:'POST',headers,body:JSON.stringify({action:'create',confirmed:true,key:config.key}),redirect:'manual',signal:AbortSignal.timeout(310000)});
  if(!r.ok)throw Error(`Backup not downloaded (${r.status}). Check agent authorization and Vercel deployment protection. No files were replaced.`);
  const bytes=Buffer.from(await r.arrayBuffer());if(digest(bytes)!==r.headers.get('x-backup-sha256'))throw Error('Download fingerprint mismatch');
