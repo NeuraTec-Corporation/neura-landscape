@@ -26,7 +26,7 @@ async function handleGET(request: Request) {
 				role: actor.role,
 				grants: actor.security?.grants || [],
 				allowedSections: Object.entries(sectionPermission)
-					.filter(([, resource]) => capability(actor, `${resource}.read`))
+					.filter(([section, resource]) => (section!=='respaldos'||actor.platform_it) && capability(actor, `${resource}.read`))
 					.map(([section]) => section),
 				canEdit: capability(actor, "catalogs.update"),
 				manageableCategories: Object.keys(metadata.categories).filter(

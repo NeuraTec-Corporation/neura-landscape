@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "description": "NeuraTec Landscape — Experimental Modular AI Operating Platform",
   "scripts": {
+    "backup:pull": "node scripts/backup-local.mjs",
+    "backup:restore": "node scripts/restore-backup.mjs",
     "dev": "node --env-file-if-exists=.env.local scripts/dev.mjs",
     "build": "node scripts/build.mjs",
     "start": "node scripts/start.mjs",

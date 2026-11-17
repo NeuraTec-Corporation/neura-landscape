@@ -1,6 +1,7 @@
 # Landscape application boundaries
 
 Permanent reuse/adoption contracts: [reusable modules](reusable-modules.md).
+Reusable backup core and local agent/restore contracts: [backups](backups.md).
 Synthetic operational scenarios, geography and calendar retention: [OPS07](evaluation-data.md).
 
 Current incremental model: one modular Next.js application, the existing PostgreSQL database, and the existing feature branch. No second product, Core clone or microservice was introduced.

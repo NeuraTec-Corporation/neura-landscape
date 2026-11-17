@@ -148,3 +148,10 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Encrypted recovery artifacts and private agent configuration stay outside Git.
+/backups/
+*.private.json
+*.key
+*.dpapi
+*.nbackup

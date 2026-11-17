@@ -54,6 +54,7 @@ export const navigationGroups = [
 		items: [
 			{ id: "empresas", label: "Empresas", href: "/empresas" },
 			{ id: "usuarios", label: "Usuarios y permisos", href: "/usuarios" },
+			{ id: "respaldos", label: "Respaldos", href: "/respaldos" },
 			{
 				id: "configuracion",
 				label: "Empresa y catálogos",
@@ -71,6 +72,7 @@ export function navigationFor(
 		.map((g) => ({
 			...g,
 			items: g.items.filter((i) => {
+				if(i.id==='respaldos'&&role!=='it_admin')return false;
 				if (allowedSections) return allowedSections.includes(i.id);
 				if (!role) return i.id === "resumen";
 				if (["owner", "it_admin"].includes(role)) return true;

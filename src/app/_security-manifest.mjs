@@ -156,6 +156,7 @@ export const defaultProfiles = [
 	},
 ];
 export const sectionPermission = {
+	respaldos:"security",
 	materiales: "costs",
 	"reglas-operativas":"workforce",
 	comunicaciones:"communications",
