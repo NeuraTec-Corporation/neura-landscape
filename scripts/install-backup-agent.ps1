@@ -6,7 +6,7 @@ if (-not $settings.token -or -not $settings.key -or -not $settings.origin) { thr
 $configDirectory = Join-Path (Split-Path -Parent $PSScriptRoot) '.data\backup-agent'
 New-Item -ItemType Directory -Path $configDirectory -Force | Out-Null
 $protectedPath = Join-Path $configDirectory 'config.dpapi'
-$raw | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString | Set-Content -LiteralPath $protectedPath
+$raw | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString | Set-Content -LiteralPath $protectedPath -NoNewline
 if ($RegisterDaily) {
   $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -NonInteractive -WindowStyle Hidden -File "{0}" -ProtectedConfig "{1}"' -f (Join-Path $PSScriptRoot 'backup-agent.ps1'),$protectedPath) -WorkingDirectory (Split-Path -Parent $PSScriptRoot)
   $trigger = New-ScheduledTaskTrigger -Daily -At $At

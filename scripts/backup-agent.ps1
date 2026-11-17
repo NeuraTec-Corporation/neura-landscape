@@ -1,6 +1,6 @@
 param([Parameter(Mandatory=$true)][string]$ProtectedConfig)
 $ErrorActionPreference = 'Stop'
-$secure = Get-Content -LiteralPath $ProtectedConfig -Raw | ConvertTo-SecureString
+$secure = ConvertTo-SecureString (Get-Content -LiteralPath $ProtectedConfig -Raw).Trim()
 $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
 try {
   $env:NEURATEC_BACKUP_CONFIG = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer)
