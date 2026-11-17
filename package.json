@@ -4,6 +4,7 @@
   "description": "NeuraTec Landscape — Experimental Modular AI Operating Platform",
   "scripts": {
     "backup:pull": "node scripts/backup-local.mjs",
+    "backup:health": "node scripts/backup-health.mjs",
     "backup:restore": "node scripts/restore-backup.mjs",
     "dev": "node --env-file-if-exists=.env.local scripts/dev.mjs",
     "build": "node scripts/build.mjs",

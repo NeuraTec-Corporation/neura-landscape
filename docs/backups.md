@@ -102,6 +102,35 @@ secretos y configuración de proveedores siguen siendo una aceptación separada.
 
 ## Conservación
 
+### Ejecución diaria versionada y comprobación operativa
+
+Los ejecutores completos están en `scripts/backup-daily.ps1` y
+`scripts/activate-backup-daily.ps1`, por lo que forman parte del código del kit de
+recuperación. El lanzador instalado anteriormente en `outputs` puede delegar al
+ejecutor versionado; no requiere otra tarea o rama. Los secretos y el destino
+permanecen en `.data/backup-agent`, fuera de Git. Para instalaciones nuevas,
+proteger primero la configuración y ejecutar el activador con la carpeta de Drive
+existente mediante `-DriveFolder`. El activador verifica un respaldo y su copia
+antes de registrar el horario; no sobrescribe una tarea ajena ni crea carpetas
+Drive duplicadas. Solo los ZIP se copian, nunca las claves o configuración.
+
+`npm run backup:health` no descarga ni restaura datos. Comprueba la última
+ejecución local, antigüedad máxima de 36 horas, huella SHA-256 del ZIP y coincidencia
+con la fuente actual. Escribe `.data/backup-agent/health.json` y devuelve código 1
+ante evidencia incompleta, deterioro, antigüedad o cambio de versión. No acredita
+por sí mismo ejecución del Programador de tareas ni recepción en Google Drive.
+El proceso diario conserva `daily-status.json`, también al fallar. No hay alertas
+externas ni servicio de monitoreo permanente activado.
+
+Cada nuevo kit incorpora `retention-screening.json`: conteos por namespace de
+facturas activas, antiguas pagadas pendientes de revisión, saldos/borradores
+retenidos y datos inválidos. Usa el año actual en America/New_York; se recalcula
+con cada respaldo y cambia automáticamente de corte al pasar de año. Se calcula
+sobre el snapshot cifrado ya descargado, sin otra consulta a la base hospedada.
+No publica nombres, direcciones ni facturas individuales. Es screening de
+antigüedad y saldo, no archivo relacional completo: no comprueba reclamaciones,
+holds ni cierre de dependencias. No autoriza archivo/purga ni elimina datos.
+
 Aplicar siete años calendario según evaluation-data.md. Los kits son copias de
 recuperación fechadas, no ramas/copies de desarrollo ni órdenes de purga. No se
 eliminan automáticamente copias o documentos por antigüedad. Versionar, custodiar
