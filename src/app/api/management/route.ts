@@ -82,8 +82,8 @@ async function handleGET(request: Request) {
 				database: process.env.DATABASE_URL ? "cloud" : "local",
 				identityConfigured: authConfigured(),
 				identityEnabled: process.env.APP_AUTH_ENABLED === "true",
-				placesConfigured: Boolean(process.env.GOOGLE_PLACES_API_KEY),
-				routingConfigured: false,
+				placesConfigured: process.env.LANDSCAPE_MAPS_ENABLED === "true" && Boolean(process.env.GOOGLE_PLACES_API_KEY),
+				routingConfigured: process.env.LANDSCAPE_MAPS_ENABLED === "true" && Boolean(process.env.GOOGLE_ROUTES_API_KEY),
 				mediaBackend:
 					process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN
 						? "private_blob"

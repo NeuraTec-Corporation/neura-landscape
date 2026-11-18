@@ -126,9 +126,7 @@ export function IntegrationsWorkspace() {
 								: "Google Places pendiente"}
 						</span>
 						<p>
-							Actualmente se capturan direcciones y coordenadas manualmente. La
-							ficha puede abrir el entorno en mapas. No se ha activado
-							facturación de Google.
+							{data.placesConfigured ? "Búsqueda de direcciones con Google Places y coordenadas al seleccionar una sugerencia. Uso del piloto limitado por cuotas diarias y mensuales compartidas." : "Puedes capturar direcciones y coordenadas manualmente mientras se configura Google Places."}
 						</p>
 					</article>
 					<article className="panel integration-card">
@@ -137,11 +135,11 @@ export function IntegrationsWorkspace() {
 						</span>
 						<h3>Optimización de rutas</h3>
 						<span className="status-tag pending">
-							Proveedor de carreteras pendiente
+							{data.routingConfigured ? "Google Routes configurado" : "Proveedor de carreteras pendiente"}
 						</span>
 						<p>
 							La agenda controla personas, solapamientos y capacidad del turno.
-							El orden de paradas y el traslado previsto siguen siendo manuales.
+							En Recorridos puedes proponer un orden por tiempos de carretera, acceso y retorno. No incluye tráfico en vivo ni cambia automáticamente la agenda.
 						</p>
 					</article>
 					<article className="panel integration-card">

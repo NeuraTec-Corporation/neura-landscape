@@ -1,12 +1,14 @@
 import { companyRoute } from "../_company-route";
 import { authorizedRequest as allowedRequest } from "../_identity";
+import { globalDatabase } from "@/modules/operations/index.mjs";
+import { reserveMaps, MapsError } from "@/modules/maps/index.mjs";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 async function handleGET(request: Request) {
 	if (!(await allowedRequest(request)))
 		return Response.json({ error: "Acceso no permitido." }, { status: 403 });
 	const key = process.env.GOOGLE_PLACES_API_KEY;
-	if (!key) return Response.json({ enabled: false, suggestions: [] });
+	if (!key || process.env.LANDSCAPE_MAPS_ENABLED !== "true") return Response.json({ enabled: false, suggestions: [] });
 	const url = new URL(request.url);
 	const place = url.searchParams.get("place");
 	const q = url.searchParams.get("q") ?? "";
@@ -14,6 +16,7 @@ async function handleGET(request: Request) {
 		if (place) {
 			if (!/^[A-Za-z0-9_-]{5,300}$/.test(place))
 				return Response.json({ error: "Lugar inválido." }, { status: 400 });
+			await reserveMaps(await globalDatabase(), "details");
 			const r = await fetch(
 				`https://places.googleapis.com/v1/places/${encodeURIComponent(place)}`,
 				{
@@ -52,6 +55,7 @@ async function handleGET(request: Request) {
 		}
 		if (q.length < 4 || q.length > 200)
 			return Response.json({ enabled: true, suggestions: [] });
+		await reserveMaps(await globalDatabase(), "autocomplete");
 		const r = await fetch(
 			"https://places.googleapis.com/v1/places:autocomplete",
 			{
@@ -87,14 +91,14 @@ async function handleGET(request: Request) {
 				)
 				.slice(0, 5),
 		});
-	} catch {
+	} catch (error) {
 		return Response.json(
 			{
-				error: "No se pudo consultar el proveedor de direcciones.",
+				error: error instanceof MapsError ? error.message : "No se pudo consultar el proveedor de direcciones.",
 				enabled: true,
 				suggestions: [],
 			},
-			{ status: 502 },
+			{ status: error instanceof MapsError ? error.status : 502 },
 		);
 	}
 }

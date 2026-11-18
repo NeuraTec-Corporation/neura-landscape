@@ -235,9 +235,9 @@ function AddressLookup({
 				.then((result) => {
 					setSuggestions(result.suggestions ?? []);
 					setNote(
-						result.enabled === false
+						result.error || (result.enabled === false
 							? "Búsqueda de direcciones no disponible. Puedes completar los campos manualmente."
-							: "",
+							: ""),
 					);
 				})
 				.catch((e) => {
