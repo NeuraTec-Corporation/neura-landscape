@@ -1,0 +1,12 @@
+ALTER TABLE properties ADD COLUMN deleted_at timestamptz;
+ALTER TABLE contracts ADD COLUMN status text NOT NULL DEFAULT 'active' CHECK(status IN ('draft','active','paused','ended','cancelled'));
+ALTER TABLE contracts ADD COLUMN revision integer NOT NULL DEFAULT 1;
+ALTER TABLE contracts ADD COLUMN deleted_at timestamptz;
+CREATE TABLE location_sequences(operator text NOT NULL, year integer NOT NULL, value integer NOT NULL, PRIMARY KEY(operator,year));
+CREATE TABLE service_audit(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, entity text NOT NULL, entity_id text NOT NULL, event text NOT NULL, occurred_at timestamptz NOT NULL DEFAULT now());
+ALTER TABLE visits DROP CONSTRAINT visits_status_check;
+ALTER TABLE visits ADD CONSTRAINT visits_status_check CHECK(status IN ('scheduled','started','completed','cancelled'));
+ALTER TABLE visits ADD COLUMN planned_revenue_cents integer;
+UPDATE visits v SET planned_revenue_cents=round(c.monthly_cents::numeric/c.visits_per_month) FROM contracts c WHERE c.id=v.contract_id;
+INSERT INTO schema_migrations VALUES(4);
+CREATE TABLE operator_settings(id integer PRIMARY KEY CHECK(id=1), code text NOT NULL);

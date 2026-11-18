@@ -1,0 +1,29 @@
+"use client";
+import {useContext,useEffect,useState,useCallback} from 'react';
+import {SessionContext} from './user-account';
+type Run={id:number;occurred_at:string;event:string;details:{tables?:number;rows?:number;bytes?:number;sha256?:string}};
+type Agent={id:string;expires:string;revoked:boolean};
+const base64=(bytes:Uint8Array)=>btoa(String.fromCharCode(...bytes));
+function download(bytes:BlobPart,name:string,type:string){const url=URL.createObjectURL(new Blob([bytes],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);}
+export function BackupWorkspace(){
+ const {member}=useContext(SessionContext),[key,setKey]=useState<Uint8Array|null>(null),[runs,setRuns]=useState<Run[]>([]),[agents,setAgents]=useState<Agent[]>([]),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ const load=useCallback(async()=>{const r=await fetch('/api/backups',{cache:'no-store'});if(!r.ok)throw Error('No se pudo consultar el historial.');const data=await r.json();setRuns(data.history);setAgents(data.agents);},[]);
+ useEffect(()=>{if(member?.platform_it)load().catch(e=>setMessage(e.message));},[member?.platform_it,load]);
+ if(!member?.platform_it)return <section className="panel"><h2>Respaldos de plataforma</h2><p>Esta sección está reservada al administrador IT de NeuraTec.</p></section>;
+ async function act(action:string,id?:string){setBusy(true);setMessage('');try{
+  if(!key&&action!=='revoke_agent')throw Error('Genera o carga primero tu clave de respaldo.');
+  const r=await fetch('/api/backups',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,id,confirmed:true,key:key?base64(key):undefined})});
+  if(!r.ok){const data=await r.json();throw Error(data.error);}
+  if(action==='create'){download(await r.blob(),`neura-respaldo-${new Date().toISOString().replaceAll(':','-')}.zip`,'application/zip');setMessage('Paquete cifrado generado para descarga. Comprueba su almacenamiento antes de considerarlo una copia externa.');}
+  else if(action==='issue_agent'){if(!key)throw Error('Carga la clave antes de configurar el agente.');const data=await r.json();download(JSON.stringify({origin:data.origin,token:data.token,key:base64(key),expires:data.expires,output:'backups/automaticos'},null,2),'neura-backup-agent.private.json','application/json');setMessage('Configuración privada descargada. Instálala con el agente local y protege o elimina el archivo después de convertirlo a protección Windows.');}
+  else setMessage('Agente revocado.');await load();
+ }catch(e){setMessage(e instanceof Error?e.message:'No se pudo completar.');}finally{setBusy(false);}}
+ return <div className="manage-stack">
+  <section className="panel"><h2>Protección y recuperación</h2><p>Respalda todas las empresas, usuarios, contraseñas cifradas de acceso, perfiles y archivos privados disponibles. Las sesiones activas y los secretos de proveedores se recuperan por separado.</p><p>La restauración se hace únicamente en un destino local vacío; esta pantalla nunca reemplaza la base publicada.</p></section>
+  <section className="panel"><h2>1 · Clave independiente</h2><p>Guarda esta clave separada del ZIP. Sin ella no se puede recuperar el paquete. No se conserva en el servidor.</p><div className="manage-actions"><button type="button" disabled={busy} onClick={()=>{const bytes=crypto.getRandomValues(new Uint8Array(32));setKey(bytes);download(bytes,'neura-respaldo.key','application/octet-stream');setMessage('Clave generada y preparada para descarga. Consérvala bajo custodia independiente.');}}>Generar clave</button><label>Cargar clave existente<input type="file" accept=".key" disabled={busy} onChange={async e=>{const file=e.target.files?.[0];if(!file)return;const bytes=new Uint8Array(await file.arrayBuffer());if(bytes.length!==32){setMessage('La clave debe contener exactamente 32 bytes.');return;}setKey(bytes);setMessage('Clave cargada para esta sesión.');}}/></label><span role="status">{key?'Clave preparada':'Sin clave cargada'}</span></div></section>
+  <section className="panel"><h2>2 · Crear y guardar</h2><p>Genera un ZIP con datos cifrados, manifiesto y huella. El kit completo con el código se arma desde el checkout mediante el agente local.</p><div className="manage-actions"><button type="button" disabled={busy||!key} onClick={()=>act('create')}>{busy?'Procesando…':'Descargar respaldo cifrado'}</button><button type="button" disabled={busy||!key} onClick={()=>act('issue_agent')}>Preparar agente automático</button></div><p>El agente requiere un equipo disponible y un destino local o carpeta sincronizada autorizada. Drive y la protección de Vercel requieren configuración permanente; descargar esta configuración no activa una tarea.</p></section>
+  {message?<p className="panel" role="status">{message}</p>:null}
+  <section className="panel"><h2>Historial reciente</h2><div style={{overflowX:'auto'}}><table><thead><tr><th>Fecha</th><th>Resultado</th><th>Tablas</th><th>Registros</th><th>Tamaño</th></tr></thead><tbody>{runs.slice(0,7).map(r=><tr key={r.id}><td>{new Date(r.occurred_at).toLocaleString('es')}</td><td>{r.event==='generated'?'Generado para descarga':'No completado'}</td><td>{r.details.tables??'—'}</td><td>{r.details.rows??'—'}</td><td>{r.details.bytes?`${Math.round(r.details.bytes/1024)} KB`:'—'}</td></tr>)}</tbody></table></div>{!runs.length?<p>Aún no hay respaldos generados desde este módulo.</p>:null}</section>
+  <section className="panel"><h2>Agentes autorizados</h2>{agents.map(a=><div key={a.id} className="manage-actions"><span>Agente {a.id.slice(0,8)} · vence {new Date(a.expires).toLocaleDateString('es')} · {a.revoked?'Revocado':'Autorizado'}</span><button type="button" disabled={busy||a.revoked} onClick={()=>act('revoke_agent',a.id)}>Revocar</button></div>)}</section>
+ </div>;
+}

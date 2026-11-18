@@ -1,0 +1,17 @@
+"use client";
+import type { OperatingComparison } from "@/modules/operations/operating-comparison.mjs";
+import { PagedTable } from "./paged-collection";
+import { usd } from "./management-shared";
+import { useCatalogs } from "./catalogs";
+import "./resource-workspace.css";
+const count=(v:number|null)=>v===null?"Pendiente":`${v} min`;
+const amount=(v:number|null)=>v===null?"Pendiente":usd(v);
+export function OperatingComparisonBoard({data}:{data:OperatingComparison}){
+ const s=data.summary,c=useCatalogs();
+ return <section className="panel resource-workspace" aria-label="Plan frente a ejecución"><div className="manage-actions"><div><p className="eyebrow">CONTROL DE DESVIACIONES</p><h2>Lo previsto frente a lo realizado</h2></div><a className="button-link" href="/materiales">Configurar recursos y tarifas</a></div>
+ <div className="manage-kpis"><article><span>Tiempo adicional · minutos-persona</span><strong>{s.time_compared?s.actual_person_minutes-s.planned_person_minutes:"Pendiente"}</strong><small>{s.time_compared} de {s.closed} visitas cerradas comparables</small></article><article><span>Desviación de mano de obra y recursos</span><strong>{s.cost_compared?usd(s.actual_cost_cents-s.planned_cost_cents):"Pendiente"}</strong><small>{s.cost_compared} de {s.closed} visitas cerradas con ambos costos conocidos</small></article><article><span>Preparación o tarifa pendiente</span><strong>{s.resource_plan_pending}</strong><small>visitas del filtro sin costo previsto de recursos completo</small></article><article><span>Consumo o valoración pendientes</span><strong>{s.resource_actual_pending}</strong><small>visitas cerradas sin costo real de recursos completo</small></article></div>
+ <p>Positivo = más tiempo o costo que el plan; negativo = menos. Se comparan las mismas visitas con ambos valores conocidos. El costo comparado incluye mano de obra y recursos preparados; otros costos manuales, traslados e indirectos se revisan en Costos. No representa utilidad neta ni facturación.</p>
+ <details><summary>Ver comparativo por visita</summary><div className="resource-table"><PagedTable label="Comparativo por visita"><table><thead><tr><th>Cliente / localidad</th><th>Cuadrilla / fecha</th><th>Tiempo previsto / real</th><th>Costo previsto / real</th><th>Desviación</th><th>Detalle</th></tr></thead><tbody>{data.rows.map(r=><tr key={r.id}><td>{r.customer_name}<br/>{r.property_name}</td><td>{r.crew_name}<br/>{new Date(r.scheduled_at).toLocaleDateString("es-US",{timeZone:"America/New_York"})}</td><td>{count(r.planned_person_minutes)} / {count(r.actual_person_minutes)}</td><td>{amount(r.planned_cost_cents)} / {amount(r.actual_cost_cents)}</td><td>{count(r.time_delta)}<br/>{amount(r.cost_delta)}</td><td><a href={`/costos?visit_id=${r.id}`}>Ver costos</a></td></tr>)}</tbody></table></PagedTable></div></details>
+ <details><summary>Producción prevista y realizada · visitas cerradas</summary><div className="resource-table"><PagedTable label="Producción comparada"><table><thead><tr><th>Servicio / unidad</th><th>Previsto</th><th>Realizado</th><th>Diferencia</th></tr></thead><tbody>{data.production.map(p=><tr key={`${p.service_key}-${p.unit}`}><td>{c.label("service",p.service_key)} · {c.label("element_unit",p.unit)}</td><td>{p.planned}</td><td>{p.actual??"Pendiente"}</td><td>{p.actual===null?"Pendiente":p.actual-p.planned}</td></tr>)}</tbody></table></PagedTable></div></details>
+ </section>;
+}

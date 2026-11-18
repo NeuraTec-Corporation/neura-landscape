@@ -1,0 +1,10 @@
+CREATE TABLE warehouses(id text PRIMARY KEY,code text NOT NULL UNIQUE,name text NOT NULL,status text NOT NULL CHECK(status IN('active','inactive')),enforce_stock boolean NOT NULL DEFAULT false,revision integer NOT NULL DEFAULT 1);
+INSERT INTO warehouses VALUES('main','PRINCIPAL','Almacén principal','active',false,1);
+ALTER TABLE stock_movements ADD COLUMN warehouse_id text NOT NULL DEFAULT 'main' REFERENCES warehouses(id);
+ALTER TABLE stock_movements ADD COLUMN movement_kind text NOT NULL DEFAULT 'adjustment' CHECK(movement_kind IN('adjustment','count','visit','transfer'));
+ALTER TABLE stock_movements ADD COLUMN counted_balance numeric;
+ALTER TABLE stock_movements DROP CONSTRAINT stock_movements_quantity_check;
+ALTER TABLE stock_movements ADD CONSTRAINT stock_movement_amount CHECK(quantity<>0 OR movement_kind='count');
+ALTER TABLE visit_resources ADD COLUMN warehouse_id text NOT NULL DEFAULT 'main' REFERENCES warehouses(id);
+CREATE INDEX stock_warehouse_resource ON stock_movements(warehouse_id,resource_id);
+INSERT INTO schema_migrations VALUES(28);

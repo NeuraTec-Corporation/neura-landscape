@@ -1,0 +1,93 @@
+export const navigationGroups = [
+	{
+		id: "inicio",
+		label: "Inicio",
+		icon: "home",
+		items: [{ id: "resumen", label: "Panel gerencial", href: "/" }],
+	},
+	{
+		id: "comercial",
+		label: "Comercial",
+		icon: "people",
+		items: [
+			{ id: "clientes", label: "Clientes", href: "/clientes" },
+			{
+				id: "propiedades",
+				label: "Propiedades y localidades",
+				href: "/propiedades",
+			},
+			{ id: "presupuestos", label: "Presupuestos", href: "/presupuestos" },
+			{ id: "contratos", label: "Contratos", href: "/contratos" },
+			{id:"comunicaciones",label:"Comunicaciones",href:"/comunicaciones"},
+			{id:"portal",label:"Portal del cliente",href:"/portal"},
+		],
+	},
+	{
+		id: "operacion",
+		label: "Operación",
+		icon: "calendar",
+		items: [{ id: "agenda", label: "Trabajos y agenda", href: "/agenda" },{id:"recorridos",label:"Recorridos de cuadrillas",href:"/recorridos"},{id:"reglas-operativas",label:"Reglas de asignación",href:"/reglas-operativas"}],
+	},
+	{
+		id: "recursos",
+		label: "Recursos",
+		icon: "crew",
+		items: [
+			{ id: "empleados", label: "Empleados", href: "/empleados" },
+			{ id: "cuadrillas", label: "Cuadrillas", href: "/cuadrillas" },
+			{ id: "materiales", label: "Materiales y equipos", href: "/materiales" },
+		],
+	},
+	{
+		id: "finanzas",
+		label: "Finanzas",
+		icon: "money",
+		items: [
+			{ id: "costos", label: "Costos y rentabilidad", href: "/costos" },
+			{ id: "facturacion", label: "Facturas y cobros", href: "/facturacion" },
+		],
+	},
+	{
+		id: "sistema",
+		label: "Sistema",
+		icon: "settings",
+		items: [
+			{ id: "empresas", label: "Empresas", href: "/empresas" },
+			{ id: "usuarios", label: "Usuarios y permisos", href: "/usuarios" },
+			{ id: "respaldos", label: "Respaldos", href: "/respaldos" },
+			{
+				id: "configuracion",
+				label: "Empresa y catálogos",
+				href: "/configuracion",
+			},
+			{ id: "integraciones", label: "Integraciones", href: "/integraciones" },
+		],
+	},
+] as const;
+export function navigationFor(
+	role: string | undefined,
+	allowedSections?: string[],
+) {
+	return navigationGroups
+		.map((g) => ({
+			...g,
+			items: g.items.filter((i) => {
+				if(i.id==='respaldos'&&role!=='it_admin')return false;
+				if (allowedSections) return allowedSections.includes(i.id);
+				if (!role) return i.id === "resumen";
+				if (["owner", "it_admin"].includes(role)) return true;
+				if (role === "manager")
+					return !["usuarios", "integraciones"].includes(i.id);
+				if (role === "finance")
+					return [
+						"resumen",
+						"costos",
+						"facturacion",
+						"contratos",
+						"presupuestos",
+					].includes(i.id);
+				return false;
+			}),
+		}))
+		.filter((g) => g.items.length);
+}
