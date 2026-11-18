@@ -5,6 +5,7 @@ import { useEffect, useId, useState } from "react";
 import { CatalogSelect, useCatalogs } from "./catalogs";
 import { PhoneField } from "@/shared/ui";
 import { PropertyWorkspace } from "./property-workspace";
+import { GoogleAddressSearch } from "./google-address-search";
 function validationLocation(path: string) {
 	const parts = path.split(".");
 	const section =
@@ -209,90 +210,8 @@ function Field({
 		</div>
 	);
 }
-function AddressLookup({
-	address,
-	onChange,
-}: {
-	address: Address;
-	onChange: (v: Address) => void;
-}) {
-	const [query, setQuery] = useState("");
-	const [suggestions, setSuggestions] = useState<
-		{ id: string; label: string }[]
-	>([]);
-	const [note, setNote] = useState("");
-	useEffect(() => {
-		if (query.length < 4) {
-			setSuggestions([]);
-			return;
-		}
-		const controller = new AbortController();
-		const timer = setTimeout(() => {
-			fetch(`/api/addresses?q=${encodeURIComponent(query)}`, {
-				signal: controller.signal,
-			})
-				.then((r) => r.json())
-				.then((result) => {
-					setSuggestions(result.suggestions ?? []);
-					setNote(
-						result.error || (result.enabled === false
-							? "Búsqueda de direcciones no disponible. Puedes completar los campos manualmente."
-							: ""),
-					);
-				})
-				.catch((e) => {
-					if (e.name !== "AbortError")
-						setNote(
-							"No se pudo buscar la dirección. Completa los campos manualmente.",
-						);
-				});
-		}, 350);
-		return () => {
-			clearTimeout(timer);
-			controller.abort();
-		};
-	}, [query]);
-	return (
-		<div className="address-lookup">
-			<Field
-				label="Buscar dirección"
-				value={query}
-				onChange={setQuery}
-				placeholder="Escribe calle, ciudad o código postal"
-			/>
-			{note ? <small>{note}</small> : null}
-			{suggestions.length ? (
-				<ul aria-label="Direcciones sugeridas">
-					{suggestions.map((s) => (
-						<li key={s.id}>
-							<button
-								type="button"
-								onClick={async () => {
-									try {
-										const r = await fetch(
-											`/api/addresses?place=${encodeURIComponent(s.id)}`,
-										);
-										const value = await r.json();
-										if (!r.ok) throw new Error();
-										onChange({ ...address, ...value.address });
-										setSuggestions([]);
-										setQuery("");
-										setNote(
-											"Dirección seleccionada. Revisa los datos antes de guardar.",
-										);
-									} catch {
-										setNote("No se pudo recuperar la dirección.");
-									}
-								}}
-							>
-								{s.label}
-							</button>
-						</li>
-					))}
-				</ul>
-			) : null}
-		</div>
-	);
+function AddressLookup({address,onChange}:{address:Address;onChange:(v:Address)=>void}) {
+ return <GoogleAddressSearch onSelect={value=>onChange({...address,...value})}/>;
 }
 export function CustomerWorkspace() {
 	const catalogs = useCatalogs();

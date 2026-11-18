@@ -2,6 +2,7 @@
 import { CatalogSelect, useCatalogs } from "./catalogs";
 import { DataDirectory } from "./data-directory";
 import { SurveyWorkspace } from "./survey-workspace";
+import { GoogleAddressSearch } from "./google-address-search";
 import { useEffect, useId, useState, useRef } from "react";
 import { getCountries } from "libphonenumber-js";
 import { PhoneField } from "@/shared/ui";
@@ -513,6 +514,7 @@ export function PropertyWorkspace({
 										la dirección del cliente no modificarán este lugar.
 									</p>
 								</div>
+								<GoogleAddressSearch onSelect={({line1,line2,city,region,postal_code,country,latitude,longitude})=>setDraft(old=>old?{...old,line1,line2,city,region,postal_code,country,latitude,longitude}:old)}/>
 								{profile?.addresses.length ? (
 									<div className="crm-field">
 										<label htmlFor="copy-customer-address">
