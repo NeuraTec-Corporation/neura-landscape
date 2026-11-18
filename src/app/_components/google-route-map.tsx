@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 type Location={id:string;property_name:string;latitude:number|null;longitude:number|null};
-type MapInstance={fitBounds:(bounds:unknown)=>void};
-type Overlay={setMap:(map:null)=>void;addListener:(event:string,callback:()=>void)=>void};
+type MapInstance={fitBounds:(bounds:unknown)=>void;setZoom:(zoom:number)=>void;getZoom:()=>number|undefined;addListener:(event:string,callback:()=>void)=>{remove:()=>void}};
+type Overlay={setMap:(map:null)=>void;setRadius:(radius:number)=>void;addListener:(event:string,callback:()=>void)=>void};
 type MapsSDK={Map:new(node:HTMLElement,options:object)=>MapInstance;Circle:new(options:object)=>Overlay;LatLngBounds:new()=>{extend:(point:object)=>void};InfoWindow:new(options:object)=>{open:(options:object)=>void;close:()=>void}};
 type MapsWindow=Window&{google?:{maps:MapsSDK};landscapeMapReady?:()=>void};
 let sdkPromise:Promise<MapsSDK>|null=null;
@@ -23,14 +23,15 @@ export function GoogleRouteMap({stops,configured}:{stops:Location[];configured:b
  useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
  useEffect(()=>{
   if(!ready||!map.current||!sdk.current)return;
-  const api=sdk.current,bounds=new api.LatLngBounds(),overlays:Overlay[]=[],windows:{close:()=>void}[]=[];
+  const api=sdk.current,current=map.current,bounds=new api.LatLngBounds(),overlays:Overlay[]=[],windows:{close:()=>void}[]=[],listeners:{remove:()=>void}[]=[];
   for(const stop of stops){if(stop.latitude===null||stop.longitude===null)continue;const center={lat:stop.latitude,lng:stop.longitude};bounds.extend(center);
    const dot=new api.Circle({map:map.current,center,radius:30,fillColor:"#b9d578",fillOpacity:1,strokeColor:"#163d30",strokeWeight:3});
+   const resize=()=>dot.setRadius(9*156543.03392*Math.cos(center.lat*Math.PI/180)/(2**(current.getZoom()??12)));resize();listeners.push(current.addListener("zoom_changed",resize));
    const label=document.createElement("strong");label.textContent=stop.property_name;
    const info=new api.InfoWindow({content:label,position:center});dot.addListener("click",()=>{for(const w of windows)w.close();info.open({map:map.current});});overlays.push(dot);windows.push(info);
   }
-  if(overlays.length)map.current.fitBounds(bounds);
-  return()=>{for(const dot of overlays)dot.setMap(null);for(const info of windows)info.close();};
+  if(overlays.length){current.fitBounds(bounds);if(overlays.length===1)current.setZoom(16);}
+  return()=>{for(const listener of listeners)listener.remove();for(const dot of overlays)dot.setMap(null);for(const info of windows)info.close();};
  },[stops,ready]);
  async function activate(){setBusy(true);setError("");try{
   const r=await fetch("/api/routes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"load_map"})}),data=await r.json();if(!r.ok)throw Error(data.error);
